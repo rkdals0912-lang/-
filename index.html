@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.2 — 자유 서식 편집 / 버그 수정</title>
+<title>KSA 라벨 출력 시스템 v4.4 — 제품마스터 Excel 일괄 업로드</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -254,7 +254,7 @@
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · 공유 DB · v4.2</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.4</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -304,6 +304,11 @@
           <div><label>Batch 수</label><input type="number" id="batchCount" value="1" min="1" max="9"></div>
         </div>
         <label>Batch 번호(순번)</label><input type="number" id="batchSeq" value="1" min="1" max="99">
+        <div id="manualLotWrap" style="display:none;">
+          <label>LOT 직접입력 (마지막 3자리)</label>
+          <input type="text" class="field" id="manualLotInput" maxlength="3" placeholder="예: A01 / 001" autocomplete="off">
+          <div class="lockednote">선택한 LOT 규칙에 <b>{INPUT3}</b>가 있을 때만 사용합니다.</div>
+        </div>
         <label>총 드럼 수</label><input type="number" id="batchDrums" min="1">
         <label>드럼당 중량 kg</label><input type="number" id="batchWeight" min="1">
         <label>용량 (Approxi, L)</label><input type="number" id="volumeInput" min="0" placeholder="예: 190">
@@ -323,6 +328,10 @@
         <div class="row2">
           <div><label>Batch 수</label><input type="number" id="reissueBatchCount" value="1" min="1" max="9"></div>
           <div><label>Batch 순번</label><input type="number" id="reissueBatchSeq" value="1" min="1" max="99"></div>
+        </div>
+        <div id="reissueManualLotWrap" style="display:none;">
+          <label>LOT 직접입력 (마지막 3자리)</label>
+          <input type="text" class="field" id="reissueManualLotInput" maxlength="3" placeholder="예: A01 / 001" autocomplete="off">
         </div>
         <div class="row2">
           <div><label>드럼 번호</label><input type="number" id="reissueDrum" value="1" min="1"></div>
@@ -561,6 +570,21 @@
           </select>
         </div>
 
+        <div class="bulkPanel" style="border-color:#9db4d4;background:#f7fbff;">
+          <h3>Excel 일괄 등록 / 수정</h3>
+          <div class="masterHint" style="margin-top:0;">
+            엑셀에서 <b>품목코드 / 품목명(약어) / 정식 품명 / 색상 / TYPE / 제품군 / 사용 여부 / LOT 규칙 / 드럼 수 / 중량 / 용량 / USE BY / 비고</b>를 한 번에 관리합니다.<br>
+            같은 품목코드는 수정, 없는 품목코드는 신규 등록됩니다.
+          </div>
+          <div class="bulkActions">
+            <button class="btn btn-ghost" id="pmExcelTemplateBtn">엑셀 양식 다운로드</button>
+            <button class="btn btn-ghost" id="pmExcelExportBtn">현재 마스터 엑셀 내보내기</button>
+            <button class="btn btn-primary" id="pmExcelImportBtn">엑셀 일괄 업로드</button>
+            <input type="file" id="pmExcelFile" accept=".xlsx,.xls" style="display:none;">
+          </div>
+          <div id="pmExcelResult" class="masterHint" style="display:none;"></div>
+        </div>
+
         <div class="bulkPanel">
           <h3>일괄 수정</h3>
           <div class="selectAllRow">
@@ -608,10 +632,11 @@
         <input type="text" class="field" id="lrPattern" placeholder="예: {YY}{MM}{DD} {M}{BC}-{BS}-{DRUM}">
         <div class="lotRuleTokenWrap">
           <span class="lotToken">{YYYY}</span><span class="lotToken">{YY}</span><span class="lotToken">{MM}</span><span class="lotToken">{DD}</span>
+          <span class="lotToken">{YCODE}</span><span class="lotToken">{MCODE}</span><span class="lotToken">{DCODE}</span><span class="lotToken">{INPUT3}</span>
           <span class="lotToken">{MACHINE}</span><span class="lotToken">{M}</span><span class="lotToken">{BC}</span><span class="lotToken">{BS}</span>
           <span class="lotToken">{DRUM}</span><span class="lotToken">{DRUM2}</span><span class="lotToken">{CODE}</span><span class="lotToken">{SHORT}</span><span class="lotToken">{COLOR}</span>
         </div>
-        <div class="lockednote">토큰은 원하는 순서로 조합할 수 있습니다. 공백, 하이픈(-), 슬래시(/) 등 구분자도 패턴에 직접 입력하세요.</div>
+        <div class="lockednote">토큰은 원하는 순서로 조합할 수 있습니다. <b>{YCODE}/{MCODE}/{DCODE}</b>는 다우식 연·월·일 코드 변환, <b>{INPUT3}</b>는 작업자가 직접 넣는 3자리 값입니다. 공백, 하이픈(-), 슬래시(/) 등 구분자도 패턴에 직접 입력하세요.</div>
 
         <label>사용기한 계산</label>
         <select id="lrExpiryMode">
@@ -681,6 +706,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="./config.js"></script>
 <script>
 window.KSA_DB_READY = false;
@@ -847,6 +873,8 @@ function defaultLotRules(){
   return [
     {id:'LOT_HBF_STD',name:'HBF 기본형',pattern:'{YY}{MM}{DD} {M}{BC}-{BS}',expiryMode:'fixed_days',expiryValue:365,expiryFormat:'YYYY-MM-DD',description:'HBF 기본: 일자 + 설비 + Batch',system:true},
     {id:'LOT_DONGEUN_DRUM',name:'동은 드럼별',pattern:'{YY}{MM}{DD} {M}{BC}-{BS}-{DRUM}',expiryMode:'product_months',expiryValue:12,expiryFormat:'YYYY.MM',description:'동은 OEM: 드럼번호 포함',system:true},
+    {id:'LOT_DOW',name:'다우 LOT',pattern:'YY00{YCODE}{MCODE}{DCODE}T51',expiryMode:'product_months',expiryValue:18,expiryFormat:'YYYY-MM-DD',description:'다우식 날짜 코드 + 고정 T51',system:true},
+    {id:'LOT_DATE_INPUT3',name:'날짜 + 직접입력 3자리',pattern:'{YY}{MM}{DD}-{INPUT3}',expiryMode:'product_months',expiryValue:12,expiryFormat:'YYYY-MM-DD',description:'YYMMDD + 작업자 직접입력 3자리',system:true},
     {id:'LOT_DATE_ONLY',name:'날짜형',pattern:'{YY}{MM}{DD}',expiryMode:'product_months',expiryValue:12,expiryFormat:'YYYY-MM-DD',description:'날짜만 사용하는 단순 LOT',system:true}
   ];
 }
@@ -1013,12 +1041,30 @@ function formatExpiry(d,format){
   if(format==='YYMMDD') return `${yy}${m}${day}`;
   return `${y}-${m}-${day}`;
 }
+function dowYearCode(year){
+  const chars='MNOPQRSTU';
+  const idx=Number(year)-2022;
+  return (idx>=0 && idx<chars.length) ? chars[idx] : '?';
+}
+function dowMonthCode(month){
+  const chars='123456789ABC';
+  const idx=Number(month)-1;
+  return (idx>=0 && idx<chars.length) ? chars[idx] : '?';
+}
+function dowDayCode(day){
+  const chars='123456789ABCDEFGHIJKLMNOPQRSTUV';
+  const idx=Number(day)-1;
+  return (idx>=0 && idx<chars.length) ? chars[idx] : '?';
+}
 function renderLotPattern(pattern,order,drumNo,p){
   const d=new Date(order.date+'T00:00:00'),f=fmtDate(d);
   const machine=String(order.machine||'');
   const m=machine.replace(/[^0-9]/g,'') || machine;
+  const input3=String(order.manualLotInput||'').trim().toUpperCase();
   const vals={
     YYYY:String(d.getFullYear()), YY:f.yy, MM:f.mm, DD:f.dd,
+    YCODE:dowYearCode(d.getFullYear()), MCODE:dowMonthCode(d.getMonth()+1), DCODE:dowDayCode(d.getDate()),
+    INPUT3:input3 || '___',
     MACHINE:machine, M:m,
     BC:String(order.batchCount??''), BS:pad2(order.batchSeq||1),
     DRUM:String(drumNo??1), DRUM2:pad2(drumNo??1),
@@ -1198,14 +1244,37 @@ function renderOrderList(){
     renderOrderList();await saveWorkOrders();flash('작업지시를 삭제했습니다');
   }));
 }
+function productUsesManualInput3(product){
+  if(!product) return false;
+  const rule=getLotRuleById(getProductLotRuleId(product));
+  return String(rule?.pattern||'').includes('{INPUT3}');
+}
+function updateManualLotInputVisibility(){
+  const p=ALL_PRODUCTS[+$('product').value];
+  const show=productUsesManualInput3(p);
+  if($('manualLotWrap')) $('manualLotWrap').style.display=show?'block':'none';
+  if(!show && $('manualLotInput')) $('manualLotInput').value='';
+}
+function updateReissueManualLotInputVisibility(){
+  const p=ALL_PRODUCTS[+$('reissueProduct').value];
+  const show=productUsesManualInput3(p);
+  if($('reissueManualLotWrap')) $('reissueManualLotWrap').style.display=show?'block':'none';
+  if(!show && $('reissueManualLotInput')) $('reissueManualLotInput').value='';
+}
+function validManualInput3(value){ return /^[A-Za-z0-9]{3}$/.test(String(value||'').trim()); }
+
 $('orderFilter').addEventListener('change',renderOrderList);
 
 $('addOrder').addEventListener('click',async()=>{
+  const selectedProduct=ALL_PRODUCTS[+$('product').value];
+  const needsInput3=productUsesManualInput3(selectedProduct);
+  const manualLotInput=String($('manualLotInput')?.value||'').trim().toUpperCase();
+  if(needsInput3 && !validManualInput3(manualLotInput)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력하세요',true);return;}
   const order={
     id:Date.now(),date:$('prodDate').value||todayISO(),shift:$('shift').value,productIdx:+$('product').value,
     machine:$('machine').value,batchCount:$('batchCount').value||'1',batchSeq:+$('batchSeq').value||1,
     batchDrums:+$('batchDrums').value,batchWeight:+$('batchWeight').value,
-    volume:$('volumeInput').value?+$('volumeInput').value:null,includeBasic:$('includeBasic').checked,status:'pending'
+    volume:$('volumeInput').value?+$('volumeInput').value:null,includeBasic:$('includeBasic').checked,manualLotInput,status:'pending'
   };
   workOrders.push(order); await saveWorkOrders(); renderOrderList(); flash(`${order.date} 작업지시를 추가했습니다`);
   $('batchSeq').value=order.batchSeq+1;
@@ -1235,7 +1304,9 @@ $('completeOrder').addEventListener('click',async()=>{const o=activeOrder();if(!
 
 $('genReissue').addEventListener('click',()=>{
   const p=ALL_PRODUCTS[+$('reissueProduct').value];
-  const fakeOrder={date:$('reissueDate').value||todayISO(),machine:$('reissueMachine').value,batchCount:$('reissueBatchCount').value||'1',batchSeq:+$('reissueBatchSeq').value||1,productIdx:+$('reissueProduct').value,volume:$('reissueVolume').value?+$('reissueVolume').value:null};
+  const manualLotInput=String($('reissueManualLotInput')?.value||'').trim().toUpperCase();
+  if(productUsesManualInput3(p) && !validManualInput3(manualLotInput)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력하세요',true);return;}
+  const fakeOrder={date:$('reissueDate').value||todayISO(),machine:$('reissueMachine').value,batchCount:$('reissueBatchCount').value||'1',batchSeq:+$('reissueBatchSeq').value||1,productIdx:+$('reissueProduct').value,volume:$('reissueVolume').value?+$('reissueVolume').value:null,manualLotInput};
   const drumNo=+$('reissueDrum').value||1,weight=+$('reissueWeight').value||p.kg;
   let info,ctx,parts;
   info=computeLotInfo(fakeOrder,drumNo);
@@ -1756,6 +1827,153 @@ $('lrSaveBtn').addEventListener('click',saveLotRuleFromForm); $('lrResetBtn').ad
 
 function allMasterProducts(){ return [...MASTER_PRODUCTS,...CUSTOM_PRODUCTS]; }
 
+// ===== v4.4 사용자 제품마스터 저장 / Excel 일괄 업로드 =====
+async function saveCustomProducts(){
+  await storeSet('ksa-custom-products-v43',JSON.stringify(CUSTOM_PRODUCTS));
+}
+async function loadCustomProducts(){
+  const raw=await storeGet('ksa-custom-products-v43') || await storeGet('ksa-custom-products-v42') || await storeGet('ksa-custom-products-v41');
+  if(!raw){ CUSTOM_PRODUCTS=[]; rebuildProductCollections(); return; }
+  try{ const v=JSON.parse(raw); CUSTOM_PRODUCTS=Array.isArray(v)?v:[]; }catch(e){ CUSTOM_PRODUCTS=[]; }
+  rebuildProductCollections();
+}
+function rebuildProductCollections(){
+  const customByOverride=new Map(CUSTOM_PRODUCTS.filter(p=>p.overrideOf).map(p=>[p.overrideOf,p]));
+  const customCodes=new Set(CUSTOM_PRODUCTS.map(p=>String(p.code||'').trim()).filter(Boolean));
+  const base=MASTER_PRODUCTS.filter(p=>{
+    if(customByOverride.has(p.masterId)) return false;
+    if(p.code && customCodes.has(String(p.code).trim())) return false;
+    return true;
+  });
+  ALL_PRODUCTS=[...base,...CUSTOM_PRODUCTS].filter(p=>p.active!==false);
+  PRODUCTS=ALL_PRODUCTS.filter(p=>p.family!=='DONGEUN');
+  DONGEUN_PRODUCTS=ALL_PRODUCTS.filter(p=>p.family==='DONGEUN');
+}
+function excelCell(row,names){
+  for(const n of names){ if(Object.prototype.hasOwnProperty.call(row,n)) return row[n]; }
+  return '';
+}
+function excelText(v){ return v===null||v===undefined?'':String(v).trim(); }
+function excelNumber(v,def=null){ if(v===''||v===null||v===undefined) return def; const n=Number(v); return Number.isFinite(n)?n:def; }
+function excelActive(v){
+  const s=excelText(v).toLowerCase();
+  if(['미사용','false','0','n','no','off'].includes(s)) return false;
+  return true;
+}
+function excelFamily(v){
+  const s=excelText(v).toUpperCase();
+  if(s==='DONGEUN'||s==='동은'||s==='동은 OEM') return 'DONGEUN';
+  if(s==='HBF') return 'HBF';
+  return 'ETC';
+}
+function resolveExcelLotRule(name,id,family){
+  const sid=excelText(id), sname=excelText(name);
+  let r=sid?LOT_RULES.find(x=>x.id===sid):null;
+  if(!r && sname) r=LOT_RULES.find(x=>x.name===sname);
+  return r?.id || defaultLotRuleIdForProduct({family});
+}
+function productToExcelRow(p){
+  const lr=getLotRuleById(getProductLotRuleId(p));
+  return {
+    '품목코드*':p.code||'', '품목명(약어)*':p.shortName||p.name||p.scheduleName||'',
+    '정식 품명/라벨 표기명':p.fullName||'', '색상':p.color||'', 'TYPE':p.type||'',
+    '제품군':p.family==='DONGEUN'?'DONGEUN':(p.family==='HBF'?'HBF':'ETC'),
+    '사용 여부':p.active===false?'미사용':'사용', 'LOT 규칙명':lr?.name||'', 'LOT 규칙 ID':lr?.id||'',
+    '기본 드럼 수':p.drums??1, '기본 중량 kg':p.kg??'', '용량 L':p.volume??'',
+    'USE BY (개월)':p.months??12, '비고':p.note||''
+  };
+}
+function makeExcelWorkbook(rows){
+  if(!window.XLSX) throw new Error('Excel 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');
+  const wb=XLSX.utils.book_new();
+  const headers=['품목코드*','품목명(약어)*','정식 품명/라벨 표기명','색상','TYPE','제품군','사용 여부','LOT 규칙명','LOT 규칙 ID','기본 드럼 수','기본 중량 kg','용량 L','USE BY (개월)','비고'];
+  const ws=XLSX.utils.json_to_sheet(rows||[],{header:headers});
+  ws['!cols']=[18,22,30,16,16,14,12,24,22,14,16,12,16,32].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'품목마스터_업로드');
+  const info=[
+    ['입력 안내','내용'],
+    ['필수','품목코드*, 품목명(약어)*'],
+    ['동작','같은 품목코드는 수정, 없는 품목코드는 신규 등록'],
+    ['제품군','HBF / DONGEUN / ETC'],
+    ['사용 여부','사용 / 미사용'],
+    ['LOT 규칙','규칙명 또는 규칙 ID 입력. 둘 다 비우면 제품군 기본 규칙 적용']
+  ];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(info),'입력안내');
+  const rules=[['LOT 규칙 ID','LOT 규칙명','패턴','설명'],...LOT_RULES.map(r=>[r.id,r.name,r.pattern,r.description||''])];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rules),'LOT규칙_참조');
+  return wb;
+}
+function downloadExcelTemplate(){
+  try{ XLSX.writeFile(makeExcelWorkbook([]),'KSA_제품마스터_일괄업로드_양식.xlsx'); }
+  catch(e){ flash(e.message||'엑셀 양식 생성 실패',true); }
+}
+function exportCurrentMasterExcel(){
+  try{ XLSX.writeFile(makeExcelWorkbook(allMasterProducts().map(productToExcelRow)),'KSA_제품마스터_현재데이터.xlsx'); }
+  catch(e){ flash(e.message||'엑셀 내보내기 실패',true); }
+}
+async function importProductExcel(file){
+  if(!file) return;
+  if(!window.XLSX){ flash('Excel 라이브러리를 불러오지 못했습니다',true); return; }
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const ws=wb.Sheets['품목마스터_업로드'] || wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+    const clean=rows.filter(r=>Object.values(r).some(v=>excelText(v)!==''));
+    if(!clean.length){ flash('업로드할 품목 데이터가 없습니다',true); return; }
+
+    const parsed=[], errors=[], seen=new Set();
+    clean.forEach((row,idx)=>{
+      const n=idx+2;
+      const code=excelText(excelCell(row,['품목코드*','품목코드','코드']));
+      const shortName=excelText(excelCell(row,['품목명(약어)*','품목명(약어)','약어','품목명']));
+      if(!code || !shortName){ errors.push(`${n}행: 품목코드/품목명(약어) 필수`); return; }
+      if(seen.has(code)){ errors.push(`${n}행: 파일 내 품목코드 중복 (${code})`); return; }
+      seen.add(code);
+      const family=excelFamily(excelCell(row,['제품군']));
+      parsed.push({
+        code, shortName,
+        fullName:excelText(excelCell(row,['정식 품명/라벨 표기명','정식 품명 / 라벨 표기명','정식 품명','라벨 표기명'])),
+        color:excelText(excelCell(row,['색상'])), type:excelText(excelCell(row,['TYPE','Type','type'])), family,
+        active:excelActive(excelCell(row,['사용 여부','사용여부'])),
+        lotRuleId:resolveExcelLotRule(excelCell(row,['LOT 규칙명','LOT 부여 규칙']),excelCell(row,['LOT 규칙 ID','LOT규칙ID']),family),
+        drums:Math.max(1,Math.round(excelNumber(excelCell(row,['기본 드럼 수','드럼 수']),1)||1)),
+        kg:excelNumber(excelCell(row,['기본 중량 kg','기본 중량','중량 kg']),null),
+        volume:excelNumber(excelCell(row,['용량 L','용량']),null),
+        months:Math.max(0,Math.round(excelNumber(excelCell(row,['USE BY (개월)','USE BY(개월)','USE BY','사용기한 개월']),12)||0)),
+        note:excelText(excelCell(row,['비고']))
+      });
+    });
+    if(errors.length){
+      const el=$('pmExcelResult'); if(el){el.style.display='block';el.innerHTML='<b>업로드 중단</b><br>'+errors.slice(0,20).map(escapeHtml).join('<br>')+(errors.length>20?`<br>외 ${errors.length-20}건`:'');}
+      flash(`엑셀 오류 ${errors.length}건을 수정하세요`,true); return;
+    }
+    if(!confirm(`${parsed.length}개 품목을 업로드하시겠습니까?\n같은 품목코드는 수정되고, 없는 코드는 신규 등록됩니다.`)) return;
+
+    let added=0,updated=0;
+    for(const r of parsed){
+      let custom=CUSTOM_PRODUCTS.find(p=>String(p.code||'').trim()===r.code);
+      const base=MASTER_PRODUCTS.find(p=>String(p.code||'').trim()===r.code);
+      const original=custom||base;
+      const obj={
+        masterId:custom?.masterId || `CUSTOM_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+        source:'custom', overrideOf:custom?.overrideOf || base?.masterId || null,
+        active:r.active, code:r.code, shortName:r.shortName, name:r.shortName, fullName:r.fullName,
+        scheduleName:r.shortName, color:r.color, type:r.type, family:r.family,
+        customer:original?.customer||'', lotRuleId:r.lotRuleId, drums:r.drums, kg:r.kg, volume:r.volume,
+        months:r.months, note:r.note, labels:original?.labels?JSON.parse(JSON.stringify(original.labels)):[]
+      };
+      if(custom){ CUSTOM_PRODUCTS[CUSTOM_PRODUCTS.indexOf(custom)]=obj; updated++; }
+      else { CUSTOM_PRODUCTS.push(obj); base?updated++:added++; }
+    }
+    await saveCustomProducts(); rebuildProductCollections(); refreshAllProductSelects(); renderPmTable(); renderPmLinks(); renderLabelTypePickers();
+    const el=$('pmExcelResult'); if(el){el.style.display='block';el.innerHTML=`<b>업로드 완료</b> · 신규 ${added}개 / 수정 ${updated}개 / 총 ${parsed.length}개`;}
+    flash(`엑셀 업로드 완료: ${parsed.length}개`);
+  }catch(e){ console.error(e); flash('엑셀 업로드 실패: '+(e.message||e),true); }
+  finally{ if($('pmExcelFile')) $('pmExcelFile').value=''; }
+}
+
+
 function refreshAllProductSelects(){
   if($('product')) $('product').innerHTML=productOptionsHtml($('productSearch')?.value||'');
   if($('reissueProduct')) $('reissueProduct').innerHTML=productOptionsHtml($('reissueSearch')?.value||'');
@@ -1914,7 +2132,7 @@ async function savePm(){
   const original=allMasterProducts().find(p=>p.masterId===editId);
   const id=(original && original.source==='custom') ? original.masterId : `CUSTOM_${Date.now()}`;
   const obj={
-    masterId:id, source:'custom', active:$('pmActive').value==='true',
+    masterId:id, source:'custom', overrideOf:(original&&original.source!=='custom')?original.masterId:(original?.overrideOf||null), active:$('pmActive').value==='true',
     code, shortName, name:shortName, fullName:$('pmFullName').value.trim(),
     scheduleName:shortName, color:$('pmColor').value.trim(), type:$('pmType').value.trim(),
     family:$('pmFamily').value, customer:original?.customer||'', lotRuleId:$('pmLotRule').value||defaultLotRuleIdForProduct({family:$('pmFamily').value}),
@@ -2002,6 +2220,12 @@ if($('pmBulkApplyFiltered')) $('pmBulkApplyFiltered').addEventListener('click',a
   await applyBulkToProducts(currentFilteredPmProducts(),'현재 검색결과');
 });
 
+
+if($('pmExcelTemplateBtn')) $('pmExcelTemplateBtn').addEventListener('click',downloadExcelTemplate);
+if($('pmExcelExportBtn')) $('pmExcelExportBtn').addEventListener('click',exportCurrentMasterExcel);
+if($('pmExcelImportBtn')) $('pmExcelImportBtn').addEventListener('click',()=>$('pmExcelFile').click());
+if($('pmExcelFile')) $('pmExcelFile').addEventListener('change',e=>importProductExcel(e.target.files?.[0]));
+
 function showProductMaster(){
   if(!isAdmin){ flash('관리자 모드에서만 사용할 수 있습니다',true); return; }
   $('opView').style.display='none'; $('editorView').style.display='none'; if($('lotRuleView'))$('lotRuleView').style.display='none';
@@ -2020,6 +2244,11 @@ $('pmFamily').addEventListener('change',()=>{ if(!$('pmEditId').value) refreshPm
 $('pmLabelProduct').addEventListener('change',renderPmLinks);
 $('pmAddLabelBtn').addEventListener('click',addPmLabel);
 
+if($('product')) $('product').addEventListener('change',updateManualLotInputVisibility);
+if($('reissueProduct')) $('reissueProduct').addEventListener('change',updateReissueManualLotInputVisibility);
+if($('manualLotInput')) $('manualLotInput').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);});
+if($('reissueManualLotInput')) $('reissueManualLotInput').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);});
+
 async function initApp(){
   const dbBadge=$('dbStatus');
   if(dbBadge){
@@ -2034,7 +2263,7 @@ async function initApp(){
     }
   }
 
-  await loadLayouts();await loadLotRules();await loadCustomProducts();await loadWorkOrders();refreshAllProductSelects();refreshPmLotRuleOptions();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLotRuleTable();resetLotRuleForm();
+  await loadLayouts();await loadLotRules();await loadCustomProducts();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();updateManualLotInputVisibility();updateReissueManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLotRuleTable();resetLotRuleForm();
   if(HAS_SHARED_STORAGE){
     setInterval(async()=>{
       if(document.body.classList.contains('editing'))return;
