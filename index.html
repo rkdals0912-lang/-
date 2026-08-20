@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.7.3 — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.7.3b — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -262,7 +262,7 @@
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.7.3a.3</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.7.3b</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -803,7 +803,17 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="./BrowserPrint-3.1.250.min.js"></script>
-<script src="./config.js?v=473a"></script>
+<script>
+window.KSA_CONFIG_LOAD_PROMISE = new Promise((resolve)=>{
+  try{
+    const sc=document.createElement('script');
+    sc.src='./config.js?ts='+Date.now();
+    sc.onload=()=>resolve(true);
+    sc.onerror=()=>{ window.KSA_CONFIG_LOAD_ERROR='config.js 로드 실패: '+sc.src; resolve(false); };
+    document.head.appendChild(sc);
+  }catch(e){ window.KSA_CONFIG_LOAD_ERROR='config.js 로드 예외: '+String(e?.message||e); resolve(false); }
+});
+</script>
 <script>
 window.KSA_DB_READY = false;
 window.KSA_DB_MODE = 'local';
@@ -817,12 +827,14 @@ function normalizeSupabaseProjectUrl(url){
 
 window.KSA_DB_PROMISE=(async function initKsaSupabase(){
   try{
+    await window.KSA_CONFIG_LOAD_PROMISE;
     const cfg=window.KSA_CONFIG||{};
     const url=normalizeSupabaseProjectUrl(cfg.SUPABASE_URL);
     const key=String(cfg.SUPABASE_ANON_KEY||cfg.SUPABASE_PUBLISHABLE_KEY||'').trim();
     if(!url||!key||url.includes('YOUR_')||key.includes('YOUR_')||!window.supabase?.createClient){
       window.KSA_DB_MODE='local';
       const reasons=[];
+      if(window.KSA_CONFIG_LOAD_ERROR) reasons.push(window.KSA_CONFIG_LOAD_ERROR);
       if(!url) reasons.push('SUPABASE_URL 없음');
       if(!key) reasons.push('Publishable Key 없음');
       if(url.includes('YOUR_')||key.includes('YOUR_')) reasons.push('예시값 사용중');
@@ -2791,7 +2803,7 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.7.3b';
     }
   }
   loadPrinterSettings();
