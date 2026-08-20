@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.6 — 제품마스터 Excel 일괄 업로드</title>
+<title>KSA 라벨 출력 시스템 v4.7 — 제품마스터 Excel 일괄 업로드</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -254,7 +254,7 @@
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.6</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.7</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -297,11 +297,11 @@
         <div class="row2">
           <div>
             <label>품목코드 검색</label>
-            <input type="text" class="field" id="productCodeSearch" placeholder="예: B_O410D_012">
+            <input type="text" class="field" id="productCodeSearch" placeholder="예: B_O410D_012 / BO410D012">
           </div>
           <div>
             <label>정식 품명(풀네임) 검색</label>
-            <input type="text" class="field" id="productFullNameSearch" placeholder="풀네임 일부 입력">
+            <input type="text" class="field" id="productFullNameSearch" placeholder="예: O200_백색 / O-200 백색">
           </div>
         </div>
         <label>제품 선택</label>
@@ -339,7 +339,7 @@
           </div>
           <div>
             <label>정식 품명(풀네임) 검색</label>
-            <input type="text" class="field" id="reissueFullNameSearch" placeholder="풀네임 일부 입력">
+            <input type="text" class="field" id="reissueFullNameSearch" placeholder="예: O200_백색 / O-200 백색">
           </div>
         </div>
         <label>제품 선택</label><select id="reissueProduct"></select>
@@ -639,7 +639,7 @@
         </div>
 <div class="masterTableWrap">
           <table class="masterTable">
-            <thead><tr><th>품목코드</th><th>품목명(약어)</th><th>정식 품명</th><th>색상</th><th>제품군</th><th>LOT 규칙</th><th>TYPE</th><th>관리</th></tr></thead>
+            <thead><tr><th style="width:42px;text-align:center;">선택</th><th>품목코드</th><th>품목명(약어)</th><th>정식 품명</th><th>색상</th><th>제품군</th><th>LOT 규칙</th><th>TYPE</th><th>관리</th></tr></thead>
             <tbody id="pmTableBody"></tbody>
           </table>
         </div>
@@ -1052,17 +1052,32 @@ function productDisplay(p){
   const type=p.type ? ` · ${p.type}` : '';
   return `${code}${shortName}${fullName}${color}${type}`;
 }
+function normalizeProductSearch(v){
+  // 하이픈/언더바/공백/괄호 등 구분기호를 모두 무시한다.
+  // 예: O200_백색 = O-200 백색 = O_200-백색
+  return String(v??'')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^0-9a-z가-힣]/g,'');
+}
 function productOptionsHtml(filters={}){
   if(typeof filters==='string') filters={any:filters};
-  const codeQ=String(filters.code||'').trim().toLowerCase();
-  const fullQ=String(filters.fullName||'').trim().toLowerCase();
-  const anyQ=String(filters.any||'').trim().toLowerCase();
+  const codeQ=normalizeProductSearch(filters.code||'');
+  const fullQ=normalizeProductSearch(filters.fullName||'');
+  const anyQ=normalizeProductSearch(filters.any||'');
   const rows=ALL_PRODUCTS.map((p,i)=>({p,i})).filter(({p})=>{
-    const code=String(p.code||'').toLowerCase();
-    const full=String(p.fullName||'').toLowerCase();
+    const code=normalizeProductSearch(p.code||'');
+    // 정식 품명이 비어 있는 품목도 검색되도록 약어+색상까지 하나의 검색문자열로 묶는다.
+    // 예: 약어 O-200 + 색상 백색 => O200백색 으로 검색 가능
+    const fullSearch=normalizeProductSearch([
+      p.fullName,p.shortName,p.name,p.scheduleName,p.color,p.type,p.customer
+    ].filter(Boolean).join(' '));
+    const allSearch=normalizeProductSearch([
+      p.code,p.fullName,p.shortName,p.name,p.scheduleName,p.color,p.type,p.customer,p.family
+    ].filter(Boolean).join(' '));
     if(codeQ && !code.includes(codeQ)) return false;
-    if(fullQ && !full.includes(fullQ)) return false;
-    if(anyQ && ![p.code,p.shortName,p.name,p.fullName,p.scheduleName,p.color,p.type,p.customer].join(' ').toLowerCase().includes(anyQ)) return false;
+    if(fullQ && !fullSearch.includes(fullQ)) return false;
+    if(anyQ && !allSearch.includes(anyQ)) return false;
     return true;
   });
   return rows.map(({p,i})=>`<option value="${i}">${escapeHtml(productDisplay(p))}</option>`).join('');
@@ -1981,7 +1996,7 @@ $('lrSaveBtn').addEventListener('click',saveLotRuleFromForm); $('lrResetBtn').ad
 
 function allMasterProducts(){ return [...MASTER_PRODUCTS,...CUSTOM_PRODUCTS]; }
 
-// ===== v4.6 사용자 제품마스터 저장 / Excel 일괄 업로드 =====
+// ===== v4.7 사용자 제품마스터 저장 / Excel 일괄 업로드 =====
 async function saveCustomProducts(){
   await storeSet('ksa-custom-products-v43',JSON.stringify(CUSTOM_PRODUCTS));
 }
@@ -2093,8 +2108,8 @@ function makeExcelWorkbook(rows){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rules),'LOT규칙_참조');
   return wb;
 }
-function downloadExcelTemplate(){ try{XLSX.writeFile(makeExcelWorkbook([]),'KSA_제품마스터_일괄업로드_양식_v45.xlsx');}catch(e){flash(e.message||'엑셀 양식 생성 실패',true);} }
-function exportCurrentMasterExcel(){ try{XLSX.writeFile(makeExcelWorkbook(allMasterProducts().map(productToExcelRow)),'KSA_제품마스터_현재데이터_v45.xlsx');}catch(e){flash(e.message||'엑셀 내보내기 실패',true);} }
+function downloadExcelTemplate(){ try{XLSX.writeFile(makeExcelWorkbook([]),'KSA_제품마스터_일괄업로드_양식_v47.xlsx');}catch(e){flash(e.message||'엑셀 양식 생성 실패',true);} }
+function exportCurrentMasterExcel(){ try{XLSX.writeFile(makeExcelWorkbook(allMasterProducts().map(productToExcelRow)),'KSA_제품마스터_현재데이터_v47.xlsx');}catch(e){flash(e.message||'엑셀 내보내기 실패',true);} }
 async function importProductExcel(file){
   if(!file) return; if(!window.XLSX){flash('Excel 라이브러리를 불러오지 못했습니다',true);return;}
   try{
