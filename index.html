@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.5 — 제품마스터 Excel 일괄 업로드</title>
+<title>KSA 라벨 출력 시스템 v4.6 — 제품마스터 Excel 일괄 업로드</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -254,7 +254,7 @@
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.5</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.6</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -294,8 +294,16 @@
           <div><label>생산일자 / 출력 기준일</label><input type="date" id="prodDate"></div>
           <div><label>주/야</label><select id="shift"><option value="주간">주간</option><option value="야간">야간</option></select></div>
         </div>
-        <label>품목 검색</label>
-        <input type="text" class="field" id="productSearch" placeholder="품목코드 / 품목명 / 색상 / TYPE 검색">
+        <div class="row2">
+          <div>
+            <label>품목코드 검색</label>
+            <input type="text" class="field" id="productCodeSearch" placeholder="예: B_O410D_012">
+          </div>
+          <div>
+            <label>정식 품명(풀네임) 검색</label>
+            <input type="text" class="field" id="productFullNameSearch" placeholder="풀네임 일부 입력">
+          </div>
+        </div>
         <label>제품 선택</label>
         <select id="product"></select>
         <div id="masterProductInfo" class="lockednote" style="margin-top:8px;"></div>
@@ -324,6 +332,16 @@
       <div class="panel adminOnly">
         <h2><span class="n">↻</span>라벨 재발행 (날짜 지정)</h2>
         <div class="lockednote">작업지시를 만들지 않고 원하는 날짜 / 드럼 번호로 바로 재발행합니다.</div>
+        <div class="row2">
+          <div>
+            <label>품목코드 검색</label>
+            <input type="text" class="field" id="reissueCodeSearch" placeholder="품목코드">
+          </div>
+          <div>
+            <label>정식 품명(풀네임) 검색</label>
+            <input type="text" class="field" id="reissueFullNameSearch" placeholder="풀네임 일부 입력">
+          </div>
+        </div>
         <label>제품 선택</label><select id="reissueProduct"></select>
         <div class="row2">
           <div><label>날짜</label><input type="date" id="reissueDate"></div>
@@ -1034,16 +1052,29 @@ function productDisplay(p){
   const type=p.type ? ` · ${p.type}` : '';
   return `${code}${shortName}${fullName}${color}${type}`;
 }
-function productOptionsHtml(filterText=''){
-  const q=String(filterText||'').trim().toLowerCase();
+function productOptionsHtml(filters={}){
+  if(typeof filters==='string') filters={any:filters};
+  const codeQ=String(filters.code||'').trim().toLowerCase();
+  const fullQ=String(filters.fullName||'').trim().toLowerCase();
+  const anyQ=String(filters.any||'').trim().toLowerCase();
   const rows=ALL_PRODUCTS.map((p,i)=>({p,i})).filter(({p})=>{
-    if(!q) return true;
-    return [p.code,p.shortName,p.name,p.fullName,p.scheduleName,p.color,p.type,p.customer].join(' ').toLowerCase().includes(q);
+    const code=String(p.code||'').toLowerCase();
+    const full=String(p.fullName||'').toLowerCase();
+    if(codeQ && !code.includes(codeQ)) return false;
+    if(fullQ && !full.includes(fullQ)) return false;
+    if(anyQ && ![p.code,p.shortName,p.name,p.fullName,p.scheduleName,p.color,p.type,p.customer].join(' ').toLowerCase().includes(anyQ)) return false;
+    return true;
   });
   return rows.map(({p,i})=>`<option value="${i}">${escapeHtml(productDisplay(p))}</option>`).join('');
 }
-$('product').innerHTML=productOptionsHtml();
-$('reissueProduct').innerHTML=productOptionsHtml();
+function currentProductSearchFilters(){
+  return {code:$('productCodeSearch')?.value||'',fullName:$('productFullNameSearch')?.value||''};
+}
+function currentReissueSearchFilters(){
+  return {code:$('reissueCodeSearch')?.value||'',fullName:$('reissueFullNameSearch')?.value||''};
+}
+$('product').innerHTML=productOptionsHtml(currentProductSearchFilters());
+$('reissueProduct').innerHTML=productOptionsHtml(currentReissueSearchFilters());
 
 function pad2(n){return String(n).padStart(2,'0');}
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;}
@@ -1287,13 +1318,15 @@ function applyProductDefaults(){
   renderLabelTypePickers();
 }
 $('product').addEventListener('change',applyProductDefaults);
-$('productSearch').addEventListener('input',()=>{
+function refreshProductSearch(){
   const old=+$('product').value;
-  $('product').innerHTML=productOptionsHtml($('productSearch').value);
+  $('product').innerHTML=productOptionsHtml(currentProductSearchFilters());
   const opt=[...$('product').options].find(o=>+o.value===old);
   if(opt) $('product').value=String(old);
+  else if($('product').options.length) $('product').selectedIndex=0;
   applyProductDefaults();
-});
+}
+['productCodeSearch','productFullNameSearch'].forEach(id=>$(id)?.addEventListener('input',refreshProductSearch));
 (function(){ if($('product').options.length){ $('product').selectedIndex=0; applyProductDefaults(); } })();
 
 function reissueDefaults(){
@@ -1312,6 +1345,17 @@ function refreshReissueLabelTypes(){
   updateReissueManualLotInputVisibility();
 }
 $('reissueProduct').addEventListener('change',()=>{selectedVariantReissue='';reissueDefaults();refreshReissueLabelTypes();});
+function refreshReissueSearch(){
+  const old=+$('reissueProduct').value;
+  $('reissueProduct').innerHTML=productOptionsHtml(currentReissueSearchFilters());
+  const opt=[...$('reissueProduct').options].find(o=>+o.value===old);
+  if(opt) $('reissueProduct').value=String(old);
+  else if($('reissueProduct').options.length) $('reissueProduct').selectedIndex=0;
+  selectedVariantReissue='';
+  reissueDefaults();
+  refreshReissueLabelTypes();
+}
+['reissueCodeSearch','reissueFullNameSearch'].forEach(id=>$(id)?.addEventListener('input',refreshReissueSearch));
 reissueDefaults(); refreshReissueLabelTypes();
 
 function statusLabel(s){return s==='done'?'완료':s==='in_progress'?'진행중':'대기';}
@@ -1937,7 +1981,7 @@ $('lrSaveBtn').addEventListener('click',saveLotRuleFromForm); $('lrResetBtn').ad
 
 function allMasterProducts(){ return [...MASTER_PRODUCTS,...CUSTOM_PRODUCTS]; }
 
-// ===== v4.5 사용자 제품마스터 저장 / Excel 일괄 업로드 =====
+// ===== v4.6 사용자 제품마스터 저장 / Excel 일괄 업로드 =====
 async function saveCustomProducts(){
   await storeSet('ksa-custom-products-v43',JSON.stringify(CUSTOM_PRODUCTS));
 }
@@ -2099,8 +2143,8 @@ async function importProductExcel(file){
 }
 
 function refreshAllProductSelects(){
-  if($('product')) $('product').innerHTML=productOptionsHtml($('productSearch')?.value||'');
-  if($('reissueProduct')) $('reissueProduct').innerHTML=productOptionsHtml($('reissueSearch')?.value||'');
+  if($('product')) $('product').innerHTML=productOptionsHtml(currentProductSearchFilters());
+  if($('reissueProduct')) $('reissueProduct').innerHTML=productOptionsHtml(currentReissueSearchFilters());
   if($('pmLabelProduct')) $('pmLabelProduct').innerHTML=ALL_PRODUCTS.map((p,i)=>`<option value="${i}">${escapeHtml(productDisplay(p))}</option>`).join('');
   if($('pmFamilyFilter')){const cur=$('pmFamilyFilter').value||'ALL';const fams=[...new Set(ALL_PRODUCTS.map(p=>p.family).filter(Boolean))].sort();$('pmFamilyFilter').innerHTML='<option value="ALL">전체 제품군</option>'+fams.map(f=>`<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');if([...$('pmFamilyFilter').options].some(o=>o.value===cur))$('pmFamilyFilter').value=cur;}
   refreshPmLotRuleOptions();
