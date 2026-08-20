@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.7.2 — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.7.3 — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -243,6 +243,14 @@
   .bulkCount{font-family:var(--mono);font-weight:800;color:var(--amber);}
   .selectAllRow{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--sub);}
   .rowSelect{width:17px;height:17px;}
+
+  .printerGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  .printerStatus{margin-top:8px;padding:8px 10px;border-radius:8px;background:#f4f6f8;color:var(--sub);font-size:11.5px;line-height:1.5;}
+  .printerStatus.ok{background:#e9f6ee;color:var(--ok);}
+  .printerStatus.warn{background:#fff4e2;color:#966018;}
+  .printerStatus.err{background:#fdecea;color:var(--danger);}
+  .printModeBadge{font-size:10.5px;font-weight:800;padding:4px 8px;border-radius:99px;background:#eef2f7;color:var(--navy-2);white-space:nowrap;}
+
   @media print{
     body *{visibility:hidden;}
     #printArea,#printArea *{visibility:visible;}
@@ -254,7 +262,7 @@
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.7</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.7.3</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -390,6 +398,36 @@
         <button class="btn btn-ghost" id="completeOrder" style="display:none;">✔ 이 작업지시 완료 처리</button>
       </div>
 
+
+      <div class="panel adminOnly" id="printerSettingsPanel">
+        <h2><span class="n">🖨</span>프린터 설정 · Zebra ZT421 / ZT420</h2>
+        <label>인쇄 방식</label>
+        <select id="printMethod">
+          <option value="auto">자동 · Zebra 연결 시 ZPL / 미연결 시 브라우저</option>
+          <option value="zebra">Zebra ZPL 직접 전송</option>
+          <option value="browser">브라우저 인쇄창 (window.print)</option>
+        </select>
+        <div class="printerGrid">
+          <div>
+            <label>Zebra 해상도</label>
+            <select id="zebraDpi"><option value="203">203 dpi</option><option value="300">300 dpi</option></select>
+          </div>
+          <div>
+            <label>흑백 변환 기준</label>
+            <input type="number" id="zebraThreshold" min="80" max="245" value="185">
+          </div>
+        </div>
+        <label>Zebra 프린터</label>
+        <select id="zebraPrinterSelect"><option value="">프린터 검색 필요</option></select>
+        <div class="row2">
+          <button class="btn btn-ghost" id="zebraRefreshBtn" type="button">프린터 검색</button>
+          <button class="btn btn-warn" id="zebraTestBtn" type="button">ZPL 테스트 출력</button>
+        </div>
+        <button class="btn btn-ok" id="savePrinterSettingsBtn" type="button">이 PC 프린터 설정 저장</button>
+        <div id="zebraStatus" class="printerStatus">Zebra Browser Print 상태를 확인하지 않았습니다.</div>
+        <div class="lockednote">ZPL 직접 인쇄는 이 PC에 <b>Zebra Browser Print</b>가 설치·실행되어 있고, GitHub 저장소에 공식 SDK의 <b>BrowserPrint-3.1.250.min.js</b> 파일이 있어야 합니다. 라벨 화면을 흑백 비트맵으로 변환한 뒤 ZPL <b>^GFA</b> 명령으로 전송하므로 한글도 화면 모습 그대로 출력할 수 있습니다.</div>
+      </div>
+
       <div class="panel" id="panelBatch">
         <h2><span class="n">2</span>일괄 출력</h2>
         <div class="readout" style="margin-bottom:8px;">드럼 <b id="batchDrumsOut">-</b>개 × <b id="batchWeightOut">-</b>kg</div>
@@ -421,7 +459,8 @@
         <div class="toolbar">
           <h2 style="margin:0;">라벨 미리보기</h2>
           <button class="btn btn-primary auto" id="printBtn">🖨 바로 인쇄</button>
-          <span style="font-size:11px;color:var(--sub);">※ 팝업 없이 현재 화면에서 바로 브라우저 인쇄창을 호출합니다.</span>
+          <span id="printModeBadge" class="printModeBadge">인쇄 방식 확인중</span>
+          <span style="font-size:11px;color:var(--sub);">Zebra ZPL 또는 브라우저 인쇄를 설정에 따라 사용합니다.</span>
         </div>
         <div class="previewWrap" id="previewWrap"><div class="empty">라벨을 생성하세요.</div></div>
       </div>
@@ -762,31 +801,42 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="./BrowserPrint-3.1.250.min.js"></script>
 <script src="./config.js"></script>
 <script>
 window.KSA_DB_READY = false;
 window.KSA_DB_MODE = 'local';
+window.KSA_DB_ERROR = '';
 
-(function initKsaSupabase(){
+function normalizeSupabaseProjectUrl(url){
+  let v=String(url||'').trim().replace(/\/+$/,'');
+  v=v.replace(/\/rest\/v1$/i,'');
+  return v;
+}
+
+window.KSA_DB_PROMISE=(async function initKsaSupabase(){
   try{
-    const cfg = window.KSA_CONFIG || {};
-    if(
-      cfg.SUPABASE_URL &&
-      cfg.SUPABASE_ANON_KEY &&
-      !String(cfg.SUPABASE_URL).includes('YOUR_') &&
-      !String(cfg.SUPABASE_ANON_KEY).includes('YOUR_') &&
-      window.supabase &&
-      window.supabase.createClient
-    ){
-      window.ksaSupabase = window.supabase.createClient(
-        cfg.SUPABASE_URL,
-        cfg.SUPABASE_ANON_KEY
-      );
-      window.KSA_DB_READY = true;
-      window.KSA_DB_MODE = 'supabase';
+    const cfg=window.KSA_CONFIG||{};
+    const url=normalizeSupabaseProjectUrl(cfg.SUPABASE_URL);
+    const key=String(cfg.SUPABASE_ANON_KEY||'').trim();
+    if(!url||!key||url.includes('YOUR_')||key.includes('YOUR_')||!window.supabase?.createClient){
+      window.KSA_DB_MODE='local';
+      return false;
     }
+    window.ksaSupabase=window.supabase.createClient(url,key);
+    // createClient 성공만으로 연결됨 처리하지 않고 실제 테이블을 1회 읽어 확인한다.
+    const {error}=await window.ksaSupabase.from('ksa_app_state').select('key').limit(1);
+    if(error) throw error;
+    window.KSA_DB_READY=true;
+    window.KSA_DB_MODE='supabase';
+    return true;
   }catch(e){
-    console.warn('Supabase init failed; local fallback is active.', e);
+    window.KSA_DB_READY=false;
+    window.KSA_DB_MODE='local';
+    window.KSA_DB_ERROR=String(e?.message||e||'DB connection failed');
+    console.warn('Supabase connection check failed; local fallback is active.',e);
+    return false;
   }
 })();
 </script>
@@ -1652,42 +1702,185 @@ function setDynamicPrintPage(layoutKey){
   return {pageW,pageH};
 }
 
-function triggerPrint(items){
-  if(!items || !items.length){
-    flash('인쇄할 라벨이 없습니다', true);
-    return;
-  }
+const PRINTER_SETTINGS_KEY='ksa-printer-settings-v473';
+let PRINTER_SETTINGS={method:'auto',dpi:203,threshold:185,zebraUid:''};
+let ZEBRA_DEVICES=[];
+let ZEBRA_SELECTED_DEVICE=null;
 
-  let layoutKey='sample';
+function loadPrinterSettings(){
   try{
-    if(items[0] && items[0].parts && items[0].parts[0]){
-      layoutKey=items[0].parts[0].key;
-    }
+    const saved=JSON.parse(localStorage.getItem(PRINTER_SETTINGS_KEY)||'{}');
+    PRINTER_SETTINGS={...PRINTER_SETTINGS,...saved};
   }catch(e){}
-
-  const size=setDynamicPrintPage(layoutKey);
-
-  $('printArea').innerHTML=items.map(it=>{
-    return `<div class="printPage">${
-      it.parts.map(part=>renderLabelHtml(part.key,part.ctx,false)).join('')
-    }</div>`;
-  }).join('');
-
-  // 브라우저가 DOM/스타일 계산을 끝낸 직후 현재 창에서 바로 인쇄.
-  // 팝업을 사용하지 않으므로 새창 차단의 영향을 받지 않는다.
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      try{
-        window.focus();
-        window.print();
-      }catch(e){
-        console.error('print error',e);
-        flash('브라우저가 인쇄 호출을 차단했습니다. Chrome/Edge에서 HTML 파일을 직접 열어 실행해주세요.',true);
-      }
-    });
+  if($('printMethod')) $('printMethod').value=PRINTER_SETTINGS.method||'auto';
+  if($('zebraDpi')) $('zebraDpi').value=String(PRINTER_SETTINGS.dpi||203);
+  if($('zebraThreshold')) $('zebraThreshold').value=String(PRINTER_SETTINGS.threshold||185);
+  updatePrintModeBadge();
+}
+function savePrinterSettings(){
+  PRINTER_SETTINGS.method=$('printMethod')?.value||'auto';
+  PRINTER_SETTINGS.dpi=Number($('zebraDpi')?.value)||203;
+  PRINTER_SETTINGS.threshold=Math.max(80,Math.min(245,Number($('zebraThreshold')?.value)||185));
+  PRINTER_SETTINGS.zebraUid=$('zebraPrinterSelect')?.value||PRINTER_SETTINGS.zebraUid||'';
+  try{localStorage.setItem(PRINTER_SETTINGS_KEY,JSON.stringify(PRINTER_SETTINGS));}catch(e){}
+  selectZebraByUid(PRINTER_SETTINGS.zebraUid);
+  updatePrintModeBadge();
+  flash('이 PC의 프린터 설정을 저장했습니다');
+}
+function updatePrintModeBadge(){
+  const b=$('printModeBadge'); if(!b)return;
+  const m=PRINTER_SETTINGS.method||'auto';
+  if(m==='browser') b.textContent='브라우저 인쇄';
+  else if(m==='zebra') b.textContent=ZEBRA_SELECTED_DEVICE?`ZPL · ${ZEBRA_SELECTED_DEVICE.name||'Zebra'}`:'ZPL · 프린터 확인';
+  else b.textContent=ZEBRA_SELECTED_DEVICE?`자동 · ZPL (${ZEBRA_SELECTED_DEVICE.name||'Zebra'})`:'자동 · 브라우저 대기';
+}
+function setZebraStatus(msg,kind=''){
+  const el=$('zebraStatus'); if(!el)return;
+  el.textContent=msg; el.className='printerStatus'+(kind?' '+kind:'');
+}
+function browserPrintSdkReady(){return !!(window.BrowserPrint&&typeof window.BrowserPrint.getDefaultDevice==='function');}
+function deviceKey(d){return String(d?.uid||d?.name||'');}
+function selectZebraByUid(uid){
+  ZEBRA_SELECTED_DEVICE=ZEBRA_DEVICES.find(d=>deviceKey(d)===String(uid||''))||ZEBRA_SELECTED_DEVICE;
+  updatePrintModeBadge();
+}
+function renderZebraDeviceSelect(defaultDevice){
+  const sel=$('zebraPrinterSelect'); if(!sel)return;
+  const seen=new Set(); const rows=[];
+  const add=d=>{if(!d)return;const k=deviceKey(d);if(!k||seen.has(k))return;seen.add(k);rows.push(d);};
+  add(defaultDevice); ZEBRA_DEVICES.forEach(add); ZEBRA_DEVICES=rows;
+  sel.innerHTML=rows.length?rows.map(d=>`<option value="${escapeHtml(deviceKey(d))}">${escapeHtml(d.name||d.uid||'Zebra Printer')} · ${escapeHtml(d.connection||'')}</option>`).join(''):'<option value="">검색된 프린터 없음</option>';
+  const preferred=PRINTER_SETTINGS.zebraUid || deviceKey(defaultDevice) || deviceKey(rows[0]);
+  if(preferred && rows.some(d=>deviceKey(d)===preferred)) sel.value=preferred;
+  PRINTER_SETTINGS.zebraUid=sel.value||''; selectZebraByUid(PRINTER_SETTINGS.zebraUid);
+}
+function getDefaultZebra(){
+  return new Promise((resolve,reject)=>{
+    if(!browserPrintSdkReady()) return reject(new Error('BrowserPrint SDK 파일을 찾을 수 없습니다.'));
+    window.BrowserPrint.getDefaultDevice('printer',d=>resolve(d||null),e=>reject(new Error(String(e||'기본 프린터 조회 실패'))));
   });
 }
-$('printBtn').addEventListener('click',async()=>{if(!generated.length){flash('먼저 라벨을 생성하세요',true);return;}const items=mode==='batch'?generated:[generated[selectedIdx]];await recordPrintHistory(items);triggerPrint(items);});
+function getLocalZebras(){
+  return new Promise((resolve,reject)=>{
+    if(!browserPrintSdkReady()) return reject(new Error('BrowserPrint SDK 파일을 찾을 수 없습니다.'));
+    window.BrowserPrint.getLocalDevices(list=>resolve(Array.isArray(list)?list:[]),e=>reject(new Error(String(e||'프린터 검색 실패'))),'printer');
+  });
+}
+async function discoverZebraPrinters(silent=false){
+  if(!browserPrintSdkReady()){
+    setZebraStatus('Zebra Browser Print SDK를 찾지 못했습니다. BrowserPrint-3.1.250.min.js를 index.html과 같은 폴더에 업로드하세요.','warn');
+    updatePrintModeBadge(); return null;
+  }
+  if(!silent)setZebraStatus('Zebra 프린터를 검색 중입니다...');
+  try{
+    const [def,local]=await Promise.all([getDefaultZebra().catch(()=>null),getLocalZebras().catch(()=>[])]);
+    ZEBRA_DEVICES=local||[]; renderZebraDeviceSelect(def);
+    if(ZEBRA_SELECTED_DEVICE){
+      setZebraStatus(`연결 준비됨 · ${ZEBRA_SELECTED_DEVICE.name||'Zebra'} · ${ZEBRA_SELECTED_DEVICE.connection||''}`,'ok');
+      updatePrintModeBadge(); return ZEBRA_SELECTED_DEVICE;
+    }
+    setZebraStatus('Browser Print는 실행 중이지만 선택 가능한 Zebra 프린터가 없습니다. Browser Print 설정에서 기본 프린터를 지정하세요.','warn');
+    return null;
+  }catch(e){
+    setZebraStatus(`Zebra 연결 실패 · ${e.message||e}`,'err'); updatePrintModeBadge(); return null;
+  }
+}
+function sendToZebraDevice(device,data){
+  return new Promise((resolve,reject)=>{
+    if(!device||typeof device.send!=='function') return reject(new Error('Zebra 프린터가 선택되지 않았습니다.'));
+    device.send(data,()=>resolve(true),e=>reject(new Error(String(e||'ZPL 전송 실패'))));
+  });
+}
+async function renderPartCanvas(part,dpi){
+  if(!window.html2canvas) throw new Error('html2canvas 라이브러리를 불러오지 못했습니다.');
+  const layout=LAYOUTS[part.key]; if(!layout) throw new Error(`라벨 서식 ${part.key}를 찾을 수 없습니다.`);
+  const host=document.createElement('div');
+  host.style.cssText='position:fixed;left:-20000px;top:0;background:#fff;z-index:-9999;';
+  host.innerHTML=renderLabelHtml(part.key,part.ctx,false);
+  document.body.appendChild(host);
+  try{
+    const el=host.firstElementChild;
+    const scale=(Number(dpi)||203)/96;
+    return await window.html2canvas(el,{backgroundColor:'#ffffff',scale,useCORS:true,logging:false,width:el.offsetWidth,height:el.offsetHeight});
+  }finally{host.remove();}
+}
+function canvasToZpl(canvas,threshold){
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  const w=canvas.width,h=canvas.height,bytesPerRow=Math.ceil(w/8),total=bytesPerRow*h;
+  const img=ctx.getImageData(0,0,w,h).data;
+  const hexRows=new Array(h); const HEX='0123456789ABCDEF';
+  for(let y=0;y<h;y++){
+    let row='';
+    for(let bx=0;bx<bytesPerRow;bx++){
+      let byte=0;
+      for(let bit=0;bit<8;bit++){
+        const x=bx*8+bit; if(x>=w)continue;
+        const i=(y*w+x)*4,a=img[i+3];
+        const lum=(img[i]*299+img[i+1]*587+img[i+2]*114)/1000;
+        if(a>20 && lum<(Number(threshold)||185)) byte|=(1<<(7-bit));
+      }
+      row+=HEX[(byte>>4)&15]+HEX[byte&15];
+    }
+    hexRows[y]=row;
+  }
+  const hex=hexRows.join('');
+  return `^XA^PW${w}^LL${h}^LH0,0^FO0,0^GFA,${total},${total},${bytesPerRow},${hex}^FS^XZ`;
+}
+async function sendItemsAsZpl(items){
+  let device=ZEBRA_SELECTED_DEVICE;
+  if(!device) device=await discoverZebraPrinters(true);
+  if(!device) throw new Error('Zebra 프린터가 연결되지 않았습니다.');
+  const dpi=Number(PRINTER_SETTINGS.dpi)||203;
+  const threshold=Number(PRINTER_SETTINGS.threshold)||185;
+  let sent=0;
+  for(const item of items){
+    for(const part of (item.parts||[])){
+      setZebraStatus(`ZPL 변환 중 · ${part.labelName||part.key||''} (${dpi}dpi)`);
+      const canvas=await renderPartCanvas(part,dpi);
+      const zpl=canvasToZpl(canvas,threshold);
+      const size=new Blob([zpl]).size;
+      if(size>1950000) throw new Error(`ZPL 데이터가 약 ${(size/1024/1024).toFixed(2)}MB로 Browser Print 2MB 제한에 가깝습니다. 203dpi로 변경하거나 브라우저 인쇄를 사용하세요.`);
+      setZebraStatus(`ZPL 전송 중 · ${device.name||'Zebra'} · ${(size/1024).toFixed(0)}KB`);
+      await sendToZebraDevice(device,zpl); sent++;
+    }
+  }
+  setZebraStatus(`ZPL 전송 완료 · ${device.name||'Zebra'} · ${sent}건`,'ok');
+  return true;
+}
+
+function triggerPrint(items){
+  if(!items || !items.length){flash('인쇄할 라벨이 없습니다',true);return false;}
+  let layoutKey='sample';
+  try{if(items[0]?.parts?.[0])layoutKey=items[0].parts[0].key;}catch(e){}
+  setDynamicPrintPage(layoutKey);
+  $('printArea').innerHTML=items.map(it=>`<div class="printPage">${it.parts.map(part=>renderLabelHtml(part.key,part.ctx,false)).join('')}</div>`).join('');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    try{window.focus();window.print();}
+    catch(e){console.error('print error',e);flash('브라우저가 인쇄 호출을 차단했습니다.',true);}
+  }));
+  return true;
+}
+async function smartPrint(items){
+  if(!items?.length){flash('먼저 라벨을 생성하세요',true);return;}
+  const method=PRINTER_SETTINGS.method||'auto';
+  if(method==='browser'){
+    await recordPrintHistory(items); triggerPrint(items); return;
+  }
+  if(method==='zebra'){
+    try{await sendItemsAsZpl(items);await recordPrintHistory(items);flash('Zebra ZPL 전송 완료');}
+    catch(e){console.error(e);setZebraStatus(`ZPL 출력 실패 · ${e.message||e}`,'err');flash(`ZPL 출력 실패: ${e.message||e}`,true);}
+    return;
+  }
+  // auto: Browser Print + 프린터가 실제로 잡히면 ZPL, 아니면 window.print fallback
+  if(browserPrintSdkReady()){
+    try{
+      if(!ZEBRA_SELECTED_DEVICE) await discoverZebraPrinters(true);
+      if(ZEBRA_SELECTED_DEVICE){await sendItemsAsZpl(items);await recordPrintHistory(items);flash('Zebra ZPL 전송 완료');return;}
+    }catch(e){console.warn('Auto ZPL failed; browser print fallback:',e);}
+  }
+  await recordPrintHistory(items); triggerPrint(items);
+}
+$('printBtn').addEventListener('click',async()=>{const items=mode==='batch'?generated:[generated[selectedIdx]];await smartPrint(items);});
 $('exportBtn').addEventListener('click',()=>{
   if(!log.length){flash('내보낼 이력이 없습니다',true);return;}
   const rows=[['시각','품목코드','품목명','라벨명','LOT 번호'],...log.map(e=>[e.time,e.code,e.product,e.labelName,e.lot])];
@@ -2564,22 +2757,43 @@ if($('reissueProduct')) $('reissueProduct').addEventListener('change',updateReis
 if($('manualLotInput')) $('manualLotInput').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);});
 if($('reissueManualLotInput')) $('reissueManualLotInput').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);});
 
+
+if($('savePrinterSettingsBtn')) $('savePrinterSettingsBtn').addEventListener('click',savePrinterSettings);
+if($('zebraRefreshBtn')) $('zebraRefreshBtn').addEventListener('click',()=>discoverZebraPrinters(false));
+if($('zebraPrinterSelect')) $('zebraPrinterSelect').addEventListener('change',()=>{PRINTER_SETTINGS.zebraUid=$('zebraPrinterSelect').value;selectZebraByUid(PRINTER_SETTINGS.zebraUid);});
+if($('printMethod')) $('printMethod').addEventListener('change',()=>{PRINTER_SETTINGS.method=$('printMethod').value;updatePrintModeBadge();});
+if($('zebraDpi')) $('zebraDpi').addEventListener('change',()=>{PRINTER_SETTINGS.dpi=Number($('zebraDpi').value)||203;});
+if($('zebraThreshold')) $('zebraThreshold').addEventListener('input',()=>{PRINTER_SETTINGS.threshold=Number($('zebraThreshold').value)||185;});
+if($('zebraTestBtn')) $('zebraTestBtn').addEventListener('click',async()=>{
+  try{
+    let d=ZEBRA_SELECTED_DEVICE||await discoverZebraPrinters(true);
+    if(!d) throw new Error('Zebra 프린터를 먼저 검색하세요.');
+    await sendToZebraDevice(d,'^XA^PW700^LL320^FO50,50^A0N48,48^FDKSA ZEBRA TEST^FS^FO50,125^A0N32,32^FDZT421 / ZT420 ZPL READY^FS^FO50,190^A0N28,28^FD'+new Date().toISOString().slice(0,19).replace('T',' ')+'^FS^XZ');
+    setZebraStatus(`ZPL 테스트 전송 완료 · ${d.name||'Zebra'}`,'ok'); flash('Zebra 테스트 라벨을 전송했습니다');
+  }catch(e){setZebraStatus(`테스트 실패 · ${e.message||e}`,'err');flash(`테스트 실패: ${e.message||e}`,true);}
+});
+
 async function initApp(){
+  try{await window.KSA_DB_PROMISE;}catch(e){}
   const dbBadge=$('dbStatus');
   if(dbBadge){
     if(window.KSA_DB_READY){
-      dbBadge.textContent='공유 DB 연결';
-      dbBadge.style.background='#e9f6ee';
-      dbBadge.style.color='var(--ok)';
+      dbBadge.textContent='공유 DB 연결됨';
+      dbBadge.style.background='#e9f6ee'; dbBadge.style.color='var(--ok)';
+      dbBadge.title='Supabase ksa_app_state 연결 확인 완료';
     }else{
-      dbBadge.textContent='로컬 저장';
-      dbBadge.style.background='#fff4e2';
-      dbBadge.style.color='var(--amber)';
+      dbBadge.textContent=window.KSA_DB_ERROR?'DB 연결 실패 · 로컬':'DB 설정 없음 · 로컬';
+      dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
+      dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
+      dbBadge.title=window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.';
     }
   }
+  loadPrinterSettings();
+  if(browserPrintSdkReady()) setTimeout(()=>discoverZebraPrinters(true),500);
+  else setZebraStatus('브라우저 인쇄는 바로 사용할 수 있습니다. ZPL 직접 인쇄를 쓰려면 Zebra Browser Print와 BrowserPrint-3.1.250.min.js가 필요합니다.','warn');
 
   await loadLayouts();await loadLotRules();await loadCustomProducts();await loadCustomLabelMaster();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();updateManualLotInputVisibility();refreshReissueLabelTypes();updateReissueManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLog();renderLotRuleTable();resetLotRuleForm();
-  if(HAS_SHARED_STORAGE){
+  if(HAS_SHARED_STORAGE || window.KSA_DB_READY){
     setInterval(async()=>{
       if(document.body.classList.contains('editing'))return;
       const before=JSON.stringify(workOrders);await loadWorkOrders();
