@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.7.3e — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.7.3f — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -262,7 +262,7 @@
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.7.3e</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.7.3f.3b.3</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -2502,7 +2502,7 @@ function refreshAllProductSelects(){
 }
 
 function resetPmForm(){
-  $('pmEditId').value='';
+  $('pmEditId').value=''; $('pmCode').dataset.originalCode='';
   $('pmCode').value=''; $('pmShortName').value=''; $('pmFullName').value='';
   $('pmColor').value=''; $('pmType').value=''; $('pmFamily').value='탑씰 자사';
   $('pmActive').value='true'; $('pmDrums').value='1'; $('pmKg').value='0';
@@ -2627,6 +2627,7 @@ function editPm(id){
   if(!p){ flash('수정할 품목을 찾지 못했습니다. 마스터를 새로고침해 주세요.',true); return; }
   $('pmEditId').value=p.masterId;
   $('pmCode').value=p.code||'';
+  $('pmCode').dataset.originalCode=String(p.code||'').trim();
   $('pmShortName').value=p.shortName||p.name||p.scheduleName||'';
   $('pmFullName').value=p.fullName||'';
   $('pmColor').value=p.color||'';
@@ -2651,15 +2652,20 @@ async function savePm(){
   if(!shortName){ flash('품목명(약어)을 입력하세요',true); return; }
 
   const editId=$('pmEditId').value;
-  const original=allMasterProducts().find(p=>p.masterId===editId);
-  // 수정 모드에서는 현재 사용자 마스터와 그 원본 내장 마스터를 같은 품목으로 본다.
-  // 기존 품목을 사용자 마스터로 override한 뒤 다시 수정할 때 원본 코드가 중복으로 잡히는 문제를 방지한다.
-  const allowedEditIds=new Set([editId, original?.overrideOf].filter(Boolean));
+  const original=allMasterProducts().find(p=>String(p.masterId)===String(editId));
   const normalizedCode=String(code||'').trim().toUpperCase();
-  const dup=allMasterProducts().find(p=>
-    String(p.code||'').trim().toUpperCase()===normalizedCode && !allowedEditIds.has(p.masterId)
-  );
-  if(dup){ flash(`이미 등록된 품목코드입니다: ${code}`,true); return; }
+  const originalCode=String($('pmCode').dataset.originalCode || original?.code || '').trim().toUpperCase();
+
+  // 수정 중이고 품목코드를 바꾸지 않았다면 기존 중복 데이터와 무관하게 저장 허용.
+  // 품목코드를 실제로 변경할 때만 다른 품목과의 중복 여부를 검사한다.
+  const isSameCodeEdit=Boolean(editId) && Boolean(originalCode) && normalizedCode===originalCode;
+  if(!isSameCodeEdit){
+    const allowedEditIds=new Set([String(editId||''), String(original?.overrideOf||'')].filter(Boolean));
+    const dup=allMasterProducts().find(p=>
+      String(p.code||'').trim().toUpperCase()===normalizedCode && !allowedEditIds.has(String(p.masterId||''))
+    );
+    if(dup){ flash(`이미 등록된 품목코드입니다: ${code}`,true); return; }
+  }
 
   const id=(original && original.source==='custom') ? original.masterId : `CUSTOM_${Date.now()}`;
   const obj={
@@ -2863,7 +2869,7 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.7.3e';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.7.3f';
     }
   }
   loadPrinterSettings();
