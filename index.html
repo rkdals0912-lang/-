@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.7.1 — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.7.2 — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -566,7 +566,8 @@
       </div>
 
       <div class="panel">
-        <h2><span class="n">🏷</span>라벨 마스터</h2>
+        <h2><span class="n">🏷</span>라벨 마스터 관리 · 신규 / 수정 / 삭제</h2>
+        <div class="masterHint" style="margin-bottom:10px;">기존 라벨과 새로 등록한 라벨 모두 아래 목록에서 <b>수정 / 삭제</b>할 수 있습니다. 수정 버튼을 누르면 위 입력칸에 불러와집니다.</div>
         <input type="hidden" id="lmOriginalCode">
         <div class="masterGrid">
           <div><label>라벨코드 *</label><input type="text" class="field" id="lmCode" placeholder="예: LBL-012"></div>
@@ -1065,6 +1066,7 @@ async function loadWorkOrders(){
 
 let isAdmin=false, mode='batch', generated=[], selectedIdx=0, log=[], liveDrumCounter=1;
 let CUSTOM_LABEL_MASTER=[];
+let DELETED_LABEL_MASTER_CODES=[];
 let selectedLabelTypeBatch='full', selectedLabelTypeLive='full';
 let editorKey='basic', selectedFieldId=null, workOrders=[], activeOrderId=null, dragState=null;
 const $=id=>document.getElementById(id);
@@ -2049,12 +2051,16 @@ async function loadCustomProducts(){
 }
 
 async function saveCustomLabelMaster(){
-  await storeSet('ksa-label-master-v471',JSON.stringify(CUSTOM_LABEL_MASTER));
+  await storeSet('ksa-label-master-v472',JSON.stringify(CUSTOM_LABEL_MASTER));
+  await storeSet('ksa-label-master-deleted-v472',JSON.stringify(DELETED_LABEL_MASTER_CODES));
 }
 async function loadCustomLabelMaster(){
-  const raw=await storeGet('ksa-label-master-v471');
-  if(!raw){ CUSTOM_LABEL_MASTER=[]; return; }
-  try{ const v=JSON.parse(raw); CUSTOM_LABEL_MASTER=Array.isArray(v)?v:[]; }catch(e){ CUSTOM_LABEL_MASTER=[]; }
+  let raw=await storeGet('ksa-label-master-v472');
+  if(!raw) raw=await storeGet('ksa-label-master-v471');
+  if(!raw){ CUSTOM_LABEL_MASTER=[]; }
+  else{ try{ const v=JSON.parse(raw); CUSTOM_LABEL_MASTER=Array.isArray(v)?v:[]; }catch(e){ CUSTOM_LABEL_MASTER=[]; } }
+  const delRaw=await storeGet('ksa-label-master-deleted-v472');
+  try{ const v=JSON.parse(delRaw||'[]'); DELETED_LABEL_MASTER_CODES=Array.isArray(v)?v:[]; }catch(e){ DELETED_LABEL_MASTER_CODES=[]; }
 }
 function builtinLabelMaster(){
   const map=new Map();
@@ -2065,8 +2071,11 @@ function builtinLabelMaster(){
   return [...map.values()];
 }
 function allLabelMaster(){
-  const map=new Map(builtinLabelMaster().map(x=>[x.labelCode,x]));
-  CUSTOM_LABEL_MASTER.forEach(x=>map.set(x.labelCode,{...x,builtin:false}));
+  const deleted=new Set(DELETED_LABEL_MASTER_CODES||[]);
+  const map=new Map(builtinLabelMaster().filter(x=>!deleted.has(x.labelCode)).map(x=>[x.labelCode,x]));
+  CUSTOM_LABEL_MASTER.forEach(x=>{
+    if(!deleted.has(x.labelCode)) map.set(x.labelCode,{...x,builtin:false});
+  });
   return [...map.values()].sort((a,b)=>String(a.labelCode).localeCompare(String(b.labelCode)));
 }
 function labelMasterByCode(code){ return allLabelMaster().find(x=>x.labelCode===code)||null; }
@@ -2085,12 +2094,12 @@ function renderLabelMasterList(){
   const wrap=$('lmList'); if(!wrap) return;
   const rows=allLabelMaster();
   if(!rows.length){ wrap.innerHTML='<div class="empty">등록된 라벨이 없습니다.</div>'; return; }
-  wrap.innerHTML=rows.map(x=>`<div class="fieldListItem"><span><b>${escapeHtml(x.labelCode)}</b> · ${escapeHtml(x.labelName||'')}<br><span class="tag">${escapeHtml(x.layoutKey||'서식 미지정')} · 기본 ${x.copies||1}장${x.active===false?' · 미사용':''}${x.builtin?' · 기본마스터':''}</span></span><span>${x.builtin?'<span class="tag">읽기전용</span>':`<button class="miniBtn" data-lm-edit="${escapeHtml(x.labelCode)}">수정</button> <button class="miniBtn del" data-lm-del="${escapeHtml(x.labelCode)}">삭제</button>`}</span></div>`).join('');
+  wrap.innerHTML=rows.map(x=>`<div class="fieldListItem"><span><b>${escapeHtml(x.labelCode)}</b> · ${escapeHtml(x.labelName||'')}<br><span class="tag">${escapeHtml(x.layoutKey||'서식 미지정')} · 기본 ${x.copies||1}장${x.active===false?' · 미사용':''}${x.builtin?' · 기본마스터':''}</span></span><span><button class="miniBtn" data-lm-edit="${escapeHtml(x.labelCode)}">수정</button> <button class="miniBtn del" data-lm-del="${escapeHtml(x.labelCode)}">삭제</button></span></div>`).join('');
   wrap.querySelectorAll('[data-lm-edit]').forEach(b=>b.addEventListener('click',()=>editLabelMaster(b.dataset.lmEdit)));
   wrap.querySelectorAll('[data-lm-del]').forEach(b=>b.addEventListener('click',()=>deleteLabelMaster(b.dataset.lmDel)));
 }
 function editLabelMaster(code){
-  const x=CUSTOM_LABEL_MASTER.find(v=>v.labelCode===code); if(!x) return;
+  const x=allLabelMaster().find(v=>v.labelCode===code); if(!x) return;
   $('lmOriginalCode').value=x.labelCode; $('lmCode').value=x.labelCode; $('lmName').value=x.labelName||''; $('lmLayout').value=x.layoutKey||'basic'; $('lmQty').value=x.copies||1; $('lmActive').value=String(x.active!==false); $('lmNote').value=x.note||''; $('lmSaveBtn').textContent='라벨 수정 저장';
   $('lmCode').scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -2100,8 +2109,9 @@ async function saveLabelMasterFromForm(){
   const duplicate=allLabelMaster().find(x=>x.labelCode===code && code!==original);
   if(duplicate){ flash('이미 사용 중인 라벨코드입니다',true); return; }
   const obj={labelCode:code,labelName:name,layoutKey:$('lmLayout').value,copies:+$('lmQty').value||1,active:$('lmActive').value==='true',note:$('lmNote').value.trim()};
-  const i=CUSTOM_LABEL_MASTER.findIndex(x=>x.labelCode===original);
-  if(i>=0) CUSTOM_LABEL_MASTER[i]=obj; else CUSTOM_LABEL_MASTER.push(obj);
+  let i=CUSTOM_LABEL_MASTER.findIndex(x=>x.labelCode===original);
+  if(i>=0) CUSTOM_LABEL_MASTER[i]=obj; else { CUSTOM_LABEL_MASTER.push(obj); i=-1; }
+  DELETED_LABEL_MASTER_CODES=(DELETED_LABEL_MASTER_CODES||[]).filter(c=>c!==code && c!==original);
   if(original && original!==code){
     CUSTOM_PRODUCTS.forEach(p=>(p.labels||[]).forEach(l=>{if(l.labelCode===original) l.labelCode=code;}));
     await saveCustomProducts();
@@ -2110,9 +2120,11 @@ async function saveLabelMasterFromForm(){
   flash(i>=0?'라벨 마스터를 수정했습니다':'신규 라벨을 등록했습니다');
 }
 async function deleteLabelMaster(code){
-  const x=CUSTOM_LABEL_MASTER.find(v=>v.labelCode===code); if(!x) return;
+  const x=allLabelMaster().find(v=>v.labelCode===code); if(!x) return;
   if(!confirm(`${code} / ${x.labelName} 라벨을 삭제하시겠습니까?\n이미 품목에 연결된 라벨 연결은 유지됩니다.`)) return;
-  CUSTOM_LABEL_MASTER=CUSTOM_LABEL_MASTER.filter(v=>v.labelCode!==code); await saveCustomLabelMaster(); renderLabelMasterList(); renderLabelMasterSelect(); resetLabelMasterForm(); flash('라벨 마스터를 삭제했습니다');
+  CUSTOM_LABEL_MASTER=CUSTOM_LABEL_MASTER.filter(v=>v.labelCode!==code);
+  if(!(DELETED_LABEL_MASTER_CODES||[]).includes(code)) DELETED_LABEL_MASTER_CODES.push(code);
+  await saveCustomLabelMaster(); renderLabelMasterList(); renderLabelMasterSelect(); resetLabelMasterForm(); flash('라벨 마스터를 삭제했습니다');
 }
 function rebuildProductCollections(){
   const customByOverride=new Map(CUSTOM_PRODUCTS.filter(p=>p.overrideOf).map(p=>[p.overrideOf,p]));
