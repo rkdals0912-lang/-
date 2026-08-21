@@ -397,7 +397,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.9.4</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.9.6</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -1466,7 +1466,7 @@ function renderLotPattern(pattern,order,drumNo,p){
   return String(pattern||'').replace(/\{([A-Z0-9_]+)\}/g,(all,key)=>Object.prototype.hasOwnProperty.call(vals,key)?vals[key]:all);
 }
 function computeLotInfo(order,drumNo=1,lotRuleIdOverride=''){
-  const p=ALL_PRODUCTS[order.productIdx]||{};
+  const p=resolveOrderProduct(order)||{};
   const rule=getLotRuleById(lotRuleIdOverride || getProductLotRuleId(p));
   const d=new Date(order.date+'T00:00:00'),f=fmtDate(d);
   const lot=renderLotPattern(rule.pattern,order,drumNo,p);
@@ -1641,9 +1641,21 @@ function renderVariantPicker(wrapId,p,current,onPick){
   wrap.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>onPick(b.dataset.v)));
   return cur;
 }
+function resolveOrderProduct(order){
+  if(!order) return null;
+  let p=null;
+  if(order.productMasterId) p=ALL_PRODUCTS.find(x=>String(x.masterId||'')===String(order.productMasterId));
+  if(!p && order.productProfileKey) p=ALL_PRODUCTS.find(x=>String(x.importProfileKey||'')===String(order.productProfileKey));
+  if(!p && order.productCode){
+    const candidates=ALL_PRODUCTS.filter(x=>String(x.code||'')===String(order.productCode));
+    p=candidates.find(x=>String(x.shortName||x.name||x.scheduleName||'')===String(order.productName||'')) || candidates[0] || null;
+  }
+  if(!p && Number.isInteger(Number(order.productIdx))) p=ALL_PRODUCTS[Number(order.productIdx)]||null;
+  return p;
+}
 function renderLabelTypePickers(){
   const o=activeOrder();
-  const p=o ? ALL_PRODUCTS[o.productIdx] : ALL_PRODUCTS[+$('product').value||0];
+  const p=o ? resolveOrderProduct(o) : ALL_PRODUCTS[+$('product').value||0];
   if(!p) return;
   selectedVariantBatch=normalizeVariant(p,selectedVariantBatch);
   selectedVariantLive=normalizeVariant(p,selectedVariantLive);
@@ -1734,10 +1746,13 @@ function renderOrderList(){
   const list=filteredOrders(),wrap=$('orderList');
   if(!list.length){wrap.innerHTML='<div class="empty">표시할 작업지시가 없습니다.</div>';return;}
   wrap.innerHTML=list.map(o=>{
-    const p=ALL_PRODUCTS[o.productIdx];
+    const p=resolveOrderProduct(o);
+    const pname=p ? (p.shortName||p.name||p.scheduleName||o.productName||'품목명 없음') : (o.productName||o.productCode||'삭제/변경된 품목');
+    const pcolor=p?.color||'';
+    const weightText=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;
     return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.id}">
-      <div class="top"><span class="pname">${p.name} ${p.color||''}</span><span class="statusPill ${o.status}">${statusLabel(o.status)}</span></div>
-      <div class="sub"><span class="orderDate">${o.date}</span> · ${o.shift} · ${o.machine}<br>Batch ${o.batchCount}-${pad2(o.batchSeq)} · ${o.batchDrums}드럼×${o.batchWeight}kg · 기본무지 ${o.includeBasic!==false?'포함':'제외'}</div>
+      <div class="top"><span class="pname">${escapeHtml(pname)} ${escapeHtml(pcolor)}</span><span class="statusPill ${o.status}">${statusLabel(o.status)}</span></div>
+      <div class="sub"><span class="orderDate">${o.date}</span> · ${o.shift} · ${o.machine}<br>Batch ${o.batchCount}-${pad2(o.batchSeq)} · ${o.batchDrums}드럼×${weightText}kg · 기본무지 ${o.includeBasic!==false?'포함':'제외'}${p?'':'<br><b style="color:#b3261e">현재 마스터에서 품목을 찾지 못함</b>'}</div>
       <button class="del adminOnly" data-del="${o.id}">삭제</button>
     </div>`;
   }).join('');
@@ -1808,7 +1823,9 @@ $('addOrder').addEventListener('click',async(e)=>{
       machine:$('machine')?.value||'',batchCount:$('batchCount')?.value||'1',batchSeq,
       batchDrums:Math.round(drums),batchWeight:weight,volume,includeBasic:$('includeBasic')?.checked!==false,
       manualLotInput,lotSeq:Math.max(1,Number($('lotSeqInput')?.value)||1),status:'pending',
-      labelCode:labelCode||'',variant:variant||'',lotRuleId:addRuleId||''
+      labelCode:labelCode||'',variant:variant||'',lotRuleId:addRuleId||'',
+      productMasterId:selectedProduct.masterId||'',productProfileKey:selectedProduct.importProfileKey||'',
+      productCode:selectedProduct.code||'',productName:selectedProduct.shortName||selectedProduct.name||selectedProduct.scheduleName||''
     };
 
     workOrders.push(order);
@@ -1816,6 +1833,8 @@ $('addOrder').addEventListener('click',async(e)=>{
     renderOrderList();
     flash(`${order.date} 작업지시를 추가했습니다`);
     $('batchSeq').value=order.batchSeq+1;
+
+    // 추가 결과가 화면 아래에 있어도 사용자가 바로 확인할 수 있도록 목록으로 이동한다.
     const list=$('orderList');
     if(list) setTimeout(()=>list.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
   }catch(err){
@@ -1838,9 +1857,10 @@ function refreshActiveOrderPanel(){
     $('prodNameOut').textContent='작업지시를 선택하세요';$('lotOut').textContent='—';$('dateExpOut').textContent='—';
     $('completeOrder').style.display='none';$('batchDrumsOut').textContent='-';$('batchWeightOut').textContent='-';$('nextDrumOut').textContent='1';return;
   }
-  const p=ALL_PRODUCTS[o.productIdx];
+  const p=resolveOrderProduct(o);
+  if(!p){ $('prodNameOut').textContent='현재 제품마스터에서 이 작업지시의 품목을 찾지 못했습니다'; $('lotOut').textContent='—'; $('dateExpOut').textContent='—'; $('completeOrder').style.display='none'; return; }
   const info=computeLotInfo(o,1);
-  $('prodNameOut').textContent=`${p.family==='HBF'?'HBF':'동은'} ${p.name} ${p.color||''} (${o.shift})`;
+  $('prodNameOut').textContent=`${p.family==='HBF'?'HBF':'동은'} ${p.shortName||p.name||''} ${p.color||''} (${o.shift})`;
   $('lotOut').textContent=p.family==='DONGEUN'?`${lotPrefix(o).base}-드럼번호`:info.lot;
   $('dateExpOut').textContent=`${info.prodDateDisp} → ${info.exp}`;
   $('completeOrder').style.display='block';$('batchDrumsOut').textContent=o.batchDrums;$('batchWeightOut').textContent=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;$('nextDrumOut').textContent=liveDrumCounter;
@@ -1900,7 +1920,7 @@ function renderLog(){
 
 $('genBatch').addEventListener('click',()=>{
   const o=activeOrder();if(!o){flash('먼저 작업지시를 선택하세요',true);return;}
-  const p=ALL_PRODUCTS[o.productIdx],worker=$('workerName').value||'',labelCode=selectedLabelTypeBatch;
+  const p=resolveOrderProduct(o),worker=$('workerName').value||'',labelCode=selectedLabelTypeBatch;if(!p){flash('현재 제품마스터에서 작업지시 품목을 찾지 못했습니다',true);return;}
   const ruleId=labelEffectiveLotRule(p,labelCode,selectedVariantBatch);
   if(productUsesManualInput3(p,ruleId) && !validManualInput3(String(o.manualLotInput||''))){flash('이 작업의 LOT 마지막 3자리 값이 없습니다. 작업지시를 다시 등록하세요.',true);return;}
   generated=[];
@@ -1918,7 +1938,7 @@ $('genBatch').addEventListener('click',()=>{
 $('genLive').addEventListener('click',()=>{
   const o=activeOrder();if(!o){flash('먼저 작업지시를 선택하세요',true);return;}
   const w=$('liveWeight').value;if(!w){flash('실측 중량을 입력하세요',true);return;}
-  const p=ALL_PRODUCTS[o.productIdx],n=liveDrumCounter,labelCode=selectedLabelTypeLive;
+  const p=resolveOrderProduct(o),n=liveDrumCounter,labelCode=selectedLabelTypeLive;if(!p){flash('현재 제품마스터에서 작업지시 품목을 찾지 못했습니다',true);return;}
   const ruleId=labelEffectiveLotRule(p,labelCode,selectedVariantLive);
   if(productUsesManualInput3(p,ruleId) && !validManualInput3(String(o.manualLotInput||''))){flash('이 작업의 LOT 마지막 3자리 값이 없습니다. 작업지시를 다시 등록하세요.',true);return;}
   const info=computeLotInfo(o,n,ruleId);
