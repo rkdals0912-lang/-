@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.7.3f — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.8.0 — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -257,12 +257,63 @@
     #printArea{position:absolute;left:0;top:0;width:100%;}
     .printPage{page-break-after:always;padding:14mm;}
   }
+
+/* ============ POP 스타일 오버라이드 v4.8.0 ============ */
+:root{--pop-bg:#eef1f6;--pop-header:#12131a;--pop-blue:#3b82f6;--pop-green:#22c55e;--pop-orange:#f59e0b;--pop-red:#ef4444;--pop-purple:#a855f7;--pop-teal:#14b8a6;--pop-pink:#ec4899;}
+body{background:var(--pop-bg)!important;}
+.panel{border-radius:16px!important;box-shadow:0 3px 12px rgba(20,23,31,.06)!important;}
+.modebar button{border-radius:14px;}
+
+
+/* ============ v4.8.0 POP 대시보드 / 편집기 전면 개편 ============ */
+:root{
+  --dash-bg:#f4f6fa;--dash-dark:#17182b;--dash-text:#273047;--dash-muted:#7e8799;
+  --dash-blue:#4276ef;--dash-green:#51b65f;--dash-orange:#ec9c28;--dash-red:#d94a42;
+  --dash-purple:#7545e8;--dash-cyan:#38a7bd;--dash-indigo:#5755df;--dash-brown:#e36b22;
+}
+body{background:var(--dash-bg)!important;color:var(--dash-text);}
+header{background:var(--dash-dark)!important;min-height:72px;box-shadow:0 2px 14px rgba(15,18,36,.18);}
+.rolebar{background:#fff!important;box-shadow:0 2px 10px rgba(22,27,48,.06);}
+.homeBtn{border:1px solid #d7ddea;background:#fff;border-radius:10px;padding:8px 12px;font-weight:800;color:#26324a;cursor:pointer;}
+#homeView{max-width:1080px;margin:0 auto;padding:28px 24px 90px;}
+.homeTitle{font-size:28px;font-weight:900;color:#20273a;margin:0 0 4px;}
+.homeSub{font-size:13px;color:var(--dash-muted);margin-bottom:22px;}
+.homeGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;}
+.homeCard{border:0;background:transparent;cursor:pointer;text-align:center;padding:8px 4px 14px;color:var(--dash-text);border-radius:20px;transition:.15s transform,.15s background;}
+.homeCard:hover{background:#fff;transform:translateY(-2px);}
+.homeCard:active{transform:scale(.97);}
+.homeIcon{width:82px;height:82px;border-radius:24px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 9px 20px rgba(41,49,82,.14);}
+.homeIcon svg{width:43px;height:43px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.homeCard b{display:block;font-size:16px;letter-spacing:-.02em;}
+.homeCard small{display:block;color:#929bad;font-size:10.5px;margin-top:3px;}
+.c-blue{background:linear-gradient(145deg,#4e82f7,#315edb)}.c-green{background:linear-gradient(145deg,#5cc667,#3b9f4b)}
+.c-orange{background:linear-gradient(145deg,#f3a838,#dc861c)}.c-red{background:linear-gradient(145deg,#e75a52,#c93834)}
+.c-purple{background:linear-gradient(145deg,#8957f0,#6331d4)}.c-cyan{background:linear-gradient(145deg,#4ab3ca,#278ba3)}
+.c-indigo{background:linear-gradient(145deg,#6765ec,#4443cb)}.c-brown{background:linear-gradient(145deg,#ed7a31,#ce5419)}
+#workspaceNav{display:none;}
+body.workspace-open #workspaceNav{display:flex;}
+body.workspace-open #homeView{display:none;}
+.editorQuickBar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0;}
+.editorQuickBtn{border:1px solid #dbe1eb;background:#fff;border-radius:12px;padding:12px 6px;cursor:pointer;font-weight:800;font-size:12px;color:#24314a;}
+.editorQuickBtn span{display:block;font-size:22px;margin-bottom:4px;}
+.editorQuickBtn:hover{border-color:#8aa7e8;background:#f7faff;}
+.tableInspector{margin-top:10px;padding:10px;border:1px solid #dbe1eb;border-radius:12px;background:#fbfcfe;}
+.tableCellEditor{border:1px solid #dfe4ed;border-radius:9px;padding:7px;background:#fff;}
+.tableCellEditor .cellHead{font-size:10px;font-weight:800;color:#677186;margin-bottom:5px;}
+.tableCellEditor select,.tableCellEditor input{width:100%;min-height:31px;font-size:11px;padding:4px 6px;border:1px solid #d9dfe8;border-radius:6px;background:#fff;}
+.tableCellMini{display:grid;grid-template-columns:1fr 74px 72px;gap:4px;margin-top:4px;}
+.editorCanvas .fld[data-kind="table"]{outline:1px dashed #6d86b4;}
+.panel{background:#fff!important;border:1px solid #e3e7ee!important;box-shadow:0 4px 18px rgba(26,32,54,.045)!important;}
+@media(max-width:720px){
+  #homeView{padding:22px 14px 90px}.homeGrid{grid-template-columns:repeat(4,1fr);gap:12px 6px}.homeIcon{width:60px;height:60px;border-radius:18px}.homeIcon svg{width:31px;height:31px}.homeCard b{font-size:12px}.homeCard small{display:none}.homeTitle{font-size:23px}.editorQuickBar{grid-template-columns:repeat(2,1fr)}
+}
+
 </style>
 </head>
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.7.3f.3b.3</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.8.0</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -270,7 +321,7 @@
 </header>
 
 <div class="rolebar">
-  <span class="pill worker" id="rolePill">작업자 모드</span>
+  <button class="homeBtn" id="homeBtn" type="button">⌂ 홈</button><span class="pill worker" id="rolePill">작업자 모드</span>
   <button id="roleToggle">관리자 모드 전환 (PIN)</button>
   <span id="dbStatus" style="font-size:11px;font-weight:800;padding:4px 8px;border-radius:99px;background:#eef2f7;color:#5b6672;">DB 확인중</span>
   <span class="cur">작업지시는 날짜와 관계없이 목록에 표시되며 과거 날짜도 선택하여 출력할 수 있습니다.</span>
@@ -284,7 +335,22 @@
   <span class="err" id="pinInlineErr"></span>
 </div>
 
-<div class="modebar">
+<section id="homeView">
+  <h2 class="homeTitle">메뉴</h2>
+  <div class="homeSub">원하는 업무를 선택하세요. 관리자 기능은 관리자 모드에서 활성화됩니다.</div>
+  <div class="homeGrid">
+    <button class="homeCard" data-go="batch"><span class="homeIcon c-blue"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg></span><b>일괄 출력</b><small>작업지시 기반 출력</small></button>
+    <button class="homeCard" data-go="live"><span class="homeIcon c-green"><svg viewBox="0 0 24 24"><path d="M3 15h12V6H8"/><path d="M15 10h3l3 3v2h-6"/><circle cx="7" cy="17" r="2"/><circle cx="18" cy="17" r="2"/></svg></span><b>실시간 출력</b><small>현장 즉시 발행</small></button>
+    <button class="homeCard adminOnly" data-go="editor"><span class="homeIcon c-orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1-2.8 2.8-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.6V21H10v-.1A1.8 1.8 0 0 0 8.9 19a1.8 1.8 0 0 0-2 .4l-.1.1L4 16.7l.1-.1a1.8 1.8 0 0 0 .4-2A1.8 1.8 0 0 0 3 13.5H3v-4h.1A1.8 1.8 0 0 0 4.5 8a1.8 1.8 0 0 0-.4-2L4 5.9 6.8 3l.1.1a1.8 1.8 0 0 0 2 .4A1.8 1.8 0 0 0 10 2h4a1.8 1.8 0 0 0 1.1 1.5 1.8 1.8 0 0 0 2-.4l.1-.1L20 5.9l-.1.1a1.8 1.8 0 0 0-.4 2A1.8 1.8 0 0 0 21 9.5V13.5a1.8 1.8 0 0 0-1.6 1.5z"/></svg></span><b>라벨 편집</b><small>텍스트 · 표 · 회전</small></button>
+    <button class="homeCard adminOnly" data-go="products"><span class="homeIcon c-red"><svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v16H4V5h4l1-2z"/><path d="M8 10h8M8 14h8M8 18h5"/></svg></span><b>제품 관리</b><small>품목 · 라벨 연결</small></button>
+    <button class="homeCard adminOnly" data-go="lot"><span class="homeIcon c-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span><b>LOT 규칙</b><small>제품별 채번 규칙</small></button>
+    <button class="homeCard adminOnly" data-go="history"><span class="homeIcon c-cyan"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><b>출력 이력</b><small>품목 · 라벨 · LOT</small></button>
+    <button class="homeCard adminOnly" data-go="printer"><span class="homeIcon c-indigo"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg></span><b>프린터</b><small>Zebra ZT420 / 421</small></button>
+    <button class="homeCard" data-go="reissue"><span class="homeIcon c-brown"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></svg></span><b>재발행</b><small>날짜 지정 재출력</small></button>
+  </div>
+</section>
+
+<div class="modebar" id="workspaceNav">
   <button id="tabBatch" class="active">1. 일괄 출력 모드</button>
   <button id="tabLive">2. 실시간 출력 모드</button>
   <button id="tabEditor" class="adminOnly">⚙ 라벨 서식 편집기</button>
@@ -464,7 +530,7 @@
         </div>
         <div class="previewWrap" id="previewWrap"><div class="empty">라벨을 생성하세요.</div></div>
       </div>
-      <div class="panel">
+      <div class="panel" id="printHistoryPanel">
         <div class="toolbar">
           <h2 style="margin:0;">라벨 출력 이력</h2>
           <button class="btn btn-ghost auto" id="exportBtn">CSV 내보내기</button>
@@ -480,14 +546,8 @@
     <div>
       <div class="panel">
         <h2><span class="n">⚙</span>서식 편집기</h2>
-        <div class="tabsSub">
-          <button data-key="basic" class="active">기본 무지라벨</button>
-          <button data-key="plain">HBF 무지라벨</button>
-          <button data-key="full">HBF 통합 라벨</button>
-          <button data-key="kr">동은 국문</button>
-          <button data-key="en">동은 영문</button>
-          <button data-key="sample">동은 샘플(바코드)</button>
-        </div>
+        <div class="tabsSub" id="editorLayoutTabs"></div>
+        <div class="lockednote" id="editorLabelHint">기본 서식과 라벨 마스터에 등록된 모든 라벨이 표시됩니다. 라벨을 처음 편집할 때 해당 라벨 전용 서식이 자동 생성됩니다.</div>
         <label>캔버스 크기 (mm)</label>
         <div class="row2"><input type="number" id="canvasW" min="20"><input type="number" id="canvasH" min="20"></div>
         <div class="lockednote">항목을 클릭하거나 캔버스에서 드래그해서 조정할 수 있습니다.</div>
@@ -497,11 +557,18 @@
         <h2><span class="n">≡</span>항목 목록</h2>
         <div id="fieldList"></div>
 
+        <div class="editorQuickBar">
+          <button type="button" class="editorQuickBtn" data-quick-field="static"><span>Ｔ</span>텍스트</button>
+          <button type="button" class="editorQuickBtn" data-quick-field="bind"><span>⌘</span>변수</button>
+          <button type="button" class="editorQuickBtn" data-quick-field="table"><span>▦</span>표(Table)</button>
+          <button type="button" class="editorQuickBtn" id="quickInfoTable"><span>▤</span>2열 정보표</button>
+        </div>
         <div class="addFieldBox">
           <label>새 항목 종류</label>
           <select id="newFieldKind">
             <option value="bind">변수 항목</option>
             <option value="static">고정 텍스트</option>
+            <option value="table">표(테이블)</option>
           </select>
 
           <div id="newBindWrap">
@@ -512,6 +579,14 @@
           <div id="newStaticWrap" style="display:none;">
             <label>고정 텍스트</label>
             <input type="text" class="field" id="newFieldText" placeholder="예: 주의사항">
+          </div>
+
+          <div id="newTableWrap" style="display:none;">
+            <label>행 × 열</label>
+            <div class="row2">
+              <input type="number" class="field" id="newTableRows" min="1" max="12" value="3">
+              <input type="number" class="field" id="newTableCols" min="1" max="8" value="2">
+            </div>
           </div>
 
           <label>항목 이름</label>
@@ -537,7 +612,18 @@
           <div><label>정렬</label><select id="inspAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></div>
         </div>
         <div class="inspRow">
-          <div><label>회전 (deg)</label><input type="number" id="inspRotate" step="1" value="0"></div>
+          <div><label>회전 빠른 선택</label>
+            <select id="inspRotatePreset">
+              <option value="0">0° · 가로</option>
+              <option value="90">90° · 세로</option>
+              <option value="180">180° · 뒤집기</option>
+              <option value="270">270° · 반대 세로</option>
+              <option value="custom">직접 입력</option>
+            </select>
+          </div>
+          <div><label>회전 각도 (deg)</label><input type="number" id="inspRotate" step="1" value="0"></div>
+        </div>
+        <div class="inspRow">
           <div><label>굵기</label>
             <select id="inspWeight">
               <option value="400">보통</option>
@@ -546,6 +632,7 @@
               <option value="800">매우 굵게</option>
             </select>
           </div>
+          <div><label>회전 안내</label><div class="readout">텍스트를 선택한 뒤 90°를 고르면 세로로 회전합니다.</div></div>
         </div>
 
         <div id="inspBindWrap">
@@ -966,7 +1053,7 @@ function defaultLayout(key){
       {id:'msds',kind:'static',text:'※ 자세한 사항은 MSDS 및 Technical Data Sheet를 참고 하십시오.',x:145,y:120,w:142,h:7,size:6.8},
       {id:'company',kind:'static',text:DONGEUN_COMPANY_KR,x:116,y:136,w:170,h:7,size:7.5,align:'center'},
 
-      {id:'right_lot',kind:'bind',bind:'lotRaw',label:'우측 세로 LOT',x:299,y:7,w:35,h:135,size:24,weight:800,align:'center',rotate:90}
+      {id:'right_lot',kind:'bind',bind:'lotRaw',label:'우측 세로 LOT',x:265,y:67,w:120,h:16,size:24,weight:800,align:'center',rotate:90}
     ]};
   }
   if(key==='en'){
@@ -1119,15 +1206,28 @@ async function storeGet(key){
 async function saveLayouts(){ await storeSet('ksa-label-layouts-master-v30',JSON.stringify(LAYOUTS)); }
 async function saveWorkOrders(){ await storeSet('ksa-work-orders-master-v30',JSON.stringify(workOrders)); }
 
+function normalizeLegacyRotatedFields(layout){
+  if(!layout||!Array.isArray(layout.fields)) return layout;
+  layout.fields.forEach(f=>{
+    // v4.7.3g 이전 동은 국문 우측 LOT는 회전 전 박스가 세로로 길어
+    // 90도 회전 시 캔버스 밖으로 밀려 보이지 않는 문제가 있었습니다.
+    if(f && f.id==='right_lot' && Number(f.rotate)===90 && Number(f.x)>=290 && Number(f.w)<=40 && Number(f.h)>=100){
+      f.x=265; f.y=67; f.w=120; f.h=16;
+    }
+  });
+  return layout;
+}
 async function loadLayouts(){
   const raw=await storeGet('ksa-label-layouts-master-v30');
   if(!raw) return;
   try{
     const saved=JSON.parse(raw);
     const defaults=freshLayouts();
-    for(const key of Object.keys(defaults)){
-      if(saved[key]&&Array.isArray(saved[key].fields)) defaults[key]=saved[key];
+    // 기본 서식뿐 아니라 라벨코드별로 생성된 개별 서식도 함께 복원합니다.
+    for(const key of Object.keys(saved||{})){
+      if(saved[key]&&Array.isArray(saved[key].fields)) defaults[key]=normalizeLegacyRotatedFields(saved[key]);
     }
+    Object.keys(defaults).forEach(k=>normalizeLegacyRotatedFields(defaults[k]));
     LAYOUTS=defaults;
   }catch(e){}
 }
@@ -1264,17 +1364,17 @@ function computeDongeunLot(order,drumNo){ return computeLotInfo(order,drumNo); }
 
 function buildContext(p,info,drumNo,weightKg,volume){
   return {
-    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),lot:info.lot,weight:`${weightKg} KG`,proddate:info.prodDateDisp,drumNo:String(drumNo),
+    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),lot:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'- KG (입력 필요)',proddate:info.prodDateDisp,drumNo:String(drumNo),
     productLine:`Product Name : ${p.name} ${p.color||''}`.trim(),
-    weightLine:`Net Weight : ${weightKg}kg`,volumeLine:`Volume : Approxi ${volume||'?'}L`,
+    weightLine:`Net Weight : ${(weightKg!=null&&weightKg!=='')?weightKg:0}kg`,volumeLine:`Volume : Approxi ${volume||'?'}L`,
     expireLine:`Expire date : ${info.exp}`,lotLine:`LOT NO : ${info.lot}`
   };
 }
 function buildDongeunContext(p,info,drumNo,weightKg){
   return {
-    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:`${weightKg} KG`,proddate:info.prodDateDisp,
+    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'- KG (입력 필요)',proddate:info.prodDateDisp,
     lotLine:`LOT : ${info.lot}`,titleKr:(p.fullName||p.shortName||p.name),titleEn:(p.fullName||p.shortName||p.name),
-    weightLineKr:`중     량 : ${weightKg}kg`,weightLineEn:`ㆍWeight : ${weightKg}kg`,
+    weightLineKr:`중     량 : ${(weightKg!=null&&weightKg!=='')?weightKg:0}kg`,weightLineEn:`ㆍWeight : ${(weightKg!=null&&weightKg!=='')?weightKg:0}kg`,
     dateLineKr:`생산일자 : ${info.prodDateDisp}`,mfdLineEn:`ㆍM.F.D : ${info.prodDateDisp}`,
     usebyLineKr:`USE  BY : ${info.exp}`,usebyLineEn:`ㆍUSE BY : ${info.exp}`
   };
@@ -1284,18 +1384,23 @@ function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&
 function renderLabelHtml(layoutKey,ctx,editable=false){
   const layout=LAYOUTS[layoutKey];
   const fields=layout.fields.map(f=>{
-    const text=f.kind==='bind'?(ctx[f.bind]??`[${f.bind}]`):f.text;
-    const styles=[
-      `left:${f.x}mm`,`top:${f.y}mm`,`width:${f.w}mm`,`height:${f.h}mm`,
-      `font-size:${f.size}pt`,`font-weight:${f.weight||400}`,
-      `text-align:${f.align||'left'}`,
-      f.mono?'font-family:var(--mono)':'',
-      f.color==='sub'?'color:var(--sub)':'color:var(--ink)',
-      f.rotate?`transform:rotate(${f.rotate}deg)`:'',
-      f.rotate?'transform-origin:center center':'',
-      f.border?'border:1.5px solid var(--ink)':''
+    const posStyle=[`left:${f.x}mm`,`top:${f.y}mm`,`width:${f.w}mm`,`height:${f.h}mm`,
+      f.rotate?`transform:rotate(${f.rotate}deg)`:'',f.rotate?'transform-origin:center center':''
     ].filter(Boolean).join(';');
-    return `<div class="fld${editable&&f.id===selectedFieldId?' selected':''}" ${editable?`data-fid="${f.id}"`:''} style="${styles}">${escapeHtml(text).replace(/\n/g,'<br>')}</div>`;
+    const cls=`fld${editable&&f.id===selectedFieldId?' selected':''}`;
+    const dataAttr=editable?`data-fid="${f.id}" data-kind="${f.kind||'static'}"`:'';
+    if(f.kind==='table'){
+      const cellBorder=f.cellBorder!==false;
+      const tdBorder=cellBorder?'border:0.3mm solid #000;':'border:none;';
+      const cells=(f.cells||[]).map(row=>'<tr>'+row.map(c=>{
+        const val=c.kind==='bind'?(ctx[c.bind]??`[${c.bind}]`):(c.text||'');
+        return `<td style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
+      }).join('')+'</tr>').join('');
+      return `<div class="${cls}" ${dataAttr} style="${posStyle};position:absolute;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;${cellBorder?'border:0.3mm solid #000;':''}">${cells}</table></div>`;
+    }
+    const text=f.kind==='bind'?(ctx[f.bind]??`[${f.bind}]`):f.text;
+    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.mono?'font-family:var(--mono)':'',f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':''].filter(Boolean).join(';');
+    return `<div class="${cls}" ${dataAttr} style="${styles}">${escapeHtml(text).replace(/\n/g,'<br>')}</div>`;
   }).join('');
   return `<div class="canvasBox ${editable?'editorCanvas':''}" id="${editable?'liveEditorCanvas':''}" style="width:${layout.w}mm;height:${layout.h}mm;">${fields}</div>`;
 }
@@ -1321,20 +1426,22 @@ function availableLabelTypes(p,variant=''){
   return (p.labels||[]).filter(l=>{
     const v=l.variantCode||inferLabelVariant(l.labelName);
     return !variant || !v || v==='COMMON' || v===variant;
-  }).map(l=>({
+  }).map(l=>{
+    const layoutKey=effectiveLabelLayoutKey(l.labelCode,l.layoutKey);
+    return ({
     key:l.labelCode,
     label:l.labelName,
     code:l.labelCode,
-    layoutKey:l.layoutKey,
+    layoutKey,
     sizeText:l.sizeText,
     orientation:l.orientation,
     unwind:l.unwind,
     variantCode:l.variantCode||inferLabelVariant(l.labelName),
     lotRuleId:l.lotRuleId||'',
     nameOverride:l.nameOverride||'',
-    enabled:!!l.layoutKey,
+    enabled:!!layoutKey,
     master:l
-  }));
+  });});
 }
 function availableVariants(p){
   const arr=[];
@@ -1376,7 +1483,8 @@ function contextForSelectedLabel(p,info,drumNo,weight,volume,labelCode,selectedV
   const l=selectedLabelLink(p,labelCode);
   const displayName=labelEffectiveName(p,labelCode,selectedVariant);
   const pp={...p,fullName:displayName||p.fullName};
-  if(['kr','en','sample'].includes(l?.layoutKey)) return buildDongeunContext(pp,info,drumNo,weight);
+  const baseKey=labelBaseLayoutKey(labelCode,l?.layoutKey||'');
+  if(['kr','en','sample'].includes(baseKey)) return buildDongeunContext(pp,info,drumNo,weight);
   return buildContext(pp,info,drumNo,weight,volume);
 }
 function renderMasterProductInfo(p){
@@ -1576,7 +1684,7 @@ $('genReissue').addEventListener('click',()=>{
   const manualLotInput=String($('reissueManualLotInput')?.value||'').trim().toUpperCase();
   if(productUsesManualInput3(p,ruleId) && !validManualInput3(manualLotInput)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력하세요',true);return;}
   const fakeOrder={date:$('reissueDate').value||todayISO(),machine:$('reissueMachine').value,batchCount:$('reissueBatchCount').value||'1',batchSeq:+$('reissueBatchSeq').value||1,productIdx:+$('reissueProduct').value,volume:$('reissueVolume').value?+$('reissueVolume').value:null,manualLotInput,lotSeq:+($('reissueLotSeqInput')?.value||1)};
-  const drumNo=+$('reissueDrum').value||1,weight=+$('reissueWeight').value||p.kg;
+  const drumNo=+$('reissueDrum').value||1; const rwRaw=$('reissueWeight').value; const weight=rwRaw!==''?+rwRaw:(p.kg??0);
   let info,ctx,parts;
   info=computeLotInfo(fakeOrder,drumNo,ruleId);
   ctx=contextForSelectedLabel(p,info,drumNo,weight,fakeOrder.volume,labelCode,selectedVariantReissue);
@@ -1993,10 +2101,27 @@ $('pinInlineInput').addEventListener('keydown',e=>{
   }
 });
 
+
+function openWorkspace(){document.body.classList.add('workspace-open');}
+function showHome(){document.body.classList.remove('workspace-open');$('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';document.body.classList.remove('editing');}
+if($('homeBtn')) $('homeBtn').addEventListener('click',showHome);
+document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventListener('click',()=>{
+  const go=card.dataset.go;
+  if(card.classList.contains('adminOnly')&&!isAdmin){flash('관리자 모드에서 사용할 수 있습니다',true);return;}
+  openWorkspace();
+  if(go==='batch') $('tabBatch').click();
+  else if(go==='live') $('tabLive').click();
+  else if(go==='editor') $('tabEditor').click();
+  else if(go==='products') $('tabProductMaster').click();
+  else if(go==='lot') $('tabLotRules').click();
+  else if(go==='history'){ $('tabBatch').click(); setTimeout(()=>$('printHistoryPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
+  else if(go==='printer'){ $('tabBatch').click(); setTimeout(()=>$('printerSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
+  else if(go==='reissue'){ $('tabBatch').click(); setTimeout(()=>document.querySelector('#reissueProduct')?.scrollIntoView({behavior:'smooth',block:'center'}),120); }
+}));
 function showOp(){$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');}
-$('tabBatch').addEventListener('click',()=>{mode='batch';$('tabBatch').classList.add('active');$('tabLive').classList.remove('active');$('tabEditor').classList.remove('active');$('panelBatch').style.display='block';$('panelLive').style.display='none';showOp();});
-$('tabLive').addEventListener('click',()=>{mode='live';$('tabLive').classList.add('active');$('tabBatch').classList.remove('active');$('tabEditor').classList.remove('active');$('panelLive').style.display='block';$('panelBatch').style.display='none';$('nextDrumOut').textContent=liveDrumCounter;showOp();});
-$('tabEditor').addEventListener('click',()=>{if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');document.body.classList.add('editing');renderEditor();});
+$('tabBatch').addEventListener('click',()=>{openWorkspace();mode='batch';$('tabBatch').classList.add('active');$('tabLive').classList.remove('active');$('tabEditor').classList.remove('active');$('panelBatch').style.display='block';$('panelLive').style.display='none';showOp();});
+$('tabLive').addEventListener('click',()=>{openWorkspace();mode='live';$('tabLive').classList.add('active');$('tabBatch').classList.remove('active');$('tabEditor').classList.remove('active');$('panelLive').style.display='block';$('panelBatch').style.display='none';$('nextDrumOut').textContent=liveDrumCounter;showOp();});
+$('tabEditor').addEventListener('click',()=>{openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');document.body.classList.add('editing');renderEditorTabs();renderEditor();});
 $('resetLive').addEventListener('click',()=>{liveDrumCounter=1;$('nextDrumOut').textContent='1';flash('드럼 카운트 초기화');});
 
 function fieldById(id){return LAYOUTS[editorKey].fields.find(f=>f.id===id);}
@@ -2031,46 +2156,68 @@ function fillVariableSelect(selectEl, selected){
 }
 
 function sampleContext(){
-  if(['kr','en','sample'].includes(editorKey)){
-    const p=DONGEUN_PRODUCTS[0],o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1,productIdx:PRODUCTS.length};
-    return buildDongeunContext(p,computeLotInfo(o,4),4,p.kg);
+  const base=editorLabelCode?labelBaseLayoutKey(editorLabelCode,editorKey):editorKey;
+  if(['kr','en','sample'].includes(base)){
+    const p=DONGEUN_PRODUCTS[0]||ALL_PRODUCTS[0],o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1,productIdx:PRODUCTS.length};
+    return buildDongeunContext(p,computeLotInfo(o,4),4,p?.kg);
   }
-  const p=PRODUCTS[0],o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1};
-  return buildContext(p,computeLotInfo(o,4),4,p.kg,p.volume);
+  const p=PRODUCTS[0]||ALL_PRODUCTS[0],o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1};
+  return buildContext(p,computeLotInfo(o,4),4,p?.kg,p?.volume);
 }
 function renderFieldList(){
-  $('fieldList').innerHTML=LAYOUTS[editorKey].fields.map(f=>`<div class="fieldListItem ${f.id===selectedFieldId?'active':''}" data-fid="${f.id}"><span>${f.label||(f.kind==='static'?(f.text||'박스').split('\n')[0].slice(0,14):f.bind)}${f.rotate?`<span class="rotationBadge">${f.rotate}°</span>`:''}</span><span class="tag">${f.kind==='bind'?'변수':'고정텍스트'}</span></div>`).join('');
+  $('fieldList').innerHTML=LAYOUTS[editorKey].fields.map(f=>{
+    const name=f.kind==='table'?`표 (${f.rows}×${f.cols})`:(f.label||(f.kind==='static'?(f.text||'박스').split('\n')[0].slice(0,14):f.bind));
+    const tag=f.kind==='bind'?'변수':f.kind==='table'?'표':'고정텍스트';
+    return `<div class="fieldListItem ${f.id===selectedFieldId?'active':''}" data-fid="${f.id}"><span>${name}${f.rotate?`<span class="rotationBadge">${f.rotate}°</span>`:''}</span><span class="tag">${tag}</span></div>`;
+  }).join('');
   $('fieldList').querySelectorAll('.fieldListItem').forEach(el=>el.addEventListener('click',()=>selectField(el.dataset.fid)));
 }
 function selectField(fid){
-  selectedFieldId=fid;
-  renderFieldList();
-  renderCanvasOnly();
-  const f=fieldById(fid);
-  if(!f) return;
-
+  selectedFieldId=fid; renderFieldList(); renderCanvasOnly();
+  const f=fieldById(fid); if(!f)return;
   $('inspectorPanel').style.display='block';
   $('inspName').textContent=f.label||f.bind||(f.text||'박스').split('\n')[0];
-
-  $('inspX').value=f.x;
-  $('inspY').value=f.y;
-  $('inspW').value=f.w;
-  $('inspH').value=f.h;
-  $('inspSize').value=f.size;
-  $('inspAlign').value=f.align||'left';
-  $('inspRotate').value=f.rotate||0;
+  $('inspX').value=f.x; $('inspY').value=f.y; $('inspW').value=f.w; $('inspH').value=f.h;
+  $('inspSize').value=f.size; $('inspAlign').value=f.align||'left'; $('inspRotate').value=f.rotate||0;
+  if($('inspRotatePreset')){const rv=String(((Number(f.rotate)||0)%360+360)%360);$('inspRotatePreset').value=['0','90','180','270'].includes(rv)?rv:'custom';}
   $('inspWeight').value=String(f.weight||400);
-
-  const isBind=f.kind==='bind';
+  const isBind=f.kind==='bind',isTable=f.kind==='table';
   $('inspBindWrap').style.display=isBind?'block':'none';
-  $('inspTextWrap').style.display=isBind?'none':'block';
-
-  if(isBind){
-    fillVariableSelect($('inspBind'),f.bind);
-  }else{
-    $('inspText').value=f.text||'';
-  }
+  $('inspTextWrap').style.display=(!isBind&&!isTable)?'block':'none';
+  if(isBind) fillVariableSelect($('inspBind'),f.bind); else if(!isTable) $('inspText').value=f.text||'';
+  let tableBox=$('inspTableBox');
+  if(!tableBox){tableBox=document.createElement('div');tableBox.id='inspTableBox';$('inspectorPanel').insertBefore(tableBox,$('inspTextWrap').nextSibling);}
+  tableBox.innerHTML=''; if(isTable) renderTableInspector(f,tableBox);
 }
+function renderTableInspector(f,box){
+  f.rows=f.rows||2; f.cols=f.cols||2; f.cells=f.cells||[]; f.borderWidth=Number(f.borderWidth)||0.3;
+  if(!Array.isArray(f.colWidths)||f.colWidths.length!==f.cols) f.colWidths=Array.from({length:f.cols},()=>100/f.cols);
+  box.className='tableInspector';
+  box.innerHTML=`<div class="row2"><div><label>행 수</label><input type="number" id="tblRows" min="1" max="12" value="${f.rows}"></div><div><label>열 수</label><input type="number" id="tblCols" min="1" max="8" value="${f.cols}"></div></div>
+    <div class="row2"><label class="checkrow"><input type="checkbox" id="tblBorder" ${f.cellBorder!==false?'checked':''}> 셀 테두리</label><div><label>선 굵기(mm)</label><input type="number" id="tblBorderWidth" step="0.1" min="0.1" max="2" value="${f.borderWidth}"></div></div>
+    <label>열 너비 비율(%)</label><div id="tblColWidths" class="row2" style="grid-template-columns:repeat(${f.cols},1fr)"></div>
+    <div id="tblGrid" style="margin-top:8px;display:grid;gap:7px;grid-template-columns:repeat(${f.cols},minmax(150px,1fr));overflow-x:auto"></div>`;
+  const cw=box.querySelector('#tblColWidths');
+  f.colWidths.forEach((w,i)=>{const inp=document.createElement('input');inp.type='number';inp.min='1';inp.value=Math.round(w*10)/10;inp.title=`${i+1}열 비율`;inp.addEventListener('input',()=>{f.colWidths[i]=Math.max(1,+inp.value||1);renderCanvasOnly();});cw.appendChild(inp);});
+  const grid=box.querySelector('#tblGrid');
+  for(let r=0;r<f.rows;r++) for(let c=0;c<f.cols;c++){
+    const cell=(f.cells[r]&&f.cells[r][c])||{kind:'static',text:'',align:c===0?'left':'left',size:f.size||9,weight:400};
+    if(!f.cells[r]) f.cells[r]=[]; f.cells[r][c]=cell;
+    const wrap=document.createElement('div');wrap.className='tableCellEditor';
+    wrap.innerHTML=`<div class="cellHead">${r+1}행 ${c+1}열</div><select class="cellVar"><option value="">고정 텍스트</option>${FIELD_VARIABLES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="cellText" type="text" placeholder="셀 텍스트"><div class="tableCellMini"><select class="cellAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><input class="cellSize" type="number" min="5" max="72" step=".5"><select class="cellWeight"><option value="400">보통</option><option value="600">중간</option><option value="700">굵게</option><option value="900">매우 굵게</option></select></div>`;
+    const sel=wrap.querySelector('.cellVar'),txt=wrap.querySelector('.cellText'),al=wrap.querySelector('.cellAlign'),sz=wrap.querySelector('.cellSize'),wt=wrap.querySelector('.cellWeight');
+    sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);
+    sel.addEventListener('change',()=>{if(sel.value){cell.kind='bind';cell.bind=sel.value;delete cell.text;txt.style.display='none';}else{cell.kind='static';cell.text=txt.value;delete cell.bind;txt.style.display='block';}renderCanvasOnly();});
+    txt.addEventListener('input',()=>{cell.kind='static';cell.text=txt.value;renderCanvasOnly();});
+    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});
+    grid.appendChild(wrap);
+  }
+  box.querySelector('#tblBorder').addEventListener('change',e=>{f.cellBorder=e.target.checked;renderCanvasOnly();});
+  box.querySelector('#tblBorderWidth').addEventListener('input',e=>{f.borderWidth=Math.max(.1,+e.target.value||.3);renderCanvasOnly();});
+  box.querySelector('#tblRows').addEventListener('change',e=>{resizeTableField(f,+e.target.value||1,f.cols);renderTableInspector(f,box);renderCanvasOnly();});
+  box.querySelector('#tblCols').addEventListener('change',e=>{resizeTableField(f,f.rows,+e.target.value||1);f.colWidths=Array.from({length:f.cols},()=>100/f.cols);renderTableInspector(f,box);renderCanvasOnly();});
+}
+function resizeTableField(f,rows,cols){const old=f.cells||[];f.cells=Array.from({length:rows},(_,r)=>Array.from({length:cols},(_,c)=>(old[r]&&old[r][c])||{kind:'static',text:''}));f.rows=rows;f.cols=cols;}
 ['inspX','inspY','inspW','inspH','inspSize','inspRotate'].forEach(id=>$(id).addEventListener('input',()=>{
   if(!selectedFieldId)return;
   const f=fieldById(selectedFieldId);
@@ -2080,54 +2227,70 @@ function selectField(fid){
   f.h=+$('inspH').value;
   f.size=+$('inspSize').value;
   f.rotate=+$('inspRotate').value||0;
+  if($('inspRotatePreset')){
+    const rv=String(((Number(f.rotate)||0)%360+360)%360);
+    $('inspRotatePreset').value=['0','90','180','270'].includes(rv)?rv:'custom';
+  }
   renderCanvasOnly();
   renderFieldList();
 }));
+if($('inspRotatePreset')) $('inspRotatePreset').addEventListener('change',()=>{
+  if(!selectedFieldId) return;
+  const v=$('inspRotatePreset').value;
+  if(v==='custom'){ $('inspRotate').focus(); return; }
+  const deg=Number(v)||0;
+  $('inspRotate').value=deg;
+  fieldById(selectedFieldId).rotate=deg;
+  renderCanvasOnly();
+  renderFieldList();
+});
 $('inspAlign').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).align=$('inspAlign').value;renderCanvasOnly();}});
 $('inspWeight').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).weight=+$('inspWeight').value;renderCanvasOnly();}});
 $('inspBind').addEventListener('change',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='bind'){f.bind=$('inspBind').value;renderCanvasOnly();renderFieldList();}}});
 $('inspText').addEventListener('input',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='static'){f.text=$('inspText').value;renderCanvasOnly();renderFieldList();}}});
 $('canvasW').addEventListener('input',()=>{LAYOUTS[editorKey].w=+$('canvasW').value||10;renderCanvasOnly();});
 $('canvasH').addEventListener('input',()=>{LAYOUTS[editorKey].h=+$('canvasH').value||10;renderCanvasOnly();});
-$('resetLayout').addEventListener('click',()=>{LAYOUTS[editorKey]=defaultLayout(editorKey);selectedFieldId=null;renderEditor();flash('기본값으로 초기화했습니다');});
+$('resetLayout').addEventListener('click',()=>{
+  if(editorLabelCode){ const base=labelBaseLayoutKey(editorLabelCode,'basic'); LAYOUTS[editorKey]=cloneLayoutObject(LAYOUTS[base]||LAYOUTS.basic); }
+  else LAYOUTS[editorKey]=defaultLayout(editorKey);
+  selectedFieldId=null;renderEditor();flash('기본값으로 초기화했습니다');
+});
 $('saveLayoutBtn').addEventListener('click',async()=>{await saveLayouts();flash(HAS_SHARED_STORAGE?'서식을 저장했습니다 (공유 저장소)':'서식을 이 브라우저에 저장했습니다');});
 
 function syncNewFieldKind(){
-  const isBind=$('newFieldKind').value==='bind';
-  $('newBindWrap').style.display=isBind?'block':'none';
-  $('newStaticWrap').style.display=isBind?'none':'block';
+  const v=$('newFieldKind').value;
+  $('newBindWrap').style.display=v==='bind'?'block':'none';
+  $('newStaticWrap').style.display=v==='static'?'block':'none';
+  $('newTableWrap').style.display=v==='table'?'block':'none';
 }
 $('newFieldKind').addEventListener('change',syncNewFieldKind);
 fillVariableSelect($('newFieldBind'),'lotRaw');
 syncNewFieldKind();
 
 $('addFieldBtn').addEventListener('click',()=>{
-  const kind=$('newFieldKind').value;
-  const label=($('newFieldLabel').value||'새 항목').trim();
-  const id=`custom_${Date.now()}`;
-  const f={
-    id,
-    kind,
-    label,
-    x:5,
-    y:5,
-    w:60,
-    h:10,
-    size:12,
-    weight:700,
-    align:'left',
-    rotate:0
-  };
-  if(kind==='bind'){
-    f.bind=$('newFieldBind').value;
-  }else{
-    f.text=$('newFieldText').value||label;
-  }
-  LAYOUTS[editorKey].fields.push(f);
-  $('newFieldLabel').value='';
-  $('newFieldText').value='';
-  selectField(id);
-  flash('새 항목을 추가했습니다. 위치를 조정한 뒤 저장하세요.');
+  const kind=$('newFieldKind').value,label=($('newFieldLabel').value||'새 항목').trim(),id=`custom_${Date.now()}`;
+  const f={id,kind,label,x:5,y:5,w:60,h:10,size:12,weight:700,align:'left',rotate:0};
+  if(kind==='bind') f.bind=$('newFieldBind').value;
+  else if(kind==='table'){const rows=Math.max(1,+$('newTableRows').value||3),cols=Math.max(1,+$('newTableCols').value||2);f.rows=rows;f.cols=cols;f.cellBorder=true;f.borderWidth=.3;f.colWidths=Array.from({length:cols},()=>100/cols);f.size=9;f.w=Math.min(90,cols*30);f.h=rows*8;f.cells=Array.from({length:rows},()=>Array.from({length:cols},()=>({kind:'static',text:''})));}
+  else f.text=$('newFieldText').value||label;
+  LAYOUTS[editorKey].fields.push(f);$('newFieldLabel').value='';$('newFieldText').value='';selectField(id);flash('새 항목을 추가했습니다. 위치와 내용을 조정한 뒤 저장하세요.');
+});
+
+
+document.querySelectorAll('[data-quick-field]').forEach(btn=>btn.addEventListener('click',()=>{
+  const kind=btn.dataset.quickField; $('newFieldKind').value=kind; syncNewFieldKind();
+  if(kind==='static') $('newFieldLabel').value='텍스트'; else if(kind==='bind') $('newFieldLabel').value='변수'; else $('newFieldLabel').value='표';
+  document.querySelector('.addFieldBox').scrollIntoView({behavior:'smooth',block:'center'});
+}));
+if($('quickInfoTable')) $('quickInfoTable').addEventListener('click',()=>{
+  const id=`info_table_${Date.now()}`;
+  const f={id,kind:'table',label:'기본 정보표',x:5,y:10,w:80,h:36,size:10,weight:400,align:'left',rotate:0,rows:4,cols:2,cellBorder:false,borderWidth:.3,colWidths:[30,70],cells:[
+    [{kind:'static',text:'품 명',size:8,weight:400},{kind:'bind',bind:'shortName',size:12,weight:700}],
+    [{kind:'static',text:'LOT NO.',size:8,weight:400},{kind:'bind',bind:'lotRaw',size:12,weight:700}],
+    [{kind:'static',text:'중 량',size:8,weight:400},{kind:'bind',bind:'weight',size:12,weight:700}],
+    [{kind:'static',text:'생산일자',size:8,weight:400},{kind:'bind',bind:'proddate',size:11,weight:700}]
+  ]};
+  LAYOUTS[editorKey].fields.push(f);selectField(id);flash('2열 정보표를 추가했습니다. 셀별 내용과 스타일을 바로 수정할 수 있습니다.');
 });
 
 $('deleteFieldBtn').addEventListener('click',()=>{
@@ -2140,9 +2303,54 @@ $('deleteFieldBtn').addEventListener('click',()=>{
   flash('항목을 삭제했습니다. 저장하면 반영됩니다.');
 });
 
-document.querySelectorAll('.tabsSub button').forEach(btn=>btn.addEventListener('click',()=>{
-  document.querySelectorAll('.tabsSub button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');editorKey=btn.dataset.key;selectedFieldId=null;renderEditor();
-}));
+let editorLabelCode='';
+function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-Za-z0-9]+/g,'_'); }
+function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
+function effectiveLabelLayoutKey(labelCode,fallback=''){
+  const lm=labelMasterByCode(labelCode);
+  const key=(lm&&lm.layoutKey)||fallback||'';
+  return key && LAYOUTS[key] ? key : '';
+}
+function labelBaseLayoutKey(labelCode,fallback=''){
+  const lm=labelMasterByCode(labelCode);
+  return (lm&&lm.baseLayoutKey) || fallback || (lm&&lm.layoutKey) || labelLayoutByMaster(labelCode,lm?.labelName||'') || 'basic';
+}
+async function ensureLabelEditorLayout(labelCode){
+  const lm=labelMasterByCode(labelCode); if(!lm) return 'basic';
+  const unique=labelEditorKey(labelCode);
+  if(!LAYOUTS[unique]){
+    const base=labelBaseLayoutKey(labelCode,lm.layoutKey);
+    LAYOUTS[unique]=normalizeLegacyRotatedFields(cloneLayoutObject(LAYOUTS[base]||LAYOUTS.basic));
+    await saveLayouts();
+  }
+  const base=labelBaseLayoutKey(labelCode,lm.layoutKey);
+  const obj={labelCode:lm.labelCode,labelName:lm.labelName||lm.labelCode,layoutKey:unique,baseLayoutKey:base,copies:lm.copies||1,active:lm.active!==false,note:lm.note||''};
+  const idx=CUSTOM_LABEL_MASTER.findIndex(x=>x.labelCode===labelCode);
+  if(idx>=0) CUSTOM_LABEL_MASTER[idx]={...CUSTOM_LABEL_MASTER[idx],...obj}; else CUSTOM_LABEL_MASTER.push(obj);
+  DELETED_LABEL_MASTER_CODES=(DELETED_LABEL_MASTER_CODES||[]).filter(c=>c!==labelCode);
+  await saveCustomLabelMaster();
+  renderLabelMasterList(); renderLabelMasterSelect();
+  return unique;
+}
+function renderEditorTabs(){
+  const wrap=$('editorLayoutTabs'); if(!wrap) return;
+  const templates=[['basic','기본 무지'],['plain','HBF 무지'],['full','HBF 통합'],['kr','동은 국문'],['en','동은 영문'],['sample','동은 샘플']];
+  const templateHtml=templates.map(([k,n])=>`<button type="button" data-template-key="${k}" class="${!editorLabelCode&&editorKey===k?'active':''}">${n}</button>`).join('');
+  const labels=allLabelMaster();
+  const labelHtml=labels.map(x=>{
+    const k=effectiveLabelLayoutKey(x.labelCode,x.layoutKey);
+    return `<button type="button" data-label-code="${escapeHtml(x.labelCode)}" class="${editorLabelCode===x.labelCode?'active':''}" title="${escapeHtml(x.labelCode)} · ${escapeHtml(x.labelName||'')}">${escapeHtml(x.labelName||x.labelCode)}<br><span style="font-size:9px;font-weight:600;opacity:.72">${escapeHtml(x.labelCode)}${k?'':' · 서식 생성 필요'}</span></button>`;
+  }).join('');
+  wrap.innerHTML=templateHtml+labelHtml;
+  wrap.querySelectorAll('[data-template-key]').forEach(btn=>btn.addEventListener('click',()=>{
+    editorLabelCode=''; editorKey=btn.dataset.templateKey; selectedFieldId=null; renderEditorTabs(); renderEditor();
+  }));
+  wrap.querySelectorAll('[data-label-code]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const code=btn.dataset.labelCode; editorLabelCode=code; editorKey=await ensureLabelEditorLayout(code); selectedFieldId=null; renderEditorTabs(); renderEditor();
+    flash(`${code} 라벨 전용 서식을 불러왔습니다`);
+  }));
+}
+
 
 function startDrag(fid,canvas,e){
   const r=canvas.getBoundingClientRect(),f=fieldById(fid);
@@ -2163,6 +2371,11 @@ document.addEventListener('mousemove',e=>{
 document.addEventListener('mouseup',()=>dragState=null);
 
 function renderEditor(){
+  if(!LAYOUTS[editorKey]){ editorKey='basic'; editorLabelCode=''; }
+  if($('editorLabelHint')){
+    const lm=editorLabelCode?labelMasterByCode(editorLabelCode):null;
+    $('editorLabelHint').innerHTML=lm?`현재 편집: <b>${escapeHtml(lm.labelCode)} · ${escapeHtml(lm.labelName||'')}</b> · 이 라벨만 사용하는 전용 서식입니다.`:'기본 템플릿 편집 중입니다. 등록 라벨을 누르면 해당 라벨 전용 서식으로 복제하여 편집합니다.';
+  }
   $('canvasW').value=LAYOUTS[editorKey].w;
   $('canvasH').value=LAYOUTS[editorKey].h;
   fillVariableSelect($('newFieldBind'),$('newFieldBind').value||'lotRaw');
@@ -2245,6 +2458,7 @@ async function deleteLotRule(id){
   LOT_RULES=LOT_RULES.filter(x=>x.id!==id); await saveLotRules(); refreshPmLotRuleOptions(); renderLotRuleTable(); flash('LOT 규칙을 삭제했습니다');
 }
 function showLotRules(){
+  openWorkspace();
   if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}
   $('opView').style.display='none'; $('editorView').style.display='none'; $('productMasterView').style.display='none'; $('lotRuleView').style.display='block'; document.body.classList.remove('editing');
   ['tabBatch','tabLive','tabEditor','tabProductMaster'].forEach(id=>$(id).classList.remove('active')); $('tabLotRules').classList.add('active');
@@ -2316,7 +2530,9 @@ function renderLabelMasterList(){
 }
 function editLabelMaster(code){
   const x=allLabelMaster().find(v=>v.labelCode===code); if(!x) return;
-  $('lmOriginalCode').value=x.labelCode; $('lmCode').value=x.labelCode; $('lmName').value=x.labelName||''; $('lmLayout').value=x.layoutKey||'basic'; $('lmQty').value=x.copies||1; $('lmActive').value=String(x.active!==false); $('lmNote').value=x.note||''; $('lmSaveBtn').textContent='라벨 수정 저장';
+  $('lmOriginalCode').value=x.labelCode; $('lmCode').value=x.labelCode; $('lmName').value=x.labelName||'';
+  const lmBase=x.baseLayoutKey||x.layoutKey||'basic'; if([...$('lmLayout').options].some(o=>o.value===lmBase)) $('lmLayout').value=lmBase;
+  $('lmQty').value=x.copies||1; $('lmActive').value=String(x.active!==false); $('lmNote').value=x.note||''; $('lmSaveBtn').textContent='라벨 수정 저장';
   $('lmCode').scrollIntoView({behavior:'smooth',block:'center'});
 }
 async function saveLabelMasterFromForm(){
@@ -2324,7 +2540,9 @@ async function saveLabelMasterFromForm(){
   if(!code||!name){ flash('라벨코드와 라벨명을 입력하세요',true); return; }
   const duplicate=allLabelMaster().find(x=>x.labelCode===code && code!==original);
   if(duplicate){ flash('이미 사용 중인 라벨코드입니다',true); return; }
-  const obj={labelCode:code,labelName:name,layoutKey:$('lmLayout').value,copies:+$('lmQty').value||1,active:$('lmActive').value==='true',note:$('lmNote').value.trim()};
+  const prev=labelMasterByCode(original||code);
+  const chosenLayout=$('lmLayout').value;
+  const obj={labelCode:code,labelName:name,layoutKey:chosenLayout,baseLayoutKey:prev?.baseLayoutKey||chosenLayout,copies:+$('lmQty').value||1,active:$('lmActive').value==='true',note:$('lmNote').value.trim()};
   let i=CUSTOM_LABEL_MASTER.findIndex(x=>x.labelCode===original);
   if(i>=0) CUSTOM_LABEL_MASTER[i]=obj; else { CUSTOM_LABEL_MASTER.push(obj); i=-1; }
   DELETED_LABEL_MASTER_CODES=(DELETED_LABEL_MASTER_CODES||[]).filter(c=>c!==code && c!==original);
@@ -2332,7 +2550,7 @@ async function saveLabelMasterFromForm(){
     CUSTOM_PRODUCTS.forEach(p=>(p.labels||[]).forEach(l=>{if(l.labelCode===original) l.labelCode=code;}));
     await saveCustomProducts();
   }
-  await saveCustomLabelMaster(); resetLabelMasterForm(); renderLabelMasterList(); renderLabelMasterSelect(); renderPmLinks();
+  await saveCustomLabelMaster(); resetLabelMasterForm(); renderLabelMasterList(); renderLabelMasterSelect(); renderPmLinks(); renderEditorTabs();
   flash(i>=0?'라벨 마스터를 수정했습니다':'신규 라벨을 등록했습니다');
 }
 async function deleteLabelMaster(code){
@@ -2815,6 +3033,7 @@ if($('pmExcelImportBtn')) $('pmExcelImportBtn').addEventListener('click',()=>$('
 if($('pmExcelFile')) $('pmExcelFile').addEventListener('change',e=>importProductExcel(e.target.files?.[0]));
 
 function showProductMaster(){
+  openWorkspace();
   if(!isAdmin){ flash('관리자 모드에서만 사용할 수 있습니다',true); return; }
   $('opView').style.display='none'; $('editorView').style.display='none'; if($('lotRuleView'))$('lotRuleView').style.display='none';
   $('productMasterView').style.display='block'; document.body.classList.remove('editing');
@@ -2869,14 +3088,14 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.7.3f';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.8.0';
     }
   }
   loadPrinterSettings();
   if(browserPrintSdkReady()) setTimeout(()=>discoverZebraPrinters(true),500);
   else setZebraStatus('브라우저 인쇄는 바로 사용할 수 있습니다. ZPL 직접 인쇄를 쓰려면 Zebra Browser Print와 BrowserPrint-3.1.250.min.js가 필요합니다.','warn');
 
-  await loadLayouts();await loadLotRules();await loadCustomProducts();await loadCustomLabelMaster();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();updateManualLotInputVisibility();refreshReissueLabelTypes();updateReissueManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLog();renderLotRuleTable();resetLotRuleForm();
+  await loadLayouts();await loadLotRules();await loadCustomProducts();await loadCustomLabelMaster();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();updateManualLotInputVisibility();refreshReissueLabelTypes();updateReissueManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();
   if(HAS_SHARED_STORAGE || window.KSA_DB_READY){
     setInterval(async()=>{
       if(document.body.classList.contains('editing'))return;
@@ -2886,6 +3105,8 @@ async function initApp(){
   }
 }
 initApp();
+
+setTimeout(showHome,0);
 </script>
 </body>
 </html>
