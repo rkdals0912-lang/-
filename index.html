@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.8.0f — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.8.1 — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -258,14 +258,14 @@
     .printPage{page-break-after:always;padding:14mm;}
   }
 
-/* ============ POP 스타일 오버라이드 v4.8.0f ============ */
+/* ============ POP 스타일 오버라이드 v4.8.1 ============ */
 :root{--pop-bg:#eef1f6;--pop-header:#12131a;--pop-blue:#3b82f6;--pop-green:#22c55e;--pop-orange:#f59e0b;--pop-red:#ef4444;--pop-purple:#a855f7;--pop-teal:#14b8a6;--pop-pink:#ec4899;}
 body{background:var(--pop-bg)!important;}
 .panel{border-radius:16px!important;box-shadow:0 3px 12px rgba(20,23,31,.06)!important;}
 .modebar button{border-radius:14px;}
 
 
-/* ============ v4.8.0f POP 대시보드 / 편집기 전면 개편 ============ */
+/* ============ v4.8.1 POP 대시보드 / 편집기 전면 개편 ============ */
 :root{
   --dash-bg:#f4f6fa;--dash-dark:#17182b;--dash-text:#273047;--dash-muted:#7e8799;
   --dash-blue:#4276ef;--dash-green:#51b65f;--dash-orange:#ec9c28;--dash-red:#d94a42;
@@ -320,7 +320,7 @@ body.workspace-open #homeView{display:none;}
 }
 
 
-  /* v4.8.0f - 서식 편집기: 미리보기와 정밀조정 패널을 한 화면에 배치 */
+  /* v4.8.1 - 서식 편집기: 미리보기와 정밀조정 패널을 한 화면에 배치 */
   .editorGrid{display:grid;grid-template-columns:minmax(280px,340px) minmax(560px,1fr);gap:16px;align-items:start;}
   .editorRight{display:grid;grid-template-columns:minmax(520px,1fr) minmax(320px,390px);gap:16px;align-items:start;min-width:0;}
   .editorPreviewPanel{position:sticky;top:12px;min-width:0;}
@@ -344,11 +344,26 @@ body.workspace-open #homeView{display:none;}
   }
 
 </style>
+
+<style>
+/* v4.8.1 - 라벨 마스터/제품 라벨 다중선택 */
+.pmLabelPickerPanel{overflow:visible}
+.pmLabelPickerActions{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.pmLabelPickerList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:360px;overflow:auto;padding:4px 2px}
+.pmLabelPick{display:flex;align-items:flex-start;gap:9px;border:1px solid var(--line);border-radius:10px;padding:9px;background:#fff;cursor:pointer}
+.pmLabelPick:hover{border-color:#8da5c1;background:#f8fbff}
+.pmLabelPick.selected{border-color:#234e7d;background:#eef5fc}
+.pmLabelPick input{width:17px;height:17px;margin-top:2px;flex:0 0 auto}
+.pmLabelPickMain{min-width:0;flex:1}
+.pmLabelPickTitle{font-weight:800;font-size:12px;color:var(--navy)}
+.pmLabelPickMeta{font-size:10px;color:var(--sub);margin-top:2px;white-space:normal}
+@media(max-width:820px){.pmLabelPickerList{grid-template-columns:1fr;max-height:300px}}
+</style>
 </head>
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.8.0f</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.8.1</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -388,7 +403,7 @@ body.workspace-open #homeView{display:none;}
 <div class="modebar" id="workspaceNav">
   <button id="tabBatch" class="active">1. 일괄 출력 모드</button>
   <button id="tabLive">2. 실시간 출력 모드</button>
-  <button id="tabEditor" class="adminOnly">⚙ 라벨 서식 편집기</button>
+  <button id="tabEditor" class="adminOnly">⚙ 라벨 마스터·서식</button>
   <button id="tabProductMaster" class="adminOnly">▦ 제품관리(마스터)</button>
   <button id="tabLotRules" class="adminOnly"># LOT 규칙관리</button>
 </div>
@@ -580,15 +595,37 @@ body.workspace-open #homeView{display:none;}
   <div class="editorGrid">
     <div>
       <div class="panel">
-        <h2><span class="n">⚙</span>서식 편집기</h2>
+        <h2><span class="n">⚙</span>라벨 마스터·서식 편집기</h2>
         <div class="tabsSub" id="editorLayoutTabs"></div>
-        <div class="lockednote" id="editorLabelHint">기본 서식과 라벨 마스터에 등록된 모든 라벨이 표시됩니다. 라벨을 처음 편집할 때 해당 라벨 전용 서식이 자동 생성됩니다.</div>
+        <div class="lockednote" id="editorLabelHint">이 화면을 라벨 마스터로 사용합니다. 라벨을 등록한 뒤 탭에서 선택하면 해당 라벨 전용 HTML 서식을 직접 편집할 수 있습니다.</div>
         <label>캔버스 크기 (mm)</label>
         <div class="row2"><input type="number" id="canvasW" min="20"><input type="number" id="canvasH" min="20"></div>
         <div class="lockednote">항목을 클릭하거나 캔버스에서 드래그해서 조정할 수 있습니다.</div>
       </div>
 
-
+      <div class="panel">
+        <h2><span class="n">🏷</span>라벨 마스터 · 신규 / 수정 / 삭제</h2>
+        <div class="masterHint" style="margin-bottom:10px;">라벨의 이름·기본 출력 장수와 기준 서식을 관리합니다. <b>서식 편집</b>을 누르면 같은 화면의 미리보기에서 라벨별 전용 HTML 서식을 편집합니다.</div>
+        <input type="hidden" id="lmOriginalCode">
+        <div class="masterGrid">
+          <div><label>라벨코드 *</label><input type="text" class="field" id="lmCode" placeholder="예: LBL-012"></div>
+          <div><label>라벨명 *</label><input type="text" class="field" id="lmName" placeholder="예: 다우 파렛트 라벨"></div>
+          <div><label>HTML 라벨 서식</label>
+            <select id="lmLayout">
+              <option value="basic">기본 무지</option><option value="plain">HBF 무지</option><option value="full">HBF 통합</option>
+              <option value="kr">동은 국문</option><option value="en">동은 영문</option><option value="sample">동은 샘플 120×75</option>
+            </select>
+          </div>
+          <div><label>기본 출력 장수</label><input type="number" id="lmQty" min="1" value="1"></div>
+          <div><label>사용 여부</label><select id="lmActive"><option value="true">사용</option><option value="false">미사용</option></select></div>
+          <div><label>비고</label><input type="text" class="field" id="lmNote" placeholder="고객사 / 용도 / 특이사항"></div>
+        </div>
+        <div class="editorActions" style="margin-top:10px;">
+          <button class="btn btn-primary" id="lmSaveBtn">+ 신규 라벨 등록</button>
+          <button class="btn btn-ghost" id="lmResetBtn">입력 초기화</button>
+        </div>
+        <div id="lmList" style="margin-top:12px;"></div>
+      </div>
 
 
     </div>
@@ -733,55 +770,17 @@ body.workspace-open #homeView{display:none;}
         </div>
       </div>
 
-      <div class="panel">
-        <h2><span class="n">🏷</span>라벨 마스터 관리 · 신규 / 수정 / 삭제</h2>
-        <div class="masterHint" style="margin-bottom:10px;">기존 라벨과 새로 등록한 라벨 모두 아래 목록에서 <b>수정 / 삭제</b>할 수 있습니다. 수정 버튼을 누르면 위 입력칸에 불러와집니다.</div>
-        <input type="hidden" id="lmOriginalCode">
-        <div class="masterGrid">
-          <div><label>라벨코드 *</label><input type="text" class="field" id="lmCode" placeholder="예: LBL-012"></div>
-          <div><label>라벨명 *</label><input type="text" class="field" id="lmName" placeholder="예: 다우 파렛트 라벨"></div>
-          <div><label>HTML 라벨 서식</label>
-            <select id="lmLayout">
-              <option value="basic">기본 무지</option><option value="plain">HBF 무지</option><option value="full">HBF 통합</option>
-              <option value="kr">동은 국문</option><option value="en">동은 영문</option><option value="sample">동은 샘플 120×75</option>
-            </select>
-          </div>
-          <div><label>기본 출력 장수</label><input type="number" id="lmQty" min="1" value="1"></div>
-          <div><label>사용 여부</label><select id="lmActive"><option value="true">사용</option><option value="false">미사용</option></select></div>
-          <div><label>비고</label><input type="text" class="field" id="lmNote" placeholder="고객사 / 용도 / 특이사항"></div>
+      <div class="panel pmLabelPickerPanel">
+        <h2><span class="n">🏷</span>이 제품에 사용할 라벨 선택 <span class="masterBadge" id="pmLabelPickerCount">0개 선택</span></h2>
+        <div class="masterHint" style="margin-bottom:10px;">
+          라벨 자체와 HTML 서식은 <b>라벨 마스터·서식</b>에서 관리합니다. 여기서는 이 제품에 사용할 라벨만 선택합니다. <b>여러 개를 동시에 선택</b>할 수 있으며 품목 저장 시 함께 저장됩니다.
         </div>
-        <div class="editorActions" style="margin-top:10px;">
-          <button class="btn btn-primary" id="lmSaveBtn">+ 신규 라벨 등록</button>
-          <button class="btn btn-ghost" id="lmResetBtn">입력 초기화</button>
+        <input type="text" class="field" id="pmLabelPickerSearch" placeholder="라벨코드 / 라벨명 / 비고 검색">
+        <div class="pmLabelPickerActions">
+          <button type="button" class="btn btn-ghost auto" id="pmLabelPickerAll">검색결과 전체 선택</button>
+          <button type="button" class="btn btn-ghost auto" id="pmLabelPickerClear">선택 해제</button>
         </div>
-        <div id="lmList" style="margin-top:12px;"></div>
-      </div>
-
-      <div class="panel">
-        <h2><span class="n">↔</span>품목별 라벨 연결</h2>
-        <div class="row2">
-          <div><label>품목코드 검색</label><input type="text" class="field" id="pmLabelCodeSearch" placeholder="예: B_O410D_012"></div>
-          <div><label>제품명 검색</label><input type="text" class="field" id="pmLabelNameSearch" placeholder="예: O200_백색 / O-200 백색"></div>
-        </div>
-        <label>품목 선택</label><select id="pmLabelProduct"></select>
-        <div id="pmLabelSearchCount" class="masterHint" style="margin-top:6px;margin-bottom:8px;">검색 조건 없이 전체 품목 표시</div>
-        <label>등록 라벨 선택</label><select id="pmLabelMasterSelect"><option value="">직접 입력 / 기존 방식</option></select>
-        <label>HTML 라벨 서식</label>
-        <select id="pmLabelLayout">
-          <option value="basic">기본 무지</option>
-          <option value="plain">HBF 무지</option>
-          <option value="full">HBF 통합</option>
-          <option value="kr">동은 국문</option>
-          <option value="en">동은 영문</option>
-          <option value="sample">동은 샘플 120×75</option>
-        </select>
-        <div class="row2">
-          <div><label>라벨코드</label><input type="text" class="field" id="pmLabelCode" placeholder="LBL-xxx"></div>
-          <div><label>라벨명</label><input type="text" class="field" id="pmLabelName" placeholder="라벨 마스터에서 자동 입력"></div>
-        </div>
-        <label>기본 출력 장수</label><input type="number" id="pmLabelQty" min="1" value="1">
-        <button class="btn btn-ok" id="pmAddLabelBtn">+ 이 품목에 라벨 연결</button>
-        <div id="pmLinkedLabels" style="margin-top:10px;"></div>
+        <div id="pmLabelPickerList" class="pmLabelPickerList"></div>
       </div>
     </div>
 
@@ -2226,7 +2225,7 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
 function showOp(){$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');}
 $('tabBatch').addEventListener('click',()=>{openWorkspace();mode='batch';$('tabBatch').classList.add('active');$('tabLive').classList.remove('active');$('tabEditor').classList.remove('active');$('panelBatch').style.display='block';$('panelLive').style.display='none';showOp();});
 $('tabLive').addEventListener('click',()=>{openWorkspace();mode='live';$('tabLive').classList.add('active');$('tabBatch').classList.remove('active');$('tabEditor').classList.remove('active');$('panelLive').style.display='block';$('panelBatch').style.display='none';$('nextDrumOut').textContent=liveDrumCounter;showOp();});
-$('tabEditor').addEventListener('click',()=>{openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');document.body.classList.add('editing');renderEditorTabs();renderEditor();});
+$('tabEditor').addEventListener('click',()=>{openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');document.body.classList.add('editing');renderEditorTabs();renderLabelMasterList();renderEditor();});
 $('resetLive').addEventListener('click',()=>{liveDrumCounter=1;$('nextDrumOut').textContent='1';flash('드럼 카운트 초기화');});
 
 function fieldById(id){return LAYOUTS[editorKey].fields.find(f=>f.id===id);}
@@ -2679,7 +2678,11 @@ function renderLabelMasterList(){
   const wrap=$('lmList'); if(!wrap) return;
   const rows=allLabelMaster();
   if(!rows.length){ wrap.innerHTML='<div class="empty">등록된 라벨이 없습니다.</div>'; return; }
-  wrap.innerHTML=rows.map(x=>`<div class="fieldListItem"><span><b>${escapeHtml(x.labelCode)}</b> · ${escapeHtml(x.labelName||'')}<br><span class="tag">${escapeHtml(x.layoutKey||'서식 미지정')} · 기본 ${x.copies||1}장${x.active===false?' · 미사용':''}${x.builtin?' · 기본마스터':''}</span></span><span><button class="miniBtn" data-lm-edit="${escapeHtml(x.labelCode)}">수정</button> <button class="miniBtn del" data-lm-del="${escapeHtml(x.labelCode)}">삭제</button></span></div>`).join('');
+  wrap.innerHTML=rows.map(x=>`<div class="fieldListItem"><span><b>${escapeHtml(x.labelCode)}</b> · ${escapeHtml(x.labelName||'')}<br><span class="tag">${escapeHtml(x.layoutKey||'서식 미지정')} · 기본 ${x.copies||1}장${x.active===false?' · 미사용':''}${x.builtin?' · 기본마스터':''}</span></span><span><button class="miniBtn" data-lm-open="${escapeHtml(x.labelCode)}">서식 편집</button> <button class="miniBtn" data-lm-edit="${escapeHtml(x.labelCode)}">정보 수정</button> <button class="miniBtn del" data-lm-del="${escapeHtml(x.labelCode)}">삭제</button></span></div>`).join('');
+  wrap.querySelectorAll('[data-lm-open]').forEach(b=>b.addEventListener('click',async()=>{
+    const code=b.dataset.lmOpen; editorLabelCode=code; editorKey=await ensureLabelEditorLayout(code); selectedFieldId=null; renderEditorTabs(); renderEditor();
+    $('editorCanvasWrap')?.scrollIntoView({behavior:'smooth',block:'center'}); flash(`${code} 서식 편집을 열었습니다`);
+  }));
   wrap.querySelectorAll('[data-lm-edit]').forEach(b=>b.addEventListener('click',()=>editLabelMaster(b.dataset.lmEdit)));
   wrap.querySelectorAll('[data-lm-del]').forEach(b=>b.addEventListener('click',()=>deleteLabelMaster(b.dataset.lmDel)));
 }
@@ -2705,7 +2708,7 @@ async function saveLabelMasterFromForm(){
     CUSTOM_PRODUCTS.forEach(p=>(p.labels||[]).forEach(l=>{if(l.labelCode===original) l.labelCode=code;}));
     await saveCustomProducts();
   }
-  await saveCustomLabelMaster(); resetLabelMasterForm(); renderLabelMasterList(); renderLabelMasterSelect(); renderPmLinks(); renderEditorTabs();
+  await saveCustomLabelMaster(); resetLabelMasterForm(); renderLabelMasterList(); renderLabelMasterSelect(); renderPmLabelChecklist(); renderPmLinks(); renderEditorTabs();
   flash(i>=0?'라벨 마스터를 수정했습니다':'신규 라벨을 등록했습니다');
 }
 async function deleteLabelMaster(code){
@@ -2713,7 +2716,7 @@ async function deleteLabelMaster(code){
   if(!confirm(`${code} / ${x.labelName} 라벨을 삭제하시겠습니까?\n이미 품목에 연결된 라벨 연결은 유지됩니다.`)) return;
   CUSTOM_LABEL_MASTER=CUSTOM_LABEL_MASTER.filter(v=>v.labelCode!==code);
   if(!(DELETED_LABEL_MASTER_CODES||[]).includes(code)) DELETED_LABEL_MASTER_CODES.push(code);
-  await saveCustomLabelMaster(); renderLabelMasterList(); renderLabelMasterSelect(); resetLabelMasterForm(); flash('라벨 마스터를 삭제했습니다');
+  await saveCustomLabelMaster(); renderLabelMasterList(); renderLabelMasterSelect(); renderPmLabelChecklist(); resetLabelMasterForm(); flash('라벨 마스터를 삭제했습니다');
 }
 function rebuildProductCollections(){
   const customByOverride=new Map(CUSTOM_PRODUCTS.filter(p=>p.overrideOf).map(p=>[p.overrideOf,p]));
@@ -2874,6 +2877,69 @@ function refreshAllProductSelects(){
   refreshPmLotRuleOptions();
 }
 
+let PM_FORM_LABEL_CODES = new Set();
+
+function pmLabelLayoutDisplay(x){
+  const key=effectiveLabelLayoutKey(x.labelCode,x.layoutKey||'') || x.layoutKey || '';
+  const names={basic:'기본 무지',plain:'HBF 무지',full:'HBF 통합',kr:'동은 국문',en:'동은 영문',sample:'동은 샘플'};
+  if(key && String(key).startsWith('lbl_')) return '라벨 전용 서식';
+  return names[key] || (key?'사용자 서식':'서식 생성 필요');
+}
+function renderPmLabelChecklist(){
+  const wrap=$('pmLabelPickerList'); if(!wrap) return;
+  const q=normalizeProductSearch($('pmLabelPickerSearch')?.value||'');
+  const rows=allLabelMaster().filter(x=>x.active!==false).filter(x=>{
+    if(!q) return true;
+    return normalizeProductSearch([x.labelCode,x.labelName,x.note].filter(Boolean).join(' ')).includes(q);
+  });
+  if(!rows.length){wrap.innerHTML='<div class="empty" style="grid-column:1/-1;">검색되는 라벨이 없습니다.</div>';}
+  else wrap.innerHTML=rows.map(x=>{
+    const checked=PM_FORM_LABEL_CODES.has(x.labelCode);
+    return `<label class="pmLabelPick ${checked?'selected':''}">
+      <input type="checkbox" data-pm-label-pick="${escapeHtml(x.labelCode)}" ${checked?'checked':''}>
+      <span class="pmLabelPickMain"><span class="pmLabelPickTitle">[${escapeHtml(x.labelCode)}] ${escapeHtml(x.labelName||'')}</span>
+      <span class="pmLabelPickMeta">${escapeHtml(pmLabelLayoutDisplay(x))} · 기본 ${Number(x.copies)||1}장${x.note?' · '+escapeHtml(x.note):''}</span></span>
+    </label>`;
+  }).join('');
+  wrap.querySelectorAll('[data-pm-label-pick]').forEach(cb=>cb.addEventListener('change',()=>{
+    const code=cb.dataset.pmLabelPick;
+    if(cb.checked) PM_FORM_LABEL_CODES.add(code); else PM_FORM_LABEL_CODES.delete(code);
+    renderPmLabelChecklist();
+  }));
+  if($('pmLabelPickerCount')) $('pmLabelPickerCount').textContent=`${PM_FORM_LABEL_CODES.size}개 선택`;
+}
+function setPmFormLabelsFromProduct(p){
+  PM_FORM_LABEL_CODES=new Set((p?.labels||[]).map(l=>String(l.labelCode||'').trim()).filter(Boolean));
+  renderPmLabelChecklist();
+}
+async function buildPmSelectedLabelLinks(original){
+  const oldMap=new Map((original?.labels||[]).map(l=>[l.labelCode,l]));
+  const result=[];
+  for(const code of PM_FORM_LABEL_CODES){
+    const lm=labelMasterByCode(code); if(!lm || lm.active===false) continue;
+    let layoutKey=effectiveLabelLayoutKey(code,lm.layoutKey||'');
+    if(!layoutKey){
+      try{ layoutKey=await ensureLabelEditorLayout(code); }catch(e){}
+    }
+    if(!layoutKey) layoutKey=labelBaseLayoutKey(code,lm.layoutKey||'basic')||'basic';
+    const layout=LAYOUTS[layoutKey]||LAYOUTS[labelBaseLayoutKey(code,'basic')]||LAYOUTS.basic||{w:100,h:70};
+    const prev=oldMap.get(code)||{};
+    result.push({...prev,
+      labelCode:code,
+      labelName:lm.labelName||prev.labelName||code,
+      labelClass:prev.labelClass||'마스터 연결',
+      w:Number(layout.w)||prev.w||100,
+      h:Number(layout.h)||prev.h||70,
+      sizeText:`${Number(layout.w)||prev.w||100}×${Number(layout.h)||prev.h||70}mm`,
+      orientation:(Number(layout.w)||100)>=(Number(layout.h)||70)?'가로':'세로',
+      unwind:prev.unwind||'사용자 설정',
+      copies:Number(lm.copies)||Number(prev.copies)||1,
+      status:'연결됨',layoutKey
+    });
+  }
+  return result;
+}
+
 function resetPmForm(){
   $('pmEditId').value=''; $('pmCode').dataset.originalCode='';
   $('pmCode').value=''; $('pmShortName').value=''; $('pmFullName').value='';
@@ -2882,6 +2948,7 @@ function resetPmForm(){
   if($('pmLotRule')) $('pmLotRule').value='LOT_HBF_STD';
   $('pmVolume').value=''; $('pmMonths').value='12'; $('pmNote').value='';
   $('pmSaveBtn').textContent='+ 신규 품목 등록';
+  PM_FORM_LABEL_CODES=new Set(); renderPmLabelChecklist();
 }
 
 
@@ -3012,6 +3079,7 @@ function editPm(id){
   $('pmVolume').value=p.volume??''; $('pmMonths').value=p.months??12;
   $('pmNote').value=p.note||'';
   $('pmSaveBtn').textContent='품목 수정 저장';
+  setPmFormLabelsFromProduct(p);
   const formTarget=$('pmCode')?.closest('.panel') || $('pmCode');
   if(formTarget){ setTimeout(()=>formTarget.scrollIntoView({behavior:'smooth',block:'start'}),30); }
   setTimeout(()=>{ try{$('pmCode').focus({preventScroll:true});}catch(e){$('pmCode').focus();} },450);
@@ -3040,6 +3108,7 @@ async function savePm(){
     if(dup){ flash(`이미 등록된 품목코드입니다: ${code}`,true); return; }
   }
 
+  const selectedLabelLinks=await buildPmSelectedLabelLinks(original);
   const id=(original && original.source==='custom') ? original.masterId : `CUSTOM_${Date.now()}`;
   const obj={
     masterId:id, source:'custom', overrideOf:(original&&original.source!=='custom')?original.masterId:(original?.overrideOf||null), active:$('pmActive').value==='true',
@@ -3049,7 +3118,7 @@ async function savePm(){
     drums:+$('pmDrums').value||1, kg:$('pmKg').value===''?null:+$('pmKg').value,
     volume:$('pmVolume').value===''?null:+$('pmVolume').value,
     months:+$('pmMonths').value||12, note:$('pmNote').value.trim(),
-    labels: original?.labels ? JSON.parse(JSON.stringify(original.labels)) : []
+    labels:selectedLabelLinks
   };
 
   if(original && original.source==='custom'){
@@ -3194,7 +3263,7 @@ function showProductMaster(){
   $('productMasterView').style.display='block'; document.body.classList.remove('editing');
   ['tabBatch','tabLive','tabEditor','tabLotRules'].forEach(id=>$(id).classList.remove('active'));
   $('tabProductMaster').classList.add('active');
-  refreshAllProductSelects(); refreshBulkLotRules(); renderPmTable(); renderPmLinks(); renderLabelMasterList(); renderLabelMasterSelect();
+  refreshAllProductSelects(); refreshBulkLotRules(); renderPmTable(); renderPmLabelChecklist(); renderPmLinks(); renderLabelMasterList(); renderLabelMasterSelect();
 }
 
 $('tabProductMaster').addEventListener('click',showProductMaster);
@@ -3205,10 +3274,17 @@ $('pmResetBtn').addEventListener('click',resetPmForm);
 $('pmSearch').addEventListener('input',renderPmTable);
 $('pmFamilyFilter').addEventListener('change',renderPmTable);
 $('pmFamily').addEventListener('change',()=>{ if(!$('pmEditId').value) refreshPmLotRuleOptions(defaultLotRuleIdForProduct({family:$('pmFamily').value})); });
-$('pmLabelProduct').addEventListener('change',renderPmLinks);
+if($('pmLabelProduct')) $('pmLabelProduct').addEventListener('change',renderPmLinks);
 if($('pmLabelCodeSearch')) $('pmLabelCodeSearch').addEventListener('input',refreshPmLabelProductSelect);
 if($('pmLabelNameSearch')) $('pmLabelNameSearch').addEventListener('input',refreshPmLabelProductSelect);
-$('pmAddLabelBtn').addEventListener('click',addPmLabel);
+if($('pmAddLabelBtn')) $('pmAddLabelBtn').addEventListener('click',addPmLabel);
+if($('pmLabelPickerSearch')) $('pmLabelPickerSearch').addEventListener('input',renderPmLabelChecklist);
+if($('pmLabelPickerAll')) $('pmLabelPickerAll').addEventListener('click',()=>{
+  const q=normalizeProductSearch($('pmLabelPickerSearch')?.value||'');
+  allLabelMaster().filter(x=>x.active!==false).filter(x=>!q||normalizeProductSearch([x.labelCode,x.labelName,x.note].filter(Boolean).join(' ')).includes(q)).forEach(x=>PM_FORM_LABEL_CODES.add(x.labelCode));
+  renderPmLabelChecklist();
+});
+if($('pmLabelPickerClear')) $('pmLabelPickerClear').addEventListener('click',()=>{PM_FORM_LABEL_CODES.clear();renderPmLabelChecklist();});
 
 if($('product')) $('product').addEventListener('change',updateManualLotInputVisibility);
 if($('reissueProduct')) $('reissueProduct').addEventListener('change',updateReissueManualLotInputVisibility);
@@ -3243,7 +3319,7 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.8.0f · 클릭하면 재시도';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.8.1 · 클릭하면 재시도';
     }
     dbBadge.style.cursor='pointer';
     dbBadge.onclick=()=>window.retryKsaDb&&window.retryKsaDb();
