@@ -397,7 +397,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.9.2</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.9.3</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -826,15 +826,15 @@ body.workspace-open #homeView{display:none;}
         </div>
 
         <div class="bulkPanel" style="border-color:#9db4d4;background:#f7fbff;">
-          <h3>Excel 일괄 등록 / 수정</h3>
+          <h3>Excel 전체 동기화</h3>
           <div class="masterHint" style="margin-top:0;">
             엑셀의 <b>품목마스터_업로드 / 라벨 업로드 / LOT규칙_참조</b> 시트를 한 번에 읽습니다.<br>
-            품목마스터_업로드의 반복 행은 자동 병합하고, 라벨 업로드 시트는 라벨 마스터(코드·명·가로·세로)로 사용합니다.
+            Excel을 제품마스터의 기준본으로 사용합니다. 신규 행은 추가, 변경 행은 수정, Excel에서 삭제한 제품/라벨 연결은 웹에서도 제거됩니다.<br>실제 반영 전에 <b>신규 / 수정 / 삭제 / 라벨 연결 변경</b> 건수를 먼저 보여주고 확인을 받습니다.
           </div>
           <div class="bulkActions">
             <button class="btn btn-ghost" id="pmExcelTemplateBtn">엑셀 양식 다운로드</button>
             <button class="btn btn-ghost" id="pmExcelExportBtn">현재 마스터 엑셀 내보내기</button>
-            <button class="btn btn-primary" id="pmExcelImportBtn">엑셀 일괄 업로드</button>
+            <button class="btn btn-primary" id="pmExcelImportBtn">Excel 전체 동기화</button>
             <input type="file" id="pmExcelFile" accept=".xlsx,.xls" style="display:none;">
           </div>
           <div id="pmExcelResult" class="masterHint" style="display:none;"></div>
@@ -1081,6 +1081,7 @@ MASTER_PRODUCTS.forEach((p,i)=>{
   p.fullName=p.fullName||'';
 });
 let CUSTOM_PRODUCTS=[];
+let EXCEL_FULL_SYNC_MODE=false;
 let ALL_PRODUCTS=[...MASTER_PRODUCTS];
 let PRODUCTS=ALL_PRODUCTS.filter(p=>p.family!=='DONGEUN');
 let DONGEUN_PRODUCTS=ALL_PRODUCTS.filter(p=>p.family==='DONGEUN');
@@ -2655,10 +2656,14 @@ function allMasterProducts(){ return [...MASTER_PRODUCTS,...CUSTOM_PRODUCTS]; }
 async function saveCustomProducts(){
   await storeSet('ksa-custom-products-v43',JSON.stringify(CUSTOM_PRODUCTS));
 }
+async function saveExcelSyncMode(){
+  await storeSet('ksa-excel-full-sync-v493',EXCEL_FULL_SYNC_MODE?'1':'0');
+}
 async function loadCustomProducts(){
   const raw=await storeGet('ksa-custom-products-v43') || await storeGet('ksa-custom-products-v42') || await storeGet('ksa-custom-products-v41');
   if(!raw){ CUSTOM_PRODUCTS=[]; rebuildProductCollections(); return; }
   try{ const v=JSON.parse(raw); CUSTOM_PRODUCTS=Array.isArray(v)?v:[]; }catch(e){ CUSTOM_PRODUCTS=[]; }
+  EXCEL_FULL_SYNC_MODE=(await storeGet('ksa-excel-full-sync-v493'))==='1';
   rebuildProductCollections();
 }
 
@@ -2827,14 +2832,22 @@ async function deleteLabelMaster(code){
   await saveCustomLabelMaster(); renderLabelMasterList(); renderLabelMasterSelect(); renderPmLabelChecklist(); resetLabelMasterForm(); flash('라벨 마스터를 삭제했습니다');
 }
 function rebuildProductCollections(){
-  const customByOverride=new Map(CUSTOM_PRODUCTS.filter(p=>p.overrideOf).map(p=>[p.overrideOf,p]));
-  const customCodes=new Set(CUSTOM_PRODUCTS.map(p=>String(p.code||'').trim()).filter(Boolean));
-  const base=MASTER_PRODUCTS.filter(p=>{
-    if(customByOverride.has(p.masterId)) return false;
-    if(p.code && customCodes.has(String(p.code).trim())) return false;
-    return true;
-  });
-  ALL_PRODUCTS=[...base,...CUSTOM_PRODUCTS].filter(p=>p.active!==false);
+  // v4.9.3: 전체 동기화가 한 번 실행된 뒤에는 Excel/사용자 마스터만 제품 기준본으로 사용한다.
+  // 따라서 과거 내장 MASTER_PRODUCTS가 Excel에서 삭제되어도 다시 화면에 살아나지 않는다.
+  let merged;
+  if(EXCEL_FULL_SYNC_MODE){
+    merged=[...CUSTOM_PRODUCTS];
+  }else{
+    const customByOverride=new Map(CUSTOM_PRODUCTS.filter(p=>p.overrideOf).map(p=>[p.overrideOf,p]));
+    const customCodes=new Set(CUSTOM_PRODUCTS.map(p=>String(p.code||'').trim()).filter(Boolean));
+    const base=MASTER_PRODUCTS.filter(p=>{
+      if(customByOverride.has(p.masterId)) return false;
+      if(p.code && customCodes.has(String(p.code).trim())) return false;
+      return true;
+    });
+    merged=[...base,...CUSTOM_PRODUCTS];
+  }
+  ALL_PRODUCTS=merged.filter(p=>p.active!==false);
   PRODUCTS=ALL_PRODUCTS.filter(p=>p.family!=='DONGEUN');
   DONGEUN_PRODUCTS=ALL_PRODUCTS.filter(p=>p.family==='DONGEUN');
 }
@@ -2957,8 +2970,8 @@ function makeExcelWorkbook(rows){
   const wb=XLSX.utils.book_new();
   const headers=['품목코드*','품목명(약어)*','정식 품명/라벨 표기명','색상','라벨코드','라벨명','TYPE','제품군','사용 여부','LOT 규칙명','LOT 규칙 ID','기본 드럼 수','기본 중량 kg','용량 L','USE BY (개월)','비고'];
   const exportRows=[];
-  const sourceRows=Array.isArray(rows)?rows:null;
-  if(sourceRows!==null){
+  const sourceRows=(rows&&rows.length)?rows:null;
+  if(sourceRows){
     sourceRows.forEach(r=>exportRows.push(r));
   }else{
     allMasterProducts().forEach(p=>{
@@ -2992,7 +3005,7 @@ function makeExcelWorkbook(rows){
   return wb;
 }
 function downloadExcelTemplate(){ try{XLSX.writeFile(makeExcelWorkbook([]),'KSA_제품마스터_일괄업로드_양식_v492.xlsx');}catch(e){flash(e.message||'엑셀 양식 생성 실패',true);} }
-function exportCurrentMasterExcel(){ try{XLSX.writeFile(makeExcelWorkbook(),'KSA_제품마스터_현재데이터_v492.xlsx');}catch(e){flash(e.message||'엑셀 내보내기 실패',true);} }
+function exportCurrentMasterExcel(){ try{XLSX.writeFile(makeExcelWorkbook(allMasterProducts().map(productToExcelRow)),'KSA_제품마스터_현재데이터_v492.xlsx');}catch(e){flash(e.message||'엑셀 내보내기 실패',true);} }
 async function importProductExcel(file){
   if(!file) return; if(!window.XLSX){flash('Excel 라이브러리를 불러오지 못했습니다',true);return;}
   try{
@@ -3064,41 +3077,64 @@ async function importProductExcel(file){
     // 품목 시트에만 존재하는 라벨도 라벨 마스터에 자동 등록한다.
     const lateLabelResult=await importLabelMasterFromSpecMap(specMap);
     const parsed=[...groups.values()];
+    // ===== v4.9.3 Excel 전체 동기화 미리보기 =====
+    const oldByKey=new Map(CUSTOM_PRODUCTS.map(p=>[p.importProfileKey||profileIdentity(p.code,p.shortName||p.name,p.color,p.type),p]));
+    const nextByKey=new Map(parsed.map(r=>[r.profileKey,r]));
+    const labelCodes=x=>[...(x.labels instanceof Map?x.labels.values():(x.labels||[]))].map(v=>String(v.labelCode||'')).filter(Boolean).sort().join('|');
+    const comparableOld=p=>JSON.stringify({code:p.code||'',shortName:p.shortName||p.name||'',fullName:p.fullName||'',color:p.color||'',type:p.type||'',family:p.family||'',active:p.active!==false,lotRuleId:p.lotRuleId||'',drums:p.drums??1,kg:p.kg??null,volume:p.volume??null,months:p.months??12,note:p.note||''});
+    const comparableNew=r=>JSON.stringify({code:r.code||'',shortName:r.shortName||'',fullName:r.fullName||'',color:r.color||'',type:r.type||'',family:r.family||'',active:r.active!==false,lotRuleId:r.lotRuleId||defaultLotRuleIdForProduct({family:r.family}),drums:r.drums??1,kg:r.kg??null,volume:r.volume??null,months:r.months??12,note:r.note||''});
+    let added=0,updated=0,deleted=0,labelChanged=0,unchanged=0,labelLinks=0;
+    for(const r of parsed){
+      const old=oldByKey.get(r.profileKey);
+      labelLinks+=r.labels.size;
+      if(!old){added++;continue;}
+      const dataDiff=comparableOld(old)!==comparableNew(r);
+      const labelsDiff=labelCodes(old)!==labelCodes(r);
+      if(labelsDiff) labelChanged++;
+      if(dataDiff||labelsDiff) updated++; else unchanged++;
+    }
+    for(const [k] of oldByKey) if(!nextByKey.has(k)) deleted++;
+
     const sameCodeProfiles=new Map();
     parsed.forEach(g=>{if(!g.code)return;const a=sameCodeProfiles.get(g.code)||[];a.push(g);sameCodeProfiles.set(g.code,a);});
     const multiProfileCodes=[...sameCodeProfiles.entries()].filter(([,arr])=>arr.length>1);
-    if(!confirm(`${parsed.length}개 제품 프로파일 / ${rows.length}개 원본 행을 업로드하시겠습니까?
-같은 제품의 반복 행은 여러 라벨로 자동 병합됩니다.${multiProfileCodes.length?`
-동일 품목코드의 별도 프로파일: ${multiProfileCodes.length}개 코드`:''}`)) return;
+    const summary=`Excel 전체 동기화 미리보기\n\n`+
+      `원본 Excel: ${rows.length}행\n제품 프로파일: ${parsed.length}개\n\n`+
+      `신규 추가: ${added}개\n수정: ${updated}개\n삭제: ${deleted}개\n라벨 연결 변경: ${labelChanged}개\n변경 없음: ${unchanged}개\n`+
+      `라벨 연결: ${labelLinks}건${multiProfileCodes.length?`\n동일 품목코드 다중 프로파일: ${multiProfileCodes.length}개 코드`:''}\n\n`+
+      `※ Excel에서 삭제된 제품은 웹 제품마스터에서도 삭제됩니다.\n`+
+      `※ 라벨 마스터/라벨 디자인/출력이력은 삭제하지 않습니다.\n\n전체 동기화를 실행하시겠습니까?`;
+    if(!confirm(summary)) return;
 
-    let added=0,updated=0,labelLinks=0;
+    // Excel을 제품마스터의 단일 기준본(Source of Truth)으로 교체한다.
+    const nextProducts=[];
     for(const r of parsed){
-      const exactCustom=CUSTOM_PRODUCTS.find(p=>p.importProfileKey===r.profileKey || (profileIdentity(p.code,p.shortName||p.name,p.color,p.type)===r.profileKey));
+      const exactCustom=oldByKey.get(r.profileKey);
       const exactBase=MASTER_PRODUCTS.find(p=>profileIdentity(p.code,p.shortName||p.name||p.scheduleName,p.color,p.type)===r.profileKey);
       const original=exactCustom||exactBase;
-      const obj={
+      nextProducts.push({
         masterId:exactCustom?.masterId||`CUSTOM_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
         source:'custom',overrideOf:exactCustom?.overrideOf||exactBase?.masterId||null,
         importProfileKey:r.profileKey,profileName:r.shortName,active:r.active,code:r.code,
         shortName:r.shortName,name:r.shortName,fullName:r.fullName,scheduleName:r.shortName,
         color:r.color,type:r.type,family:r.family,customer:original?.customer||'',lotRuleId:r.lotRuleId||defaultLotRuleIdForProduct({family:r.family}),
         drums:r.drums,kg:r.kg,volume:r.volume,months:r.months,note:r.note,labels:[...r.labels.values()]
-      };
-      labelLinks+=obj.labels.length;
-      if(exactCustom){CUSTOM_PRODUCTS[CUSTOM_PRODUCTS.indexOf(exactCustom)]=obj;updated++;}
-      else{CUSTOM_PRODUCTS.push(obj);exactBase?updated++:added++;}
+      });
     }
-
-    await saveCustomProducts(); rebuildProductCollections(); refreshAllProductSelects(); renderPmTable(); renderPmLinks(); renderLabelTypePickers(); renderLabelMasterList(); renderPmLabelChecklist(); renderEditorTabs();
+    CUSTOM_PRODUCTS=nextProducts;
+    EXCEL_FULL_SYNC_MODE=true;
+    await saveCustomProducts();
+    await saveExcelSyncMode();
+    rebuildProductCollections(); refreshAllProductSelects(); renderPmTable(); renderPmLinks(); renderLabelTypePickers(); renderLabelMasterList(); renderPmLabelChecklist(); renderEditorTabs();
     const el=$('pmExcelResult');
     if(el){
       const profileText=multiProfileCodes.length?` · 동일코드 다중 프로파일 ${multiProfileCodes.length}개`:'';
       const warnText=warnings.length?`<br><span style="color:#9a6700;">주의 ${warnings.length}건: ${warnings.slice(0,8).map(escapeHtml).join(' / ')}${warnings.length>8?' ...':''}</span>`:'';
       el.style.display='block';
-      el.innerHTML=`<b>업로드 완료</b> · 원본 ${rows.length}행 → 제품 프로파일 ${parsed.length}개 (신규 ${added} / 수정 ${updated}) · 라벨 연결 ${labelLinks}건 · 라벨 마스터 ${specMap.size}종 · LOT 규칙 ${ruleCount}건${profileText}${warnText}`;
+      el.innerHTML=`<b>전체 동기화 완료</b> · 제품 ${parsed.length}개 (신규 ${added} / 수정 ${updated} / 삭제 ${deleted} / 라벨연결 변경 ${labelChanged}) · 라벨 연결 ${labelLinks}건 · 라벨 마스터 ${specMap.size}종 · LOT 규칙 ${ruleCount}건${profileText}${warnText}`;
     }
-    flash(`엑셀 업로드 완료: 제품 ${parsed.length}개 / 라벨 연결 ${labelLinks}건`);
-  }catch(e){console.error(e);flash('엑셀 업로드 실패: '+(e.message||e),true);} finally{if($('pmExcelFile'))$('pmExcelFile').value='';}
+    flash(`Excel 전체 동기화 완료: 제품 ${parsed.length}개 / 삭제 ${deleted}개 / 라벨 연결 ${labelLinks}건`);
+  }catch(e){console.error(e);flash('Excel 전체 동기화 실패: '+(e.message||e),true);} finally{if($('pmExcelFile'))$('pmExcelFile').value='';}
 }
 
 function refreshAllProductSelects(){
