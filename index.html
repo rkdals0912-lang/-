@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.9.0 — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.9.1 — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -258,14 +258,14 @@
     .printPage{page-break-after:always;padding:14mm;}
   }
 
-/* ============ POP 스타일 오버라이드 v4.9.0 ============ */
+/* ============ POP 스타일 오버라이드 v4.9.1 ============ */
 :root{--pop-bg:#eef1f6;--pop-header:#12131a;--pop-blue:#3b82f6;--pop-green:#22c55e;--pop-orange:#f59e0b;--pop-red:#ef4444;--pop-purple:#a855f7;--pop-teal:#14b8a6;--pop-pink:#ec4899;}
 body{background:var(--pop-bg)!important;}
 .panel{border-radius:16px!important;box-shadow:0 3px 12px rgba(20,23,31,.06)!important;}
 .modebar button{border-radius:14px;}
 
 
-/* ============ v4.9.0 POP 대시보드 / 편집기 전면 개편 ============ */
+/* ============ v4.9.1 POP 대시보드 / 편집기 전면 개편 ============ */
 :root{
   --dash-bg:#f4f6fa;--dash-dark:#17182b;--dash-text:#273047;--dash-muted:#7e8799;
   --dash-blue:#4276ef;--dash-green:#51b65f;--dash-orange:#ec9c28;--dash-red:#d94a42;
@@ -320,7 +320,7 @@ body.workspace-open #homeView{display:none;}
 }
 
 
-  /* v4.9.0 - 서식 편집기: 미리보기와 정밀조정 패널을 한 화면에 배치 */
+  /* v4.9.1 - 서식 편집기: 미리보기와 정밀조정 패널을 한 화면에 배치 */
   .editorGrid{display:grid;grid-template-columns:minmax(280px,340px) minmax(560px,1fr);gap:16px;align-items:start;}
   .editorRight{display:grid;grid-template-columns:minmax(520px,1fr) minmax(320px,390px);gap:16px;align-items:start;min-width:0;}
   .editorPreviewPanel{position:sticky;top:12px;min-width:0;}
@@ -346,7 +346,7 @@ body.workspace-open #homeView{display:none;}
 </style>
 
 <style>
-/* v4.9.0 - 라벨 마스터/제품 라벨 다중선택 */
+/* v4.9.1 - 라벨 마스터/제품 라벨 다중선택 */
 .pmLabelPickerPanel{overflow:visible}
 .pmLabelPickerActions{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
 .pmLabelPickerList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:360px;overflow:auto;padding:4px 2px}
@@ -359,7 +359,7 @@ body.workspace-open #homeView{display:none;}
 .pmLabelPickMeta{font-size:10px;color:var(--sub);margin-top:2px;white-space:normal}
 @media(max-width:820px){.pmLabelPickerList{grid-template-columns:1fr;max-height:300px}}
 
-/* v4.9.0 - 라벨 마스터와 서식 편집기 완전 분리 */
+/* v4.9.1 - 라벨 마스터와 서식 편집기 완전 분리 */
 #labelMasterScreen{display:block;max-width:1180px;margin:0 auto;}
 #labelEditorScreen{display:none;}
 .labelMasterHero{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(135deg,#f8fbff,#fff);}
@@ -397,7 +397,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.9.0</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.9.1</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -639,17 +639,11 @@ body.workspace-open #homeView{display:none;}
 
       <div class="panel">
         <h2><span class="n">🏷</span>라벨 마스터 · 신규 / 수정 / 삭제</h2>
-        <div class="masterHint" style="margin-bottom:10px;">라벨의 이름·기본 출력 장수와 기준 서식을 관리합니다. <b>서식 편집</b>을 누르면 같은 화면의 미리보기에서 라벨별 전용 HTML 서식을 편집합니다.</div>
+        <div class="masterHint" style="margin-bottom:10px;">라벨코드는 자동으로 채번됩니다. 라벨명·기본 출력 장수·사용 여부를 관리하고, <b>서식 편집</b>에서 라벨 디자인을 직접 편집합니다.</div>
         <input type="hidden" id="lmOriginalCode">
         <div class="masterGrid">
-          <div><label>라벨코드 *</label><input type="text" class="field" id="lmCode" placeholder="예: LBL-012"></div>
+          <div><label>라벨코드</label><input type="text" class="field" id="lmCode" placeholder="자동 채번" readonly></div>
           <div><label>라벨명 *</label><input type="text" class="field" id="lmName" placeholder="예: 다우 파렛트 라벨"></div>
-          <div><label>HTML 라벨 서식</label>
-            <select id="lmLayout">
-              <option value="basic">기본 무지</option><option value="plain">HBF 무지</option><option value="full">HBF 통합</option>
-              <option value="kr">동은 국문</option><option value="en">동은 영문</option><option value="sample">동은 샘플 120×75</option>
-            </select>
-          </div>
           <div><label>기본 출력 장수</label><input type="number" id="lmQty" min="1" value="1"></div>
           <div><label>사용 여부</label><select id="lmActive"><option value="true">사용</option><option value="false">미사용</option></select></div>
           <div><label>비고</label><input type="text" class="field" id="lmNote" placeholder="고객사 / 용도 / 특이사항"></div>
@@ -1369,7 +1363,7 @@ let DELETED_LABEL_MASTER_CODES=[];
 let selectedLabelTypeBatch='full', selectedLabelTypeLive='full';
 let editorKey='basic', selectedFieldId=null, workOrders=[], activeOrderId=null, dragState=null;
 const $=id=>document.getElementById(id);
-const ADMIN_PIN='1234';
+const ADMIN_PIN='1384';
 
 function productDisplay(p){
   const code=p.code ? `[${p.code}] ` : '';
@@ -2697,9 +2691,21 @@ function allLabelMaster(){
   return [...map.values()].sort((a,b)=>String(a.labelCode).localeCompare(String(b.labelCode)));
 }
 function labelMasterByCode(code){ return allLabelMaster().find(x=>x.labelCode===code)||null; }
+function nextLabelMasterCode(){
+  const codes=[];
+  builtinLabelMaster().forEach(x=>codes.push(x.labelCode));
+  (CUSTOM_LABEL_MASTER||[]).forEach(x=>codes.push(x.labelCode));
+  (DELETED_LABEL_MASTER_CODES||[]).forEach(x=>codes.push(x));
+  let maxNo=0;
+  codes.forEach(code=>{
+    const m=String(code||'').toUpperCase().match(/^LBL[-_ ]?(\d+)$/);
+    if(m) maxNo=Math.max(maxNo,Number(m[1])||0);
+  });
+  return 'LBL-'+String(maxNo+1).padStart(3,'0');
+}
 function resetLabelMasterForm(){
   if(!$('lmCode')) return;
-  $('lmOriginalCode').value=''; $('lmCode').value=''; $('lmName').value=''; $('lmLayout').value='basic'; $('lmQty').value='1'; $('lmActive').value='true'; $('lmNote').value='';
+  $('lmOriginalCode').value=''; $('lmCode').value=nextLabelMasterCode(); $('lmName').value=''; $('lmQty').value='1'; $('lmActive').value='true'; $('lmNote').value='';
   $('lmSaveBtn').textContent='+ 신규 라벨 등록';
 }
 function renderLabelMasterSelect(){
@@ -2724,7 +2730,7 @@ function setupSeparatedLabelScreens(){
   masterScreen.id='labelMasterScreen';
   const hero=document.createElement('div');
   hero.className='labelMasterHero';
-  hero.innerHTML=`<div><h2>🏷 라벨 마스터</h2><p>라벨을 등록·검색·수정하고 제품에 연결할 기준 라벨을 관리합니다.<br>실제 배치는 각 라벨의 <b>서식 편집</b>에서 별도로 작업합니다.</p></div><div class="labelMasterSearch"><label>라벨 검색</label><input type="search" id="labelMasterSearch" class="field" placeholder="라벨코드 / 라벨명 / 비고 검색"></div>`;
+  hero.innerHTML=`<div><h2>🏷 라벨 마스터</h2><p>라벨을 등록·검색·수정하고 제품에 연결할 기준 라벨을 관리합니다.<br>라벨코드는 자동 채번되며, 실제 디자인은 각 라벨의 <b>서식 편집</b>에서 작업합니다.</p></div><div class="labelMasterSearch"><label>라벨 검색</label><input type="search" id="labelMasterSearch" class="field" placeholder="라벨코드 / 라벨명 / 비고 검색"></div>`;
   const masterGrid=document.createElement('div');
   masterGrid.className='labelMasterScreenGrid';
   masterPanel.classList.add('labelMasterFormPanel');
@@ -2782,11 +2788,11 @@ function renderLabelMasterList(){
   const allRows=allLabelMaster();
   const rows=allRows.filter(x=>{
     if(!q) return true;
-    return normalizeSearchText([x.labelCode,x.labelName,x.note,x.layoutKey].join(' ')).includes(q);
+    return normalizeSearchText([x.labelCode,x.labelName,x.note].join(' ')).includes(q);
   });
   const count=$('labelMasterCount'); if(count) count.textContent=`${rows.length} / ${allRows.length}개`;
   if(!rows.length){ wrap.innerHTML='<div class="empty">검색 조건에 맞는 라벨이 없습니다.</div>'; return; }
-  wrap.innerHTML=rows.map(x=>`<div class="fieldListItem"><span><b>${escapeHtml(x.labelCode)}</b> · ${escapeHtml(x.labelName||'')}<br><span class="tag">${escapeHtml(x.layoutKey||'서식 미지정')} · 기본 ${x.copies||1}장${x.active===false?' · 미사용':''}${x.builtin?' · 기본마스터':''}</span></span><span><button class="miniBtn" data-lm-open="${escapeHtml(x.labelCode)}">서식 편집</button> <button class="miniBtn" data-lm-edit="${escapeHtml(x.labelCode)}">정보 수정</button> <button class="miniBtn del" data-lm-del="${escapeHtml(x.labelCode)}">삭제</button></span></div>`).join('');
+  wrap.innerHTML=rows.map(x=>`<div class="fieldListItem"><span><b>${escapeHtml(x.labelCode)}</b> · ${escapeHtml(x.labelName||'')}<br><span class="tag">기본 ${x.copies||1}장${x.active===false?' · 미사용':''}${x.builtin?' · 기본마스터':''}</span></span><span><button class="miniBtn" data-lm-open="${escapeHtml(x.labelCode)}">서식 편집</button> <button class="miniBtn" data-lm-edit="${escapeHtml(x.labelCode)}">정보 수정</button> <button class="miniBtn del" data-lm-del="${escapeHtml(x.labelCode)}">삭제</button></span></div>`).join('');
   wrap.querySelectorAll('[data-lm-open]').forEach(b=>b.addEventListener('click',()=>openLabelEditorScreen(b.dataset.lmOpen)));
   wrap.querySelectorAll('[data-lm-edit]').forEach(b=>b.addEventListener('click',()=>editLabelMaster(b.dataset.lmEdit)));
   wrap.querySelectorAll('[data-lm-del]').forEach(b=>b.addEventListener('click',()=>deleteLabelMaster(b.dataset.lmDel)));
@@ -2794,25 +2800,22 @@ function renderLabelMasterList(){
 function editLabelMaster(code){
   const x=allLabelMaster().find(v=>v.labelCode===code); if(!x) return;
   $('lmOriginalCode').value=x.labelCode; $('lmCode').value=x.labelCode; $('lmName').value=x.labelName||'';
-  const lmBase=x.baseLayoutKey||x.layoutKey||'basic'; if([...$('lmLayout').options].some(o=>o.value===lmBase)) $('lmLayout').value=lmBase;
   $('lmQty').value=x.copies||1; $('lmActive').value=String(x.active!==false); $('lmNote').value=x.note||''; $('lmSaveBtn').textContent='라벨 수정 저장';
-  $('lmCode').scrollIntoView({behavior:'smooth',block:'center'});
+  $('lmName').scrollIntoView({behavior:'smooth',block:'center'});
 }
 async function saveLabelMasterFromForm(){
-  const original=$('lmOriginalCode').value.trim(), code=$('lmCode').value.trim().toUpperCase(), name=$('lmName').value.trim();
-  if(!code||!name){ flash('라벨코드와 라벨명을 입력하세요',true); return; }
-  const duplicate=allLabelMaster().find(x=>x.labelCode===code && code!==original);
-  if(duplicate){ flash('이미 사용 중인 라벨코드입니다',true); return; }
+  const original=$('lmOriginalCode').value.trim();
+  const code=original || nextLabelMasterCode();
+  const name=$('lmName').value.trim();
+  if(!name){ flash('라벨명을 입력하세요',true); return; }
+  if(!original && labelMasterByCode(code)){ flash('라벨코드 자동 채번 중 중복이 발생했습니다. 다시 시도하세요.',true); resetLabelMasterForm(); return; }
   const prev=labelMasterByCode(original||code);
-  const chosenLayout=$('lmLayout').value;
-  const obj={labelCode:code,labelName:name,layoutKey:chosenLayout,baseLayoutKey:prev?.baseLayoutKey||chosenLayout,copies:+$('lmQty').value||1,active:$('lmActive').value==='true',note:$('lmNote').value.trim()};
+  const inheritedLayout=prev?.layoutKey||'';
+  const inheritedBase=prev?.baseLayoutKey||inheritedLayout||'basic';
+  const obj={labelCode:code,labelName:name,layoutKey:inheritedLayout,baseLayoutKey:inheritedBase,copies:+$('lmQty').value||1,active:$('lmActive').value==='true',note:$('lmNote').value.trim()};
   let i=CUSTOM_LABEL_MASTER.findIndex(x=>x.labelCode===original);
   if(i>=0) CUSTOM_LABEL_MASTER[i]=obj; else { CUSTOM_LABEL_MASTER.push(obj); i=-1; }
   DELETED_LABEL_MASTER_CODES=(DELETED_LABEL_MASTER_CODES||[]).filter(c=>c!==code && c!==original);
-  if(original && original!==code){
-    CUSTOM_PRODUCTS.forEach(p=>(p.labels||[]).forEach(l=>{if(l.labelCode===original) l.labelCode=code;}));
-    await saveCustomProducts();
-  }
   await saveCustomLabelMaster(); resetLabelMasterForm(); renderLabelMasterList(); renderLabelMasterSelect(); renderPmLabelChecklist(); renderPmLinks(); renderEditorTabs();
   flash(i>=0?'라벨 마스터를 수정했습니다':'신규 라벨을 등록했습니다');
 }
@@ -3424,7 +3427,7 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.9.0 · 클릭하면 재시도';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.9.1 · 클릭하면 재시도';
     }
     dbBadge.style.cursor='pointer';
     dbBadge.onclick=()=>window.retryKsaDb&&window.retryKsaDb();
