@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.8.0c — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.8.0d — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -258,14 +258,14 @@
     .printPage{page-break-after:always;padding:14mm;}
   }
 
-/* ============ POP 스타일 오버라이드 v4.8.0c ============ */
+/* ============ POP 스타일 오버라이드 v4.8.0d ============ */
 :root{--pop-bg:#eef1f6;--pop-header:#12131a;--pop-blue:#3b82f6;--pop-green:#22c55e;--pop-orange:#f59e0b;--pop-red:#ef4444;--pop-purple:#a855f7;--pop-teal:#14b8a6;--pop-pink:#ec4899;}
 body{background:var(--pop-bg)!important;}
 .panel{border-radius:16px!important;box-shadow:0 3px 12px rgba(20,23,31,.06)!important;}
 .modebar button{border-radius:14px;}
 
 
-/* ============ v4.8.0c POP 대시보드 / 편집기 전면 개편 ============ */
+/* ============ v4.8.0d POP 대시보드 / 편집기 전면 개편 ============ */
 :root{
   --dash-bg:#f4f6fa;--dash-dark:#17182b;--dash-text:#273047;--dash-muted:#7e8799;
   --dash-blue:#4276ef;--dash-green:#51b65f;--dash-orange:#ec9c28;--dash-red:#d94a42;
@@ -302,14 +302,18 @@ body.workspace-open #homeView{display:none;}
 .tableCellEditor .cellHead{font-size:10px;font-weight:800;color:#677186;margin-bottom:5px;}
 .tableCellEditor select,.tableCellEditor input{width:100%;min-height:31px;font-size:11px;padding:4px 6px;border:1px solid #d9dfe8;border-radius:6px;background:#fff;}
 .tableCellMini{display:grid;grid-template-columns:1fr 74px 72px;gap:4px;margin-top:4px;}
-.editorCanvas .fld[data-kind="table"]{outline:1px dashed #6d86b4;}
+.editorCanvas .fld[data-kind="table"]{outline:1px dashed #6d86b4;overflow:visible!important;}
+.editorCanvas .fld[data-kind="table"] .tableResizeHandle{position:absolute;right:-4px;bottom:-4px;width:12px;height:12px;border-radius:3px;background:#d9861f;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.28);cursor:nwse-resize;z-index:20;touch-action:none;}
+.editorCanvas .fld[data-kind="table"].selected{outline:2px solid #d9861f;}
+.editorCanvas .fld[data-kind="table"].selected .tableResizeHandle{display:block;}
+.tableDragHint{font-size:11px;color:#8a5a13;background:#fff7e8;border:1px solid #f1d39d;border-radius:8px;padding:7px 9px;margin:7px 0 9px;line-height:1.45;}
 .panel{background:#fff!important;border:1px solid #e3e7ee!important;box-shadow:0 4px 18px rgba(26,32,54,.045)!important;}
 @media(max-width:720px){
   #homeView{padding:22px 14px 90px}.homeGrid{grid-template-columns:repeat(4,1fr);gap:12px 6px}.homeIcon{width:60px;height:60px;border-radius:18px}.homeIcon svg{width:31px;height:31px}.homeCard b{font-size:12px}.homeCard small{display:none}.homeTitle{font-size:23px}.editorQuickBar{grid-template-columns:repeat(2,1fr)}
 }
 
 
-  /* v4.8.0c - 서식 편집기: 미리보기와 정밀조정 패널을 한 화면에 배치 */
+  /* v4.8.0d - 서식 편집기: 미리보기와 정밀조정 패널을 한 화면에 배치 */
   .editorGrid{display:grid;grid-template-columns:minmax(280px,340px) minmax(560px,1fr);gap:16px;align-items:start;}
   .editorRight{display:grid;grid-template-columns:minmax(520px,1fr) minmax(320px,390px);gap:16px;align-items:start;min-width:0;}
   .editorPreviewPanel{position:sticky;top:12px;min-width:0;}
@@ -337,7 +341,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.8.0c</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.8.0d</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -596,7 +600,7 @@ body.workspace-open #homeView{display:none;}
           <div><label>X (mm)</label><input type="number" id="inspX" step="0.5"></div>
           <div><label>Y (mm)</label><input type="number" id="inspY" step="0.5"></div>
         </div>
-        <div class="inspRow">
+        <div class="inspRow" id="inspSizeRow">
           <div><label>너비 (mm)</label><input type="number" id="inspW" step="0.5"></div>
           <div><label>높이 (mm)</label><input type="number" id="inspH" step="0.5"></div>
         </div>
@@ -1478,7 +1482,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
         const val=c.kind==='bind'?(ctx[c.bind]??`[${c.bind}]`):(c.text||'');
         return `<td style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
       }).join('')+'</tr>').join('');
-      return `<div class="${cls}" ${dataAttr} style="${posStyle};position:absolute;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;${cellBorder?'border:0.3mm solid #000;':''}">${cells}</table></div>`;
+      return `<div class="${cls}" ${dataAttr} style="${posStyle};position:absolute;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;${cellBorder?'border:0.3mm solid #000;':''}">${cells}</table>${editable?'<span class="tableResizeHandle" title="드래그하여 표 크기 조절"></span>':''}</div>`;
     }
     const text=f.kind==='bind'?(ctx[f.bind]??`[${f.bind}]`):f.text;
     const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.mono?'font-family:var(--mono)':'',f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':''].filter(Boolean).join(';');
@@ -2264,6 +2268,11 @@ function selectField(fid){
   if($('inspRotatePreset')){const rv=String(((Number(f.rotate)||0)%360+360)%360);$('inspRotatePreset').value=['0','90','180','270'].includes(rv)?rv:'custom';}
   $('inspWeight').value=String(f.weight||400);
   const isBind=f.kind==='bind',isTable=f.kind==='table';
+  if($('inspSizeRow')) $('inspSizeRow').style.display=isTable?'none':'grid';
+  let dragHint=$('tableDragHint');
+  if(!dragHint){dragHint=document.createElement('div');dragHint.id='tableDragHint';dragHint.className='tableDragHint';$('inspName').insertAdjacentElement('afterend',dragHint);}
+  dragHint.style.display=isTable?'block':'none';
+  if(isTable) dragHint.textContent='표 크기는 미리보기에서 오른쪽 아래 주황색 손잡이를 드래그해 바로 조절하세요. 표 자체를 드래그하면 위치가 이동합니다.';
   $('inspBindWrap').style.display=isBind?'block':'none';
   $('inspTextWrap').style.display=(!isBind&&!isTable)?'block':'none';
   if(isBind) fillVariableSelect($('inspBind'),f.bind); else if(!isTable) $('inspText').value=f.text||'';
@@ -2436,19 +2445,37 @@ function renderEditorTabs(){
 
 function startDrag(fid,canvas,e){
   const r=canvas.getBoundingClientRect(),f=fieldById(fid);
-  dragState={fid,startX:e.clientX,startY:e.clientY,origX:f.x,origY:f.y,pxPerMmX:r.width/LAYOUTS[editorKey].w,pxPerMmY:r.height/LAYOUTS[editorKey].h};
+  dragState={mode:'move',fid,startX:e.clientX,startY:e.clientY,origX:f.x,origY:f.y,pxPerMmX:r.width/LAYOUTS[editorKey].w,pxPerMmY:r.height/LAYOUTS[editorKey].h};
   selectField(fid);
+}
+function startTableResize(fid,canvas,e){
+  const r=canvas.getBoundingClientRect(),f=fieldById(fid);
+  dragState={mode:'resize',fid,startX:e.clientX,startY:e.clientY,origW:f.w,origH:f.h,pxPerMmX:r.width/LAYOUTS[editorKey].w,pxPerMmY:r.height/LAYOUTS[editorKey].h};
+  if(selectedFieldId!==fid) selectField(fid);
 }
 function renderCanvasOnly(){
   $('editorCanvasWrap').innerHTML=renderLabelHtml(editorKey,sampleContext(),true);
   const canvas=$('liveEditorCanvas');
-  canvas.querySelectorAll('.fld').forEach(el=>el.addEventListener('mousedown',e=>{startDrag(el.dataset.fid,canvas,e);e.preventDefault();}));
+  canvas.querySelectorAll('.fld').forEach(el=>el.addEventListener('mousedown',e=>{
+    if(e.target.closest('.tableResizeHandle')) return;
+    startDrag(el.dataset.fid,canvas,e);e.preventDefault();
+  }));
+  canvas.querySelectorAll('.tableResizeHandle').forEach(h=>h.addEventListener('mousedown',e=>{
+    const fld=h.closest('.fld'); startTableResize(fld.dataset.fid,canvas,e); e.preventDefault(); e.stopPropagation();
+  }));
 }
 document.addEventListener('mousemove',e=>{
   if(!dragState)return;const f=fieldById(dragState.fid);
-  f.x=Math.max(0,Math.round((dragState.origX+(e.clientX-dragState.startX)/dragState.pxPerMmX)*2)/2);
-  f.y=Math.max(0,Math.round((dragState.origY+(e.clientY-dragState.startY)/dragState.pxPerMmY)*2)/2);
-  renderCanvasOnly();$('inspX').value=f.x;$('inspY').value=f.y;
+  if(dragState.mode==='resize'){
+    const maxW=Math.max(8,LAYOUTS[editorKey].w-f.x),maxH=Math.max(6,LAYOUTS[editorKey].h-f.y);
+    f.w=Math.min(maxW,Math.max(8,Math.round((dragState.origW+(e.clientX-dragState.startX)/dragState.pxPerMmX)*2)/2));
+    f.h=Math.min(maxH,Math.max(6,Math.round((dragState.origH+(e.clientY-dragState.startY)/dragState.pxPerMmY)*2)/2));
+    renderCanvasOnly();$('inspW').value=f.w;$('inspH').value=f.h;
+  }else{
+    f.x=Math.max(0,Math.round((dragState.origX+(e.clientX-dragState.startX)/dragState.pxPerMmX)*2)/2);
+    f.y=Math.max(0,Math.round((dragState.origY+(e.clientY-dragState.startY)/dragState.pxPerMmY)*2)/2);
+    renderCanvasOnly();$('inspX').value=f.x;$('inspY').value=f.y;
+  }
 });
 document.addEventListener('mouseup',()=>dragState=null);
 
@@ -3170,7 +3197,7 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.8.0c · 클릭하면 재시도';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.8.0d · 클릭하면 재시도';
     }
     dbBadge.style.cursor='pointer';
     dbBadge.onclick=()=>window.retryKsaDb&&window.retryKsaDb();
