@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.8.0b — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.8.0c — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -258,14 +258,14 @@
     .printPage{page-break-after:always;padding:14mm;}
   }
 
-/* ============ POP 스타일 오버라이드 v4.8.0b ============ */
+/* ============ POP 스타일 오버라이드 v4.8.0c ============ */
 :root{--pop-bg:#eef1f6;--pop-header:#12131a;--pop-blue:#3b82f6;--pop-green:#22c55e;--pop-orange:#f59e0b;--pop-red:#ef4444;--pop-purple:#a855f7;--pop-teal:#14b8a6;--pop-pink:#ec4899;}
 body{background:var(--pop-bg)!important;}
 .panel{border-radius:16px!important;box-shadow:0 3px 12px rgba(20,23,31,.06)!important;}
 .modebar button{border-radius:14px;}
 
 
-/* ============ v4.8.0b POP 대시보드 / 편집기 전면 개편 ============ */
+/* ============ v4.8.0c POP 대시보드 / 편집기 전면 개편 ============ */
 :root{
   --dash-bg:#f4f6fa;--dash-dark:#17182b;--dash-text:#273047;--dash-muted:#7e8799;
   --dash-blue:#4276ef;--dash-green:#51b65f;--dash-orange:#ec9c28;--dash-red:#d94a42;
@@ -309,17 +309,21 @@ body.workspace-open #homeView{display:none;}
 }
 
 
-  /* v4.8.0b - 서식 편집기: 미리보기와 정밀조정 패널을 한 화면에 배치 */
+  /* v4.8.0c - 서식 편집기: 미리보기와 정밀조정 패널을 한 화면에 배치 */
   .editorGrid{display:grid;grid-template-columns:minmax(280px,340px) minmax(560px,1fr);gap:16px;align-items:start;}
-  .editorRight{display:grid;grid-template-columns:minmax(520px,1fr) minmax(300px,360px);gap:16px;align-items:start;min-width:0;}
+  .editorRight{display:grid;grid-template-columns:minmax(520px,1fr) minmax(320px,390px);gap:16px;align-items:start;min-width:0;}
   .editorPreviewPanel{position:sticky;top:12px;min-width:0;}
-  #inspectorPanel{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;}
+  .editorSide{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;display:flex;flex-direction:column;gap:12px;padding-right:2px;}
+  .editorSide .panel{margin:0;}
+  #inspectorPanel{position:static;max-height:none;overflow:visible;}
+  .editorItemPanel #fieldList{max-height:280px;overflow:auto;padding-right:2px;}
   .editorPreviewHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
   .editorHint{font-size:11px;color:var(--sub);}
   #editorCanvasWrap{overflow:auto;max-width:100%;}
   @media (max-width:1350px){
     .editorGrid{grid-template-columns:300px 1fr;}
     .editorRight{grid-template-columns:1fr;}
+    .editorSide{position:static;max-height:none;overflow:visible;}
     #inspectorPanel{position:static;max-height:none;overflow:visible;}
   }
   @media (max-width:900px){
@@ -333,7 +337,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.8.0b</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.8.0c</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -573,58 +577,18 @@ body.workspace-open #homeView{display:none;}
         <div class="lockednote">항목을 클릭하거나 캔버스에서 드래그해서 조정할 수 있습니다.</div>
       </div>
 
-      <div class="panel">
-        <h2><span class="n">≡</span>항목 목록</h2>
-        <div id="fieldList"></div>
 
-        <div class="editorQuickBar">
-          <button type="button" class="editorQuickBtn" data-quick-field="static"><span>Ｔ</span>텍스트</button>
-          <button type="button" class="editorQuickBtn" data-quick-field="bind"><span>⌘</span>변수</button>
-          <button type="button" class="editorQuickBtn" data-quick-field="table"><span>▦</span>표(Table)</button>
-          <button type="button" class="editorQuickBtn" id="quickInfoTable"><span>▤</span>2열 정보표</button>
-        </div>
-        <div class="addFieldBox">
-          <label>새 항목 종류</label>
-          <select id="newFieldKind">
-            <option value="bind">변수 항목</option>
-            <option value="static">고정 텍스트</option>
-            <option value="table">표(테이블)</option>
-          </select>
-
-          <div id="newBindWrap">
-            <label>연결 변수</label>
-            <select id="newFieldBind"></select>
-          </div>
-
-          <div id="newStaticWrap" style="display:none;">
-            <label>고정 텍스트</label>
-            <input type="text" class="field" id="newFieldText" placeholder="예: 주의사항">
-          </div>
-
-          <div id="newTableWrap" style="display:none;">
-            <label>행 × 열</label>
-            <div class="row2">
-              <input type="number" class="field" id="newTableRows" min="1" max="12" value="3">
-              <input type="number" class="field" id="newTableCols" min="1" max="8" value="2">
-            </div>
-          </div>
-
-          <label>항목 이름</label>
-          <input type="text" class="field" id="newFieldLabel" placeholder="예: 우측 LOT">
-
-          <button class="btn btn-primary" id="addFieldBtn">+ 새 항목 추가</button>
-        </div>
-      </div>
 
 
     </div>
 
     <div class="editorRight">
       <div class="panel editorPreviewPanel">
-        <div class="editorPreviewHead"><h2 style="margin:0;">실시간 미리보기</h2><span class="editorHint">항목을 누르면 오른쪽/아래 편집 패널에서 바로 수정됩니다.</span></div>
+        <div class="editorPreviewHead"><h2 style="margin:0;">실시간 미리보기</h2><span class="editorHint">항목을 누르면 오른쪽 편집 패널에서 바로 수정됩니다.</span></div>
         <div id="editorCanvasWrap"></div>
       </div>
 
+      <div class="editorSide">
       <div class="panel inspector" id="inspectorPanel">
         <h2><span class="n">✎</span>선택 항목 정밀 조정</h2>
         <div id="inspName" class="readout" style="margin-bottom:6px;">—</div>
@@ -678,6 +642,50 @@ body.workspace-open #homeView{display:none;}
           <button class="btn dangerMini" id="deleteFieldBtn">선택 항목 삭제</button>
         </div>
         <button class="btn btn-warn" id="resetLayout">이 라벨 서식 기본값으로 초기화</button>
+      </div>
+
+      <div class="panel editorItemPanel">
+        <h2><span class="n">≡</span>항목 목록 · 추가</h2>
+        <div id="fieldList"></div>
+
+        <div class="editorQuickBar">
+          <button type="button" class="editorQuickBtn" data-quick-field="static"><span>Ｔ</span>텍스트</button>
+          <button type="button" class="editorQuickBtn" data-quick-field="bind"><span>⌘</span>변수</button>
+          <button type="button" class="editorQuickBtn" data-quick-field="table"><span>▦</span>표(Table)</button>
+          <button type="button" class="editorQuickBtn" id="quickInfoTable"><span>▤</span>2열 정보표</button>
+        </div>
+        <div class="addFieldBox">
+          <label>새 항목 종류</label>
+          <select id="newFieldKind">
+            <option value="bind">변수 항목</option>
+            <option value="static">고정 텍스트</option>
+            <option value="table">표(테이블)</option>
+          </select>
+
+          <div id="newBindWrap">
+            <label>연결 변수</label>
+            <select id="newFieldBind"></select>
+          </div>
+
+          <div id="newStaticWrap" style="display:none;">
+            <label>고정 텍스트</label>
+            <input type="text" class="field" id="newFieldText" placeholder="예: 주의사항">
+          </div>
+
+          <div id="newTableWrap" style="display:none;">
+            <label>행 × 열</label>
+            <div class="row2">
+              <input type="number" class="field" id="newTableRows" min="1" max="12" value="3">
+              <input type="number" class="field" id="newTableCols" min="1" max="8" value="2">
+            </div>
+          </div>
+
+          <label>항목 이름</label>
+          <input type="text" class="field" id="newFieldLabel" placeholder="예: 우측 LOT">
+
+          <button class="btn btn-primary" id="addFieldBtn">+ 새 항목 추가</button>
+        </div>
+      </div>
       </div>
 
     </div>
@@ -3162,7 +3170,7 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.8.0ba · 클릭하면 재시도';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.8.0c · 클릭하면 재시도';
     }
     dbBadge.style.cursor='pointer';
     dbBadge.onclick=()=>window.retryKsaDb&&window.retryKsaDb();
