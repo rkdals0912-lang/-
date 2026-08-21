@@ -483,7 +483,7 @@ body.workspace-open #homeView{display:none;}
         <label>드럼당 중량 kg</label><input type="number" id="batchWeight" min="1">
         <label>용량 (Approxi, L)</label><input type="number" id="volumeInput" min="0" placeholder="예: 190">
         <label class="checkrow"><input type="checkbox" id="includeBasic" checked> 기본 무지라벨 함께 출력</label>
-        <button class="btn btn-primary" id="addOrder">+ 작업지시 목록에 추가</button>
+        <button type="button" class="btn btn-primary" id="addOrder">+ 작업지시 목록에 추가</button>
         <div class="lockednote">날짜가 오늘이 아니어도 목록에 그대로 표시됩니다. 과거 날짜 작업을 선택해 재출력할 수도 있습니다.</div>
       </div>
 
@@ -1773,20 +1773,57 @@ function validManualInput3(value){return /^[A-Za-z0-9]{3}$/.test(String(value||'
 
 $('orderFilter').addEventListener('change',renderOrderList);
 
-$('addOrder').addEventListener('click',async()=>{
-  const selectedProduct=ALL_PRODUCTS[+$('product').value];
-  const addRuleId=getProductLotRuleId(selectedProduct);
-  const needsInput3=productUsesManualInput3(selectedProduct,addRuleId);
-  const manualLotInput=String($('manualLotInput')?.value||'').trim().toUpperCase();
-  if(needsInput3 && !validManualInput3(manualLotInput)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력하세요',true);return;}
-  const order={
-    id:Date.now(),date:$('prodDate').value||todayISO(),shift:$('shift').value,productIdx:+$('product').value,
-    machine:$('machine').value,batchCount:$('batchCount').value||'1',batchSeq:+$('batchSeq').value||1,
-    batchDrums:+$('batchDrums').value,batchWeight:($('batchWeight').value.trim()===''?null:+$('batchWeight').value),
-    volume:$('volumeInput').value?+$('volumeInput').value:null,includeBasic:$('includeBasic').checked,manualLotInput,lotSeq:+($('lotSeqInput')?.value||1),status:'pending'
-  };
-  workOrders.push(order); await saveWorkOrders(); renderOrderList(); flash(`${order.date} 작업지시를 추가했습니다`);
-  $('batchSeq').value=order.batchSeq+1;
+$('addOrder').addEventListener('click',async(e)=>{
+  e.preventDefault();
+  e.stopPropagation();
+  const btn=$('addOrder');
+  if(btn?.dataset.busy==='1') return;
+  if(btn){btn.dataset.busy='1';btn.disabled=true;btn.textContent='작업지시 추가 중...';}
+  try{
+    const productEl=$('product');
+    const productIdx=Number(productEl?.value);
+    const selectedProduct=Number.isInteger(productIdx)?ALL_PRODUCTS[productIdx]:null;
+    if(!selectedProduct) throw new Error('제품을 먼저 선택하세요.');
+
+    const variants=availableVariants(selectedProduct);
+    const variant=variants.length>1?selectedVariantBatch:(variants[0]||'');
+    const labelCode=selectedLabelTypeBatch||normalizeSelectedLabelType(selectedProduct,'',variant);
+    const addRuleId=labelEffectiveLotRule(selectedProduct,labelCode,variant)||getProductLotRuleId(selectedProduct);
+    const needsInput3=productUsesManualInput3(selectedProduct,addRuleId);
+    const manualLotInput=String($('manualLotInput')?.value||'').trim().toUpperCase();
+    if(needsInput3 && !validManualInput3(manualLotInput)) throw new Error('LOT 마지막 3자리를 영문/숫자 3자리로 입력하세요.');
+
+    const drums=Number($('batchDrums')?.value);
+    if(!Number.isFinite(drums) || drums<1) throw new Error('총 드럼 수를 1 이상 입력하세요.');
+    const batchSeq=Math.max(1,Number($('batchSeq')?.value)||1);
+    const rawWeight=String($('batchWeight')?.value??'').trim();
+    const weight=rawWeight===''?null:Number(rawWeight);
+    if(weight!==null && (!Number.isFinite(weight) || weight<0)) throw new Error('드럼당 중량을 올바르게 입력하세요.');
+    const rawVolume=String($('volumeInput')?.value??'').trim();
+    const volume=rawVolume===''?null:Number(rawVolume);
+    if(volume!==null && (!Number.isFinite(volume) || volume<0)) throw new Error('용량을 올바르게 입력하세요.');
+
+    const order={
+      id:Date.now(),date:$('prodDate')?.value||todayISO(),shift:$('shift')?.value||'주간',productIdx,
+      machine:$('machine')?.value||'',batchCount:$('batchCount')?.value||'1',batchSeq,
+      batchDrums:Math.round(drums),batchWeight:weight,volume,includeBasic:$('includeBasic')?.checked!==false,
+      manualLotInput,lotSeq:Math.max(1,Number($('lotSeqInput')?.value)||1),status:'pending',
+      labelCode:labelCode||'',variant:variant||'',lotRuleId:addRuleId||''
+    };
+
+    workOrders.push(order);
+    await saveWorkOrders();
+    renderOrderList();
+    flash(`${order.date} 작업지시를 추가했습니다`);
+    $('batchSeq').value=order.batchSeq+1;
+    const list=$('orderList');
+    if(list) setTimeout(()=>list.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
+  }catch(err){
+    console.error('작업지시 추가 실패',err);
+    flash(err?.message||'작업지시 추가 중 오류가 발생했습니다.',true);
+  }finally{
+    if(btn){btn.dataset.busy='0';btn.disabled=false;btn.textContent='+ 작업지시 목록에 추가';}
+  }
 });
 
 function activeOrder(){return workOrders.find(o=>o.id===activeOrderId)||null;}
