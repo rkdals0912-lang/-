@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.8.0 — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.8.0a — 라벨마스터 · 출력이력</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -258,14 +258,14 @@
     .printPage{page-break-after:always;padding:14mm;}
   }
 
-/* ============ POP 스타일 오버라이드 v4.8.0 ============ */
+/* ============ POP 스타일 오버라이드 v4.8.0a ============ */
 :root{--pop-bg:#eef1f6;--pop-header:#12131a;--pop-blue:#3b82f6;--pop-green:#22c55e;--pop-orange:#f59e0b;--pop-red:#ef4444;--pop-purple:#a855f7;--pop-teal:#14b8a6;--pop-pink:#ec4899;}
 body{background:var(--pop-bg)!important;}
 .panel{border-radius:16px!important;box-shadow:0 3px 12px rgba(20,23,31,.06)!important;}
 .modebar button{border-radius:14px;}
 
 
-/* ============ v4.8.0 POP 대시보드 / 편집기 전면 개편 ============ */
+/* ============ v4.8.0a POP 대시보드 / 편집기 전면 개편 ============ */
 :root{
   --dash-bg:#f4f6fa;--dash-dark:#17182b;--dash-text:#273047;--dash-muted:#7e8799;
   --dash-blue:#4276ef;--dash-green:#51b65f;--dash-orange:#ec9c28;--dash-red:#d94a42;
@@ -313,7 +313,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.8.0</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.8.0a</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -896,15 +896,19 @@ body.workspace-open #homeView{display:none;}
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="./BrowserPrint-3.1.250.min.js"></script>
 <script>
-window.KSA_CONFIG_LOAD_PROMISE = new Promise((resolve)=>{
-  try{
-    const sc=document.createElement('script');
-    sc.src='./config.js?ts='+Date.now();
-    sc.onload=()=>resolve(true);
-    sc.onerror=()=>{ window.KSA_CONFIG_LOAD_ERROR='config.js 로드 실패: '+sc.src; resolve(false); };
-    document.head.appendChild(sc);
-  }catch(e){ window.KSA_CONFIG_LOAD_ERROR='config.js 로드 예외: '+String(e?.message||e); resolve(false); }
-});
+window.KSA_CONFIG_LOAD_PROMISE = (async()=>{
+  if(window.KSA_CONFIG?.SUPABASE_URL && (window.KSA_CONFIG?.SUPABASE_ANON_KEY||window.KSA_CONFIG?.SUPABASE_PUBLISHABLE_KEY)) return true;
+  return await new Promise((resolve)=>{
+    try{
+      const sc=document.createElement('script');
+      sc.src='./config.js?ts='+Date.now();
+      sc.async=false;
+      sc.onload=()=>resolve(true);
+      sc.onerror=()=>{ window.KSA_CONFIG_LOAD_ERROR='config.js 로드 실패: '+sc.src; resolve(false); };
+      document.head.appendChild(sc);
+    }catch(e){ window.KSA_CONFIG_LOAD_ERROR='config.js 로드 예외: '+String(e?.message||e); resolve(false); }
+  });
+})();
 </script>
 <script>
 window.KSA_DB_READY = false;
@@ -917,30 +921,65 @@ function normalizeSupabaseProjectUrl(url){
   return v;
 }
 
-window.KSA_DB_PROMISE=(async function initKsaSupabase(){
+async function waitForSupabaseSdk(timeoutMs=8000){
+  const started=Date.now();
+  while(Date.now()-started<timeoutMs){
+    if(window.supabase?.createClient) return true;
+    await new Promise(r=>setTimeout(r,150));
+  }
+  return false;
+}
+
+async function initKsaSupabase(forceReloadConfig=false){
+  window.KSA_DB_READY=false;
+  window.KSA_DB_ERROR='';
+  window.KSA_DB_MODE='local';
   try{
-    await window.KSA_CONFIG_LOAD_PROMISE;
+    if(forceReloadConfig){
+      window.KSA_CONFIG_LOAD_ERROR='';
+      await new Promise((resolve)=>{
+        const sc=document.createElement('script');
+        sc.src='./config.js?ts='+Date.now();
+        sc.async=false;
+        sc.onload=()=>resolve(true);
+        sc.onerror=()=>{window.KSA_CONFIG_LOAD_ERROR='config.js 로드 실패: '+sc.src;resolve(false);};
+        document.head.appendChild(sc);
+      });
+    }else{
+      await window.KSA_CONFIG_LOAD_PROMISE;
+    }
     const cfg=window.KSA_CONFIG||{};
     const url=normalizeSupabaseProjectUrl(cfg.SUPABASE_URL);
     const key=String(cfg.SUPABASE_ANON_KEY||cfg.SUPABASE_PUBLISHABLE_KEY||'').trim();
-    if(!url||!key||url.includes('YOUR_')||key.includes('YOUR_')||!window.supabase?.createClient){
-      window.KSA_DB_MODE='local';
+    const sdkReady=await waitForSupabaseSdk(8000);
+    if(!url||!key||url.includes('YOUR_')||key.includes('YOUR_')||!sdkReady){
       const reasons=[];
       if(window.KSA_CONFIG_LOAD_ERROR) reasons.push(window.KSA_CONFIG_LOAD_ERROR);
       if(!url) reasons.push('SUPABASE_URL 없음');
       if(!key) reasons.push('Publishable Key 없음');
       if(url.includes('YOUR_')||key.includes('YOUR_')) reasons.push('예시값 사용중');
-      if(!window.supabase?.createClient) reasons.push('supabase-js 로드 실패');
+      if(!sdkReady) reasons.push('supabase-js 로드 지연/실패');
       window.KSA_DB_ERROR='CONFIG: '+(reasons.join(' / ')||'설정 확인 필요');
       return false;
     }
-    window.ksaSupabase=window.supabase.createClient(url,key);
-    // createClient 성공만으로 연결됨 처리하지 않고 실제 테이블을 1회 읽어 확인한다.
-    const {error}=await window.ksaSupabase.from('ksa_app_state').select('key').limit(1);
-    if(error) throw error;
-    window.KSA_DB_READY=true;
-    window.KSA_DB_MODE='supabase';
-    return true;
+    window.ksaSupabase=window.supabase.createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+    let lastErr=null;
+    for(let attempt=1;attempt<=3;attempt++){
+      try{
+        const check=window.ksaSupabase.from('ksa_app_state').select('key').limit(1);
+        const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('DB 연결 시간초과')),7000));
+        const {error}=await Promise.race([check,timeout]);
+        if(error) throw error;
+        window.KSA_DB_READY=true;
+        window.KSA_DB_MODE='supabase';
+        window.KSA_DB_ERROR='';
+        return true;
+      }catch(e){
+        lastErr=e;
+        if(attempt<3) await new Promise(r=>setTimeout(r,500*attempt));
+      }
+    }
+    throw lastErr||new Error('DB 연결 실패');
   }catch(e){
     window.KSA_DB_READY=false;
     window.KSA_DB_MODE='local';
@@ -948,7 +987,19 @@ window.KSA_DB_PROMISE=(async function initKsaSupabase(){
     console.warn('Supabase connection check failed; local fallback is active.',e);
     return false;
   }
-})();
+}
+
+window.KSA_DB_PROMISE=initKsaSupabase(false);
+window.retryKsaDb=async function(){
+  const badge=document.getElementById('dbStatus');
+  if(badge){badge.textContent='DB 재연결 중…';badge.style.background='#fff4e2';badge.style.color='var(--amber)';}
+  const ok=await initKsaSupabase(true);
+  if(badge){
+    if(ok){badge.textContent='공유 DB 연결됨';badge.style.background='#e9f6ee';badge.style.color='var(--ok)';badge.title='Supabase ksa_app_state 연결 확인 완료';}
+    else{badge.textContent=window.KSA_DB_ERROR?.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 재시도';badge.style.background='#fdecea';badge.style.color='var(--danger)';badge.title=(window.KSA_DB_ERROR||'DB 연결 실패')+' | 클릭하면 재시도';}
+  }
+  return ok;
+};;
 </script>
 
 <script>
@@ -3088,8 +3139,10 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.8.0';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.8.0aa · 클릭하면 재시도';
     }
+    dbBadge.style.cursor='pointer';
+    dbBadge.onclick=()=>window.retryKsaDb&&window.retryKsaDb();
   }
   loadPrinterSettings();
   if(browserPrintSdkReady()) setTimeout(()=>discoverZebraPrinters(true),500);
