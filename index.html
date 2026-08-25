@@ -450,7 +450,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.2</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.3</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -1414,21 +1414,50 @@ async function saveWorkOrders(){ await storeSet('ksa-work-orders-master-v30',JSO
 
 function normalizeLegacyTableBindings(layout){
   if(!layout || !Array.isArray(layout.fields)) return layout;
+
+  // 1) 표(Table) 내부의 '색상' / 'TYPE' 행은 제품마스터 변수로 자동 연결
   layout.fields.forEach(f=>{
     if(!f || f.kind!=='table' || !Array.isArray(f.cells)) return;
-    const rows=Math.max(1,Number(f.rows)||1), cols=Math.max(1,Number(f.cols)||1);
+    const rows=Math.max(1,Number(f.rows)||f.cells.length||1);
+    const cols=Math.max(1,Number(f.cols)||((Array.isArray(f.cells[0])?f.cells[0].length:0))||1);
     if(cols<2) return;
+
     for(let r=0;r<rows;r++){
-      const left=f.cells[r*cols], right=f.cells[r*cols+1];
+      // 현재 테이블 데이터는 2차원 배열이 기본이며, 구형 1차원 배열도 하위호환
+      const row=Array.isArray(f.cells[r]) ? f.cells[r] : null;
+      const left=row ? row[0] : f.cells[r*cols];
+      const right=row ? row[1] : f.cells[r*cols+1];
       if(!left || !right) continue;
-      const label=String(left.text ?? left.value ?? left.label ?? '').replace(/\s+/g,'').toUpperCase();
-      if(label==='색상'){
+
+      const label=String(left.text ?? left.value ?? left.label ?? '')
+        .normalize('NFKC').replace(/\s+/g,'').replace(/[:：]/g,'').toUpperCase();
+
+      if(label==='색상' || label==='COLOR'){
         right.kind='bind'; right.bind='color'; right.text='';
       }else if(label==='TYPE' || label==='타입'){
         right.kind='bind'; right.bind='type'; right.text='';
       }
     }
   });
+
+  // 2) 구형 TOPSEAL 무지 서식에서 TYPE 제목 아래에 제품코드(code)가 작게 남아 있던 경우
+  //    TYPE 값으로 자동 전환한다. (현재 화면의 B_O300C_002 같은 표시 제거)
+  const hasTypeTitle=layout.fields.some(f=>{
+    if(!f || f.kind!=='static') return false;
+    const t=String(f.text||'').normalize('NFKC').replace(/\s+/g,'').replace(/[:：]/g,'').toUpperCase();
+    return t==='TYPE';
+  });
+  if(hasTypeTitle){
+    layout.fields.forEach(f=>{
+      if(!f || f.kind!=='bind' || f.bind!=='code') return;
+      // TYPE 제목 주변 상단의 작은 코드 블록만 자동 변환
+      if(Number(f.y||0) <= 22 && Number(f.size||0) <= 10){
+        f.bind='type';
+        f.label='TYPE';
+      }
+    });
+  }
+
   return layout;
 }
 
@@ -1627,7 +1656,9 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       f.colWidths=colWidths; f.rowHeights=rowHeights;
       const colgroup='<colgroup>'+colWidths.map(w=>`<col style="width:${w}%">`).join('')+'</colgroup>';
       const cells=(f.cells||[]).map((row,ri)=>`<tr style="height:${rowHeights[ri]||100/rows}%">`+row.map(c=>{
-        const val=c.kind==='bind'?(ctx[c.bind]??`[${c.bind}]`):(c.text||'');
+        const val=c.kind==='bind'
+          ? ((c.bind==='color'||c.bind==='type') ? (ctx[c.bind]??'') : (ctx[c.bind]??`[${c.bind}]`))
+          : (c.text||'');
         return `<td style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
       }).join('')+'</tr>').join('');
       let innerHandles='';
@@ -1637,7 +1668,9 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       }
       return `<div class="${cls}" ${dataAttr} style="${posStyle};position:absolute;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;${cellBorder?`border:${bw}mm solid #000;`:''}">${colgroup}${cells}</table>${innerHandles}${resizeHandles}</div>`;
     }
-    const text=f.kind==='bind'?(ctx[f.bind]??`[${f.bind}]`):f.text;
+    const text=f.kind==='bind'
+      ? ((f.bind==='color'||f.bind==='type') ? (ctx[f.bind]??'') : (ctx[f.bind]??`[${f.bind}]`))
+      : f.text;
     const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.mono?'font-family:var(--mono)':'',f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':''].filter(Boolean).join(';');
     return `<div class="${cls}" ${dataAttr} style="${styles}">${escapeHtml(text).replace(/\n/g,'<br>')}${resizeHandles}</div>`;
   }).join('');
