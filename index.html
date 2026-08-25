@@ -450,7 +450,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.0</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.1</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -1569,7 +1569,7 @@ function computeDongeunLot(order,drumNo){ return computeLotInfo(order,drumNo); }
 
 function buildContext(p,info,drumNo,weightKg,volume){
   return {
-    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),lot:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
+    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),color:(p.color||''),lot:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
     productLine:`Product Name : ${p.name} ${p.color||''}`.trim(),
     weightLine:`Net Weight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,volumeLine:`Volume : Approxi ${volume||'?'}L`,
     expireLine:`Expire date : ${info.exp}`,lotLine:`LOT NO : ${info.lot}`
@@ -1577,7 +1577,7 @@ function buildContext(p,info,drumNo,weightKg,volume){
 }
 function buildDongeunContext(p,info,drumNo,weightKg){
   return {
-    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
+    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),color:(p.color||''),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
     lotLine:`LOT : ${info.lot}`,titleKr:(p.fullName||p.shortName||p.name),titleEn:(p.fullName||p.shortName||p.name),
     weightLineKr:`중     량 : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,weightLineEn:`ㆍWeight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,
     dateLineKr:`생산일자 : ${info.prodDateDisp}`,mfdLineEn:`ㆍM.F.D : ${info.prodDateDisp}`,
@@ -2708,6 +2708,7 @@ const FIELD_VARIABLES = [
   ['titleKr','품명(국문)'],
   ['titleEn','Product Name'],
   ['code','제품 코드'],
+  ['color','색상'],
   ['lot','LOT 값'],
   ['lotRaw','LOT 값(문구 없음)'],
   ['lotLine','LOT 문구 포함'],
