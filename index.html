@@ -66,6 +66,16 @@
   .editorCanvas .fld{border:1px dashed transparent;cursor:move;}
   .editorCanvas .fld:hover{border-color:#9db4d4;}
   .editorCanvas .fld.selected{border-color:var(--amber);background:rgba(201,130,42,.06);}
+.editorCanvas .fld .resizeHandle{display:none;position:absolute;width:10px;height:10px;background:#fff;border:2px solid #d9861f;border-radius:2px;z-index:30;box-sizing:border-box;touch-action:none;}
+.editorCanvas .fld.selected .resizeHandle{display:block;}
+.editorCanvas .fld .resizeHandle[data-dir="n"]{left:50%;top:-6px;transform:translateX(-50%);cursor:ns-resize;}
+.editorCanvas .fld .resizeHandle[data-dir="s"]{left:50%;bottom:-6px;transform:translateX(-50%);cursor:ns-resize;}
+.editorCanvas .fld .resizeHandle[data-dir="e"]{right:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize;}
+.editorCanvas .fld .resizeHandle[data-dir="w"]{left:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize;}
+.editorCanvas .fld .resizeHandle[data-dir="ne"]{right:-6px;top:-6px;cursor:nesw-resize;}
+.editorCanvas .fld .resizeHandle[data-dir="nw"]{left:-6px;top:-6px;cursor:nwse-resize;}
+.editorCanvas .fld .resizeHandle[data-dir="se"]{right:-6px;bottom:-6px;cursor:nwse-resize;}
+.editorCanvas .fld .resizeHandle[data-dir="sw"]{left:-6px;bottom:-6px;cursor:nesw-resize;}
 
   .inspector{display:none;}
   body.admin-mode.editing .inspector{display:block;}
@@ -303,9 +313,7 @@ body.workspace-open #homeView{display:none;}
 .tableCellEditor select,.tableCellEditor input{width:100%;min-height:31px;font-size:11px;padding:4px 6px;border:1px solid #d9dfe8;border-radius:6px;background:#fff;}
 .tableCellMini{display:grid;grid-template-columns:1fr 74px 72px;gap:4px;margin-top:4px;}
 .editorCanvas .fld[data-kind="table"]{outline:1px dashed #6d86b4;overflow:visible!important;}
-.editorCanvas .fld[data-kind="table"] .tableResizeHandle{position:absolute;right:-4px;bottom:-4px;width:12px;height:12px;border-radius:3px;background:#d9861f;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.28);cursor:nwse-resize;z-index:20;touch-action:none;}
 .editorCanvas .fld[data-kind="table"].selected{outline:2px solid #d9861f;}
-.editorCanvas .fld[data-kind="table"].selected .tableResizeHandle{display:block;}
 .editorCanvas .fld[data-kind="table"] .tableColHandle,.editorCanvas .fld[data-kind="table"] .tableRowHandle{display:none;position:absolute;z-index:19;touch-action:none;}
 .editorCanvas .fld[data-kind="table"].selected .tableColHandle,.editorCanvas .fld[data-kind="table"].selected .tableRowHandle{display:block;}
 .editorCanvas .fld[data-kind="table"] .tableColHandle{top:0;bottom:0;width:10px;margin-left:-5px;cursor:col-resize;border-left:2px dashed rgba(217,134,31,.55);}
@@ -442,7 +450,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.11.8</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.0</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -1534,7 +1542,7 @@ function renderLotPattern(pattern,order,drumNo,p){
     BC:String(order.batchCount??''), BS:pad2(order.batchSeq||1), LOTSEQ:String(order.lotSeq||1),
     DRUM:String(drumNo??1), DRUM2:pad2(drumNo??1),
     CODE:String(p?.code||''), SHORT:String(p?.shortName||p?.scheduleName||p?.name||''),
-    COLOR:String(p?.color||''), INPUT3:String(order.manualLotInput||'').toUpperCase(), MANUAL3:String(order.manualLotInput||'').toUpperCase()
+    COLOR:String(p?.color||''), INPUT3:String(order.manualLotInput||'').trim().toUpperCase() || '___', MANUAL3:String(order.manualLotInput||'').trim().toUpperCase() || '___'
   };
   return String(pattern||'').replace(/\{([A-Z0-9_]+)\}/g,(all,key)=>Object.prototype.hasOwnProperty.call(vals,key)?vals[key]:all);
 }
@@ -1586,6 +1594,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
     ].filter(Boolean).join(';');
     const cls=`fld${editable&&f.id===selectedFieldId?' selected':''}`;
     const dataAttr=editable?`data-fid="${f.id}" data-kind="${f.kind||'static'}"`:'';
+    const resizeHandles=editable?['nw','n','ne','e','se','s','sw','w'].map(dir=>`<span class="resizeHandle" data-dir="${dir}" title="드래그하여 크기 조절"></span>`).join(''):'';
     if(f.kind==='table'){
       const cellBorder=f.cellBorder!==false;
       const bw=Math.max(.1,Number(f.borderWidth)||.3);
@@ -1605,11 +1614,11 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
         let acc=0; for(let i=0;i<colWidths.length-1;i++){acc+=colWidths[i];innerHandles+=`<span class="tableColHandle" data-split="${i}" style="left:${acc}%" title="드래그하여 열 너비 조절"></span>`;}
         acc=0; for(let i=0;i<rowHeights.length-1;i++){acc+=rowHeights[i];innerHandles+=`<span class="tableRowHandle" data-split="${i}" style="top:${acc}%" title="드래그하여 행 높이 조절"></span>`;}
       }
-      return `<div class="${cls}" ${dataAttr} style="${posStyle};position:absolute;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;${cellBorder?`border:${bw}mm solid #000;`:''}">${colgroup}${cells}</table>${editable?'<span class="tableResizeHandle" title="드래그하여 표 전체 크기 조절"></span>':''}${innerHandles}</div>`;
+      return `<div class="${cls}" ${dataAttr} style="${posStyle};position:absolute;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;${cellBorder?`border:${bw}mm solid #000;`:''}">${colgroup}${cells}</table>${innerHandles}${resizeHandles}</div>`;
     }
     const text=f.kind==='bind'?(ctx[f.bind]??`[${f.bind}]`):f.text;
     const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.mono?'font-family:var(--mono)':'',f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':''].filter(Boolean).join(';');
-    return `<div class="${cls}" ${dataAttr} style="${styles}">${escapeHtml(text).replace(/\n/g,'<br>')}</div>`;
+    return `<div class="${cls}" ${dataAttr} style="${styles}">${escapeHtml(text).replace(/\n/g,'<br>')}${resizeHandles}</div>`;
   }).join('');
   return `<div class="canvasBox ${editable?'editorCanvas':''}" id="${editable?'liveEditorCanvas':''}" style="width:${layout.w}mm;height:${layout.h}mm;">${fields}</div>`;
 }
@@ -2131,14 +2140,16 @@ function refreshActiveOrderPanel(){
   }
   const p=resolveOrderProduct(o);
   if(!p){ $('prodNameOut').textContent='현재 제품마스터에서 이 작업지시의 품목을 찾지 못했습니다'; $('lotOut').textContent='—'; $('dateExpOut').textContent='—'; $('completeOrder').style.display='none'; return; }
-  const info=computeLotInfo(o,1);
-  // v4.11.5: 예전에는 HBF가 아니면 모두 '동은'으로 표시되어 ETC/다우/탑씰 제품도 잘못 표시되었다.
-  // 현재 선택 작업에서는 실제 품목명/색상만 표시하고 제품군은 임의 변환하지 않는다.
+  // 먼저 현재 제품에 연결된 라벨 선택 상태를 확정한 뒤, 그 라벨의 LOT 규칙으로 표시한다.
+  renderLabelTypePickers();
+  const activeLabelCode=(mode==='live'?selectedLabelTypeLive:selectedLabelTypeBatch)||selectedLabelTypeBatch||selectedLabelTypeLive;
+  const activeVariant=(mode==='live'?selectedVariantLive:selectedVariantBatch)||'';
+  const activeRuleId=labelEffectiveLotRule(p,activeLabelCode,activeVariant);
+  const info=computeLotInfo(o,1,activeRuleId);
   $('prodNameOut').textContent=`${p.shortName||p.name||p.scheduleName||''}${p.color?` ${p.color}`:''} (${o.shift})`;
-  $('lotOut').textContent=p.family==='DONGEUN'?`${lotPrefix(o).base}-드럼번호`:info.lot;
+  $('lotOut').textContent=info.lot;
   $('dateExpOut').textContent=`${info.prodDateDisp} → ${info.exp}`;
   $('completeOrder').style.display='block';$('batchDrumsOut').textContent=o.batchDrums;$('batchWeightOut').textContent=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;$('nextDrumOut').textContent=liveDrumCounter;
-  renderLabelTypePickers();
 }
 $('completeOrder').addEventListener('click',async()=>{const o=activeOrder();if(!o)return;o.status='done';await saveWorkOrders();renderOrderList();flash('작업지시를 완료 처리했습니다');});
 
@@ -2192,11 +2203,15 @@ function renderLog(){
   $('logWrap').innerHTML=`<table class="log"><tr><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>LOT 번호</th></tr>${log.map(e=>`<tr><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(e.lot||'')}</td></tr>`).join('')}</table>`;
 }
 
-$('genBatch').addEventListener('click',()=>{
+$('genBatch').addEventListener('click',async()=>{
   const o=activeOrder();if(!o){flash('먼저 작업지시를 선택하세요',true);return;}
   const p=resolveOrderProduct(o),worker=$('workerName').value||'',labelCode=selectedLabelTypeBatch;if(!p){flash('현재 제품마스터에서 작업지시 품목을 찾지 못했습니다',true);return;}
   const ruleId=labelEffectiveLotRule(p,labelCode,selectedVariantBatch);
-  if(productUsesManualInput3(p,ruleId) && !validManualInput3(String(o.manualLotInput||''))){flash('이 작업의 LOT 마지막 3자리 값이 없습니다. 작업지시를 다시 등록하세요.',true);return;}
+  if(productUsesManualInput3(p,ruleId) && !validManualInput3(String(o.manualLotInput||''))){
+    const v=String(prompt('이 라벨은 LOT 마지막 3자리가 필요합니다. 영문/숫자 3자리를 입력하세요.','')||'').trim().toUpperCase();
+    if(!validManualInput3(v)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력해야 합니다.',true);return;}
+    o.manualLotInput=v; await saveWorkOrders(); refreshActiveOrderPanel();
+  }
   generated=[];
   for(let n=o.batchDrums;n>=1;n--){
     const info=computeLotInfo(o,n,ruleId);
@@ -2209,12 +2224,16 @@ $('genBatch').addEventListener('click',()=>{
   selectedIdx=0;renderPreview();flash(`${o.date} · 선택한 라벨 ${o.batchDrums}장 생성 완료`);
 });
 
-$('genLive').addEventListener('click',()=>{
+$('genLive').addEventListener('click',async()=>{
   const o=activeOrder();if(!o){flash('먼저 작업지시를 선택하세요',true);return;}
   const w=$('liveWeight').value;if(!w){flash('실측 중량을 입력하세요',true);return;}
   const p=resolveOrderProduct(o),n=liveDrumCounter,labelCode=selectedLabelTypeLive;if(!p){flash('현재 제품마스터에서 작업지시 품목을 찾지 못했습니다',true);return;}
   const ruleId=labelEffectiveLotRule(p,labelCode,selectedVariantLive);
-  if(productUsesManualInput3(p,ruleId) && !validManualInput3(String(o.manualLotInput||''))){flash('이 작업의 LOT 마지막 3자리 값이 없습니다. 작업지시를 다시 등록하세요.',true);return;}
+  if(productUsesManualInput3(p,ruleId) && !validManualInput3(String(o.manualLotInput||''))){
+    const v=String(prompt('이 라벨은 LOT 마지막 3자리가 필요합니다. 영문/숫자 3자리를 입력하세요.','')||'').trim().toUpperCase();
+    if(!validManualInput3(v)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력해야 합니다.',true);return;}
+    o.manualLotInput=v; await saveWorkOrders(); refreshActiveOrderPanel();
+  }
   const info=computeLotInfo(o,n,ruleId);
   const ctx=contextForSelectedLabel(p,info,n,w,o.volume,labelCode,selectedVariantLive);
   const parts=singlePartForType(p,ctx,labelCode,selectedVariantLive);
@@ -2713,14 +2732,19 @@ function fillVariableSelect(selectEl, selected){
   if(selected && FIELD_VARIABLES.some(([key])=>key===selected)) selectEl.value=selected;
 }
 
-function sampleContext(){
-  const base=editorLabelCode?labelBaseLayoutKey(editorLabelCode,editorKey):editorKey;
+function sampleContextForLabel(labelCode='',layoutKey=''){
+  const lm=labelCode?labelMasterByCode(labelCode):null;
+  const base=labelCode?labelBaseLayoutKey(labelCode,layoutKey||lm?.layoutKey||''):(layoutKey||editorKey);
+  const ruleId=lm?.lotRuleId||'';
   if(['kr','en','sample'].includes(base)){
-    const p=DONGEUN_PRODUCTS[0]||ALL_PRODUCTS[0],o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1,productIdx:PRODUCTS.length};
-    return buildDongeunContext(p,computeLotInfo(o,4),4,p?.kg);
+    const p=DONGEUN_PRODUCTS[0]||ALL_PRODUCTS[0],o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1,productIdx:PRODUCTS.length,manualLotInput:''};
+    return buildDongeunContext(p,computeLotInfo(o,4,ruleId),4,p?.kg);
   }
-  const p=PRODUCTS[0]||ALL_PRODUCTS[0],o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1};
-  return buildContext(p,computeLotInfo(o,4),4,p?.kg,p?.volume);
+  const p=PRODUCTS[0]||ALL_PRODUCTS[0],o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1,manualLotInput:''};
+  return buildContext(p,computeLotInfo(o,4,ruleId),4,p?.kg,p?.volume);
+}
+function sampleContext(){
+  return sampleContextForLabel(editorLabelCode,editorKey);
 }
 function renderFieldList(){
   $('fieldList').innerHTML=LAYOUTS[editorKey].fields.map(f=>{
@@ -2919,9 +2943,9 @@ function startDrag(fid,canvas,e){
   dragState={mode:'move',fid,startX:e.clientX,startY:e.clientY,origX:f.x,origY:f.y,pxPerMmX:r.width/LAYOUTS[editorKey].w,pxPerMmY:r.height/LAYOUTS[editorKey].h};
   selectField(fid);
 }
-function startTableResize(fid,canvas,e){
-  const r=canvas.getBoundingClientRect(),f=fieldById(fid);
-  dragState={mode:'resize',fid,startX:e.clientX,startY:e.clientY,origW:f.w,origH:f.h,pxPerMmX:r.width/LAYOUTS[editorKey].w,pxPerMmY:r.height/LAYOUTS[editorKey].h};
+function startResize(fid,canvas,e,dir='se'){
+  const r=canvas.getBoundingClientRect(),f=fieldById(fid); if(!f)return;
+  dragState={mode:'resize8',dir,fid,startX:e.clientX,startY:e.clientY,origX:f.x,origY:f.y,origW:f.w,origH:f.h,pxPerMmX:r.width/LAYOUTS[editorKey].w,pxPerMmY:r.height/LAYOUTS[editorKey].h};
   if(selectedFieldId!==fid) selectField(fid);
 }
 function startTableSplit(fid,axis,index,e){
@@ -2954,11 +2978,11 @@ function renderCanvasOnly(){
   renderEditorOutputPreview();
   const canvas=$('liveEditorCanvas');
   canvas.querySelectorAll('.fld').forEach(el=>el.addEventListener('mousedown',e=>{
-    if(e.target.closest('.tableResizeHandle,.tableColHandle,.tableRowHandle')) return;
+    if(e.target.closest('.resizeHandle,.tableColHandle,.tableRowHandle')) return;
     startDrag(el.dataset.fid,canvas,e);e.preventDefault();
   }));
-  canvas.querySelectorAll('.tableResizeHandle').forEach(h=>h.addEventListener('mousedown',e=>{
-    const fld=h.closest('.fld'); startTableResize(fld.dataset.fid,canvas,e); e.preventDefault(); e.stopPropagation();
+  canvas.querySelectorAll('.resizeHandle').forEach(h=>h.addEventListener('mousedown',e=>{
+    const fld=h.closest('.fld'); startResize(fld.dataset.fid,canvas,e,h.dataset.dir||'se'); e.preventDefault(); e.stopPropagation();
   }));
   canvas.querySelectorAll('.tableColHandle').forEach(h=>h.addEventListener('mousedown',e=>{
     const fld=h.closest('.fld'); startTableSplit(fld.dataset.fid,'col',+h.dataset.split,e); e.preventDefault(); e.stopPropagation();
@@ -2969,11 +2993,20 @@ function renderCanvasOnly(){
 }
 document.addEventListener('mousemove',e=>{
   if(!dragState)return;const f=fieldById(dragState.fid);
-  if(dragState.mode==='resize'){
-    const maxW=Math.max(8,LAYOUTS[editorKey].w-f.x),maxH=Math.max(6,LAYOUTS[editorKey].h-f.y);
-    f.w=Math.min(maxW,Math.max(8,Math.round((dragState.origW+(e.clientX-dragState.startX)/dragState.pxPerMmX)*2)/2));
-    f.h=Math.min(maxH,Math.max(6,Math.round((dragState.origH+(e.clientY-dragState.startY)/dragState.pxPerMmY)*2)/2));
-    renderCanvasOnly();$('inspW').value=f.w;$('inspH').value=f.h;
+  if(dragState.mode==='resize8'){
+    const dx=(e.clientX-dragState.startX)/dragState.pxPerMmX,dy=(e.clientY-dragState.startY)/dragState.pxPerMmY;
+    const dir=dragState.dir||'se', minW=3, minH=3, cw=LAYOUTS[editorKey].w, ch=LAYOUTS[editorKey].h;
+    let x=dragState.origX,y=dragState.origY,w=dragState.origW,h=dragState.origH;
+    if(dir.includes('e')) w=dragState.origW+dx;
+    if(dir.includes('s')) h=dragState.origH+dy;
+    if(dir.includes('w')){ x=dragState.origX+dx; w=dragState.origW-dx; }
+    if(dir.includes('n')){ y=dragState.origY+dy; h=dragState.origH-dy; }
+    if(w<minW){ if(dir.includes('w')) x-=minW-w; w=minW; }
+    if(h<minH){ if(dir.includes('n')) y-=minH-h; h=minH; }
+    x=Math.max(0,Math.min(x,cw-minW)); y=Math.max(0,Math.min(y,ch-minH));
+    w=Math.max(minW,Math.min(w,cw-x)); h=Math.max(minH,Math.min(h,ch-y));
+    const snap=v=>Math.round(v*2)/2; f.x=snap(x);f.y=snap(y);f.w=snap(w);f.h=snap(h);
+    renderCanvasOnly(); $('inspX').value=f.x;$('inspY').value=f.y;$('inspW').value=f.w;$('inspH').value=f.h;
   }else if(dragState.mode==='splitCol'){
     const i=dragState.index, a=dragState.orig.slice(), pair=a[i]+a[i+1];
     const delta=(e.clientX-dragState.startX)/Math.max(1,dragState.pixels)*100;
@@ -3360,6 +3393,7 @@ async function saveSelectedLabelLotRule(){
   await saveCustomLabelMaster();
   renderLabelMasterList(); renderLabelMasterSelect(); renderPmLabelChecklist(); renderPmLinks(); renderLabelMasterProductLinks();
   refreshLabelMasterPreviewLotRule(code);
+  await selectLabelMasterPreview(code);
   const rule=lotRuleId?getLotRuleById(lotRuleId):null;
   flash(`${code} LOT 체계를 ${rule?rule.name:'제품 기본 규칙'}으로 저장했습니다`);
 }
@@ -3408,7 +3442,7 @@ async function selectLabelMasterPreview(code){
     const key=await ensureLabelEditorLayout(code);
     const layout=LAYOUTS[key];
     if(!layout) throw new Error('서식 없음');
-    if(wrap)wrap.innerHTML=renderLabelHtml(key,sampleContext(),false);
+    if(wrap)wrap.innerHTML=renderLabelHtml(key,sampleContextForLabel(code,key),false);
     if(meta)meta.textContent=`[${lm.labelCode}] ${lm.labelName||''} · ${layout.w}×${layout.h}mm · 테스트 데이터 미리보기`;
   }catch(e){
     if(wrap)wrap.innerHTML='<div class="empty">저장된 서식을 불러오지 못했습니다. 서식 편집에서 확인해 주세요.</div>';
