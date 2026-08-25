@@ -428,7 +428,7 @@ body.workspace-open #homeView{display:none;}
 </style>
 
 <style>
-/* v4.11.3 - 관리자 작업지시 등록 간소화 */
+/* v4.11.4 - 라벨마스터/LOT저장/설비필터 안정화 */
 .workOrderQuickBar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 4px;}
 .workOrderQuickBar button{min-height:44px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--navy);font-weight:800;cursor:pointer;padding:9px 10px;}
 .workOrderQuickBar button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
@@ -442,7 +442,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.11.3</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.11.4</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -592,6 +592,15 @@ body.workspace-open #homeView{display:none;}
             <option value="today">오늘만</option>
             <option value="pending">미완료만</option>
           </select>
+        </div>
+        <div id="orderMachineFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;">
+          <button type="button" class="miniBtn machineFilterBtn active" data-machine="ALL">전체 설비</button>
+          <button type="button" class="miniBtn machineFilterBtn" data-machine="M1">M1</button>
+          <button type="button" class="miniBtn machineFilterBtn" data-machine="M2">M2</button>
+          <button type="button" class="miniBtn machineFilterBtn" data-machine="M3">M3</button>
+          <button type="button" class="miniBtn machineFilterBtn" data-machine="M4">M4</button>
+          <button type="button" class="miniBtn machineFilterBtn" data-machine="M5">M5</button>
+          <button type="button" class="miniBtn machineFilterBtn" data-machine="M6">M6</button>
         </div>
         <div id="orderList"></div>
       </div>
@@ -1793,11 +1802,13 @@ function refreshReissueSearch(){
 reissueDefaults(); refreshReissueLabelTypes();
 
 function statusLabel(s){return s==='done'?'완료':s==='in_progress'?'진행중':'대기';}
+let orderMachineFilter='ALL';
 function filteredOrders(){
   let list=[...workOrders];
   const f=$('orderFilter').value;
   if(f==='today') list=list.filter(o=>o.date===todayISO());
   if(f==='pending') list=list.filter(o=>o.status!=='done');
+  if(orderMachineFilter!=='ALL') list=list.filter(o=>String(o.machine||'').trim()===orderMachineFilter);
   return list.sort((a,b)=>{
     if(a.date!==b.date) return b.date.localeCompare(a.date);
     if(a.shift!==b.shift) return a.shift==='주간'?-1:1;
@@ -1814,11 +1825,18 @@ function renderOrderList(){
     const weightText=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;
     return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.id}">
       <div class="top"><span class="pname">${escapeHtml(pname)} ${escapeHtml(pcolor)}</span><span class="statusPill ${o.status}">${statusLabel(o.status)}</span></div>
-      <div class="sub"><span class="orderDate">${o.date}</span> · ${o.shift} · ${escapeHtml(o.machine||'')}<br>Batch ${o.batchSeq}/${o.batchCount} · ${o.batchDrums}드럼×${weightText}kg · 기본무지 ${o.includeBasic!==false?'포함':'제외'}${o.memo?`<br><b style="color:#16345c">메모:</b> ${escapeHtml(o.memo)}`:''}${o.importSource==='excel_schedule'?`<br><span style="color:#7a8490">Excel · ${escapeHtml(o.sourceFile||'')} · ${Number(o.sourceRow)||''}행</span>`:''}${p?'':'<br><b style="color:#b3261e">현재 마스터에서 품목을 찾지 못함</b>'}</div>
+      <div class="sub"><span class="orderDate">${o.date}</span> · ${o.shift} · <button type="button" class="miniBtn orderMachineQuick" data-machine-quick="${escapeHtml(o.machine||'')}" style="padding:2px 7px;min-height:auto;">${escapeHtml(o.machine||'')}</button><br>Batch ${o.batchSeq}/${o.batchCount} · ${o.batchDrums}드럼×${weightText}kg · 기본무지 ${o.includeBasic!==false?'포함':'제외'}${o.memo?`<br><b style="color:#16345c">메모:</b> ${escapeHtml(o.memo)}`:''}${o.importSource==='excel_schedule'?`<br><span style="color:#7a8490">Excel · ${escapeHtml(o.sourceFile||'')} · ${Number(o.sourceRow)||''}행</span>`:''}${p?'':'<br><b style="color:#b3261e">현재 마스터에서 품목을 찾지 못함</b>'}</div>
       <button class="del adminOnly" data-del="${o.id}">삭제</button>
     </div>`;
   }).join('');
-  wrap.querySelectorAll('.orderCard').forEach(el=>el.addEventListener('click',e=>{if(!e.target.dataset.del)selectOrder(+el.dataset.id);}));
+  wrap.querySelectorAll('.orderCard').forEach(el=>el.addEventListener('click',e=>{if(!e.target.dataset.del && !e.target.closest('[data-machine-quick]'))selectOrder(+el.dataset.id);}));
+  wrap.querySelectorAll('[data-machine-quick]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    const m=btn.dataset.machineQuick||'ALL';
+    orderMachineFilter=(orderMachineFilter===m)?'ALL':m;
+    syncOrderMachineFilterButtons();
+    renderOrderList();
+  }));
   wrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',async e=>{
     e.stopPropagation();
     workOrders=workOrders.filter(o=>o.id!==+btn.dataset.del);
@@ -2025,6 +2043,15 @@ if($('jumpOrderListBtn')) $('jumpOrderListBtn').addEventListener('click',()=>{
 if($('workOrderExcelImportBtn')) $('workOrderExcelImportBtn').addEventListener('click',()=>$('workOrderExcelFile')?.click());
 if($('workOrderExcelFile')) $('workOrderExcelFile').addEventListener('change',e=>importWorkOrderExcel(e.target.files?.[0]));
 
+function syncOrderMachineFilterButtons(){
+  document.querySelectorAll('#orderMachineFilters [data-machine]').forEach(b=>b.classList.toggle('active',b.dataset.machine===orderMachineFilter));
+}
+if($('orderMachineFilters')) $('orderMachineFilters').addEventListener('click',e=>{
+  const b=e.target.closest('[data-machine]'); if(!b) return;
+  orderMachineFilter=b.dataset.machine||'ALL';
+  syncOrderMachineFilterButtons();
+  renderOrderList();
+});
 $('orderFilter').addEventListener('change',renderOrderList);
 
 $('addOrder').addEventListener('click',async(e)=>{
@@ -2100,7 +2127,9 @@ function refreshActiveOrderPanel(){
   const p=resolveOrderProduct(o);
   if(!p){ $('prodNameOut').textContent='현재 제품마스터에서 이 작업지시의 품목을 찾지 못했습니다'; $('lotOut').textContent='—'; $('dateExpOut').textContent='—'; $('completeOrder').style.display='none'; return; }
   const info=computeLotInfo(o,1);
-  $('prodNameOut').textContent=`${p.family==='HBF'?'HBF':'동은'} ${p.shortName||p.name||''} ${p.color||''} (${o.shift})`;
+  // v4.11.4: 예전에는 HBF가 아니면 모두 '동은'으로 표시되어 ETC/다우/탑씰 제품도 잘못 표시되었다.
+  // 현재 선택 작업에서는 실제 품목명/색상만 표시하고 제품군은 임의 변환하지 않는다.
+  $('prodNameOut').textContent=`${p.shortName||p.name||p.scheduleName||''}${p.color?` ${p.color}`:''} (${o.shift})`;
   $('lotOut').textContent=p.family==='DONGEUN'?`${lotPrefix(o).base}-드럼번호`:info.lot;
   $('dateExpOut').textContent=`${info.prodDateDisp} → ${info.exp}`;
   $('completeOrder').style.display='block';$('batchDrumsOut').textContent=o.batchDrums;$('batchWeightOut').textContent=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;$('nextDrumOut').textContent=liveDrumCounter;
@@ -3134,20 +3163,30 @@ function builtinLabelMaster(){
 function allLabelMaster(){
   const deleted=new Set(DELETED_LABEL_MASTER_CODES||[]);
   const map=new Map();
+  const baselineCodes=new Set();
 
-  // v4.11.3: 최신 Excel에 내장된 라벨 마스터를 항상 기본 복원 목록으로 포함한다.
-  // DB의 사용자 라벨 배열이 비어 있거나 일부만 남아도 LBL-006 같은 기존 라벨이 사라지지 않는다.
+  // v4.11.4: Excel/내장 기준 라벨은 "라벨 마스터의 기준본"이므로 과거 삭제 tombstone에 가려지지 않는다.
+  // LBL-002 같은 기존 라벨은 항상 목록/검색에 나타난다.
   (typeof BUNDLED_LABEL_SPECS!=='undefined'?BUNDLED_LABEL_SPECS:[]).forEach(x=>{
     const code=String(x.labelCode||'').trim();
-    if(!code || deleted.has(code)) return;
+    if(!code) return;
+    baselineCodes.add(code);
     map.set(code,{...x,copies:x.copies||1,active:x.active!==false,note:x.note||'Excel 기준 라벨',builtin:true});
   });
 
   builtinLabelMaster().forEach(x=>{
-    if(!deleted.has(x.labelCode)) map.set(x.labelCode,{...(map.get(x.labelCode)||{}),...x,builtin:true});
+    const code=String(x.labelCode||'').trim();
+    if(!code) return;
+    baselineCodes.add(code);
+    map.set(code,{...(map.get(code)||{}),...x,builtin:true});
   });
+
   CUSTOM_LABEL_MASTER.forEach(x=>{
-    if(!deleted.has(x.labelCode)) map.set(x.labelCode,{...(map.get(x.labelCode)||{}),...x,builtin:false});
+    const code=String(x.labelCode||'').trim();
+    if(!code) return;
+    // 사용자가 새로 만든 라벨만 실제 삭제 상태를 적용한다. 기준 라벨은 사용자 수정값으로 덮어쓸 수 있다.
+    if(deleted.has(code) && !baselineCodes.has(code)) return;
+    map.set(code,{...(map.get(code)||{}),...x,builtin:baselineCodes.has(code)});
   });
   return [...map.values()].sort((a,b)=>String(a.labelCode).localeCompare(String(b.labelCode)));
 }
@@ -3418,6 +3457,11 @@ async function saveLabelMasterFromForm(){
 }
 async function deleteLabelMaster(code){
   const x=allLabelMaster().find(v=>v.labelCode===code); if(!x) return;
+  const isBaseline=(typeof BUNDLED_LABEL_SPECS!=='undefined' && BUNDLED_LABEL_SPECS.some(v=>String(v.labelCode||'')===code)) || builtinLabelMaster().some(v=>String(v.labelCode||'')===code);
+  if(isBaseline){
+    flash('기준 라벨은 삭제할 수 없습니다. 정보 수정에서 사용 여부를 미사용으로 변경하세요.',true);
+    return;
+  }
   if(!confirm(`${code} / ${x.labelName} 라벨을 삭제하시겠습니까?\n이미 품목에 연결된 라벨 연결은 유지됩니다.`)) return;
   CUSTOM_LABEL_MASTER=CUSTOM_LABEL_MASTER.filter(v=>v.labelCode!==code);
   if(!(DELETED_LABEL_MASTER_CODES||[]).includes(code)) DELETED_LABEL_MASTER_CODES.push(code);
@@ -3816,7 +3860,7 @@ function resetPmForm(){
   $('pmCode').value=''; $('pmShortName').value=''; $('pmFullName').value='';
   $('pmColor').value=''; $('pmType').value=''; $('pmFamily').value='탑씰 자사';
   $('pmActive').value='true'; $('pmDrums').value='1'; $('pmKg').value='0';
-  if($('pmLotRule')) $('pmLotRule').value='LOT_HBF_STD';
+  if($('pmLotRule')) $('pmLotRule').value='LOT_QHA,HBF,노루페인트';
   $('pmVolume').value=''; $('pmMonths').value='12'; $('pmNote').value='';
   $('pmSaveBtn').textContent='+ 신규 품목 등록';
   PM_FORM_LABEL_CODES=new Set(); renderPmLabelChecklist();
@@ -4009,8 +4053,19 @@ async function savePm(){
   await saveCustomProducts();
   rebuildProductCollections();
   refreshAllProductSelects();
-  renderPmTable(); resetPmForm(); renderPmLinks();
-  flash(original?'사용자 마스터로 수정 저장했습니다':'신규 품목을 등록했습니다');
+  renderPmTable();
+
+  // v4.11.4: 저장 직후 폼을 초기화하지 않는다. 저장된 LOT 규칙을 그대로 다시 표시해
+  // 사용자가 선택한 규칙이 실제로 유지됐는지 즉시 확인할 수 있게 한다.
+  $('pmEditId').value=obj.masterId;
+  $('pmCode').dataset.originalCode=String(obj.code||'').trim();
+  refreshPmLotRuleOptions(obj.lotRuleId);
+  $('pmSaveBtn').textContent='품목 수정 저장';
+  setPmFormLabelsFromProduct(obj);
+  PM_FORM_LABEL_CODES=new Set((obj.labels||[]).map(l=>String(l.labelCode||'')).filter(Boolean));
+  renderPmLabelChecklist();
+  renderPmLinks();
+  flash(original?'품목 수정 및 LOT 규칙을 저장했습니다':'신규 품목을 등록했습니다');
 }
 
 async function deletePm(id){
@@ -4203,7 +4258,7 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.11.3 · 클릭하면 재시도';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.11.4 · 클릭하면 재시도';
     }
     dbBadge.style.cursor='pointer';
     dbBadge.onclick=()=>window.retryKsaDb&&window.retryKsaDb();
