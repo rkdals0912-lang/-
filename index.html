@@ -426,11 +426,23 @@ body.workspace-open #homeView{display:none;}
   .labelEditorTopbar{top:0;}
 }
 </style>
+
+<style>
+/* v4.11.3 - 관리자 작업지시 등록 간소화 */
+.workOrderQuickBar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 4px;}
+.workOrderQuickBar button{min-height:44px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--navy);font-weight:800;cursor:pointer;padding:9px 10px;}
+.workOrderQuickBar button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+.workOrderQuickBar button.excel{background:#e9f6ee;color:var(--ok);border-color:#b9dfc9;}
+.workOrderQuickBar button:hover{filter:brightness(.98);}
+#manualOrderFormBody{margin-top:10px;padding-top:4px;border-top:1px solid var(--line);}
+#workOrderExcelResult.compactResult{margin-top:8px;max-height:150px;overflow:auto;}
+@media(max-width:700px){.workOrderQuickBar{grid-template-columns:1fr 1fr}.workOrderQuickBar button:last-child{grid-column:1/-1}}
+</style>
 </head>
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.11.2</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.11.3</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -480,57 +492,55 @@ body.workspace-open #homeView{display:none;}
   <div class="grid">
     <div>
       <div class="panel adminOnly">
-        <h2><span class="n">1</span>작업지시 등록 (관리자 전용)</h2>
-        <div class="row2">
-          <div><label>생산일자 / 출력 기준일</label><input type="date" id="prodDate"></div>
-          <div><label>주/야</label><select id="shift"><option value="주간">주간</option><option value="야간">야간</option></select></div>
+        <h2><span class="n">1</span>작업지시 관리 (관리자)</h2>
+        <div class="workOrderQuickBar">
+          <button type="button" class="primary" id="toggleManualOrderBtn">✍ 직접 등록</button>
+          <button type="button" class="excel" id="workOrderExcelImportBtn">📥 Excel 작업지시 반영</button>
+          <button type="button" id="jumpOrderListBtn">☷ 작업지시 목록 보기</button>
         </div>
-        <div class="row2">
-          <div>
-            <label>품목코드 검색</label>
-            <input type="text" class="field" id="productCodeSearch" placeholder="예: B_O410D_012 / BO410D012">
-          </div>
-          <div>
-            <label>정식 품명(풀네임) 검색</label>
-            <input type="text" class="field" id="productFullNameSearch" placeholder="예: O200_백색 / O-200 백색">
-          </div>
-        </div>
-        <label>제품 선택</label>
-        <select id="product"></select>
-        <div id="masterProductInfo" class="lockednote" style="margin-top:8px;"></div>
-        <div class="row2">
-          <div><label>설비명(믹서)</label><select id="machine"><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option><option>M6</option></select></div>
-          <div><label>Batch 수</label><input type="number" id="batchCount" value="1" min="1" max="9"></div>
-        </div>
-        <label>Batch 번호(순번)</label><input type="number" id="batchSeq" value="1" min="1" max="99">
-        <div id="manualLotWrap" style="display:none;">
-          <label>LOT 직접입력 (마지막 3자리)</label>
-          <input type="text" class="field" id="manualLotInput" maxlength="3" placeholder="예: A01 / 001" autocomplete="off">
-          <div class="lockednote">선택한 LOT 규칙에 <b>{INPUT3}</b>가 있을 때만 사용합니다.</div>
-        </div>
-        <div id="lotSeqWrap" style="display:none;">
-          <label>LOT 순번</label><input type="number" id="lotSeqInput" value="1" min="1" max="99">
-          <div class="lockednote">다우처럼 같은 생산건의 여러 Batch에 동일 LOT를 쓸 때 사용하는 별도 순번입니다.</div>
-        </div>
-        <label>총 드럼 수</label><input type="number" id="batchDrums" min="1">
-        <label>드럼당 중량 kg</label><input type="number" id="batchWeight" min="1">
-        <label>용량 (Approxi, L)</label><input type="number" id="volumeInput" min="0" placeholder="예: 190">
-        <label class="checkrow"><input type="checkbox" id="includeBasic" checked> 기본 무지라벨 함께 출력</label>
+        <input type="file" id="workOrderExcelFile" accept=".xlsx,.xls" style="display:none;">
+        <div class="lockednote" style="margin-top:7px;">Excel 열 순서: <b>날짜 · (요일 무시) · 설비명 · 제품명 · Batch 수 · (빈칸 무시) · 공유/메모/공지</b></div>
+        <div id="workOrderExcelResult" class="masterHint compactResult" style="display:none;"></div>
 
-        <div class="bulkPanel" style="margin-top:14px;border-color:#9db4d4;background:#f7fbff;">
-          <h3>작업지시 Excel 불러오기</h3>
-          <div class="masterHint" style="margin-top:0;">
-            첫 시트의 열 순서를 그대로 읽습니다.<br>
-            <b>A 날짜</b> · B 요일(무시) · <b>C 설비명</b> · <b>D 제품명</b> · <b>E Batch 수</b> · F 빈칸(무시) · <b>G 공유/메모/공지</b><br>
-            날짜/설비명이 병합되어 아래 행이 공란이면 바로 위 값을 자동으로 이어받습니다. Batch 수가 3이면 Batch 1~3 작업지시를 각각 생성합니다.
+        <div id="manualOrderFormBody" style="display:none;">
+          <div class="row2">
+            <div><label>생산일자 / 출력 기준일</label><input type="date" id="prodDate"></div>
+            <div><label>주/야</label><select id="shift"><option value="주간">주간</option><option value="야간">야간</option></select></div>
           </div>
-          <button type="button" class="btn btn-ok" id="workOrderExcelImportBtn">Excel 작업지시 반영</button>
-          <input type="file" id="workOrderExcelFile" accept=".xlsx,.xls" style="display:none;">
-          <div id="workOrderExcelResult" class="masterHint" style="display:none;margin-top:9px;"></div>
+          <div class="row2">
+            <div>
+              <label>품목코드 검색</label>
+              <input type="text" class="field" id="productCodeSearch" placeholder="예: B_O410D_012 / BO410D012">
+            </div>
+            <div>
+              <label>정식 품명(풀네임) 검색</label>
+              <input type="text" class="field" id="productFullNameSearch" placeholder="예: O200_백색 / O-200 백색">
+            </div>
+          </div>
+          <label>제품 선택</label>
+          <select id="product"></select>
+          <div id="masterProductInfo" class="lockednote" style="margin-top:8px;"></div>
+          <div class="row2">
+            <div><label>설비명(믹서)</label><select id="machine"><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option><option>M6</option></select></div>
+            <div><label>Batch 수</label><input type="number" id="batchCount" value="1" min="1" max="9"></div>
+          </div>
+          <label>Batch 번호(순번)</label><input type="number" id="batchSeq" value="1" min="1" max="99">
+          <div id="manualLotWrap" style="display:none;">
+            <label>LOT 직접입력 (마지막 3자리)</label>
+            <input type="text" class="field" id="manualLotInput" maxlength="3" placeholder="예: A01 / 001" autocomplete="off">
+            <div class="lockednote">선택한 LOT 규칙에 <b>{INPUT3}</b>가 있을 때만 사용합니다.</div>
+          </div>
+          <div id="lotSeqWrap" style="display:none;">
+            <label>LOT 순번</label><input type="number" id="lotSeqInput" value="1" min="1" max="99">
+            <div class="lockednote">다우처럼 같은 생산건의 여러 Batch에 동일 LOT를 쓸 때 사용하는 별도 순번입니다.</div>
+          </div>
+          <label>총 드럼 수</label><input type="number" id="batchDrums" min="1">
+          <label>드럼당 중량 kg</label><input type="number" id="batchWeight" min="1">
+          <label>용량 (Approxi, L)</label><input type="number" id="volumeInput" min="0" placeholder="예: 190">
+          <label class="checkrow"><input type="checkbox" id="includeBasic" checked> 기본 무지라벨 함께 출력</label>
+          <button type="button" class="btn btn-primary" id="addOrder">+ 작업지시 목록에 추가</button>
+          <div class="lockednote">직접 등록이 필요할 때만 이 영역을 열어 사용합니다.</div>
         </div>
-
-        <button type="button" class="btn btn-primary" id="addOrder">+ 작업지시 목록에 추가</button>
-        <div class="lockednote">날짜가 오늘이 아니어도 목록에 그대로 표시됩니다. 과거 날짜 작업을 선택해 재출력할 수도 있습니다.</div>
       </div>
 
       <div class="panel adminOnly">
@@ -1838,23 +1848,47 @@ function updateReissueManualLotInputVisibility(){
 }
 function validManualInput3(value){return /^[A-Za-z0-9]{3}$/.test(String(value||'').trim());}
 
-function parseScheduleExcelDate(value){
-  if(value==null || value==='') return '';
+function parseScheduleExcelDate(value, formattedValue=''){
+  if((value==null || value==='') && (formattedValue==null || formattedValue==='')) return '';
+  const pad=n=>String(Number(n)||0).padStart(2,'0');
+  const make=(y,m,d)=>{
+    y=Number(y);m=Number(m);d=Number(d);
+    if(y<100) y+=2000;
+    if(y<1900||y>2200||m<1||m>12||d<1||d>31) return '';
+    return `${String(y).padStart(4,'0')}-${pad(m)}-${pad(d)}`;
+  };
+  const fromSerial=n=>{
+    if(!Number.isFinite(Number(n)) || Number(n)<1 || !window.XLSX?.SSF?.parse_date_code) return '';
+    const x=window.XLSX.SSF.parse_date_code(Number(n));
+    return x?.y?make(x.y,x.m,x.d):'';
+  };
+  // Excel 날짜 일련번호를 최우선으로 사용: 브라우저 timezone 때문에 하루 밀리는 현상을 방지한다.
+  if(typeof value==='number'){
+    if(value>=20000101 && value<=22001231){
+      const t=String(Math.trunc(value)); return make(t.slice(0,4),t.slice(4,6),t.slice(6,8));
+    }
+    const serial=fromSerial(value); if(serial) return serial;
+  }
   if(value instanceof Date && !isNaN(value)){
-    const y=value.getFullYear(),m=String(value.getMonth()+1).padStart(2,'0'),d=String(value.getDate()).padStart(2,'0');
-    return `${y}-${m}-${d}`;
+    // cellDates로 들어온 Date도 로컬시간 변환 대신 UTC/로컬 중 날짜가 안정적인 쪽을 사용한다.
+    const uy=value.getUTCFullYear(),um=value.getUTCMonth()+1,ud=value.getUTCDate();
+    const ly=value.getFullYear(),lm=value.getMonth()+1,ld=value.getDate();
+    return make(uy||ly,um||lm,ud||ld);
   }
-  if(typeof value==='number' && window.XLSX?.SSF?.parse_date_code){
-    const x=window.XLSX.SSF.parse_date_code(value);
-    if(x?.y) return `${String(x.y).padStart(4,'0')}-${String(x.m).padStart(2,'0')}-${String(x.d).padStart(2,'0')}`;
-  }
-  const text=String(value).trim();
-  let m=text.match(/^(20\d{2}|19\d{2})\s*[.\/-]\s*(\d{1,2})\s*[.\/-]\s*(\d{1,2})/);
-  if(m) return `${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;
-  m=text.match(/^(\d{1,2})\s*[.\/-]\s*(\d{1,2})$/);
-  if(m){
-    const y=new Date().getFullYear();
-    return `${y}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`;
+  const candidates=[formattedValue,value].filter(v=>v!=null&&String(v).trim()!=='').map(v=>String(v).trim());
+  for(const raw of candidates){
+    const text=raw.replace(/\([^)]*\)/g,'').trim();
+    if(/^\d+(?:\.\d+)?$/.test(text)){
+      const n=Number(text);
+      if(n>=20000101 && n<=22001231){const t=String(Math.trunc(n));const v=make(t.slice(0,4),t.slice(4,6),t.slice(6,8));if(v)return v;}
+      if(n>20000 && n<100000){const v=fromSerial(n);if(v)return v;}
+    }
+    let m=text.match(/^(20\d{2}|19\d{2})\s*(?:년|[.\/-])\s*(\d{1,2})\s*(?:월|[.\/-])\s*(\d{1,2})\s*일?/);
+    if(m){const v=make(m[1],m[2],m[3]);if(v)return v;}
+    m=text.match(/^(\d{2})\s*[.\/-]\s*(\d{1,2})\s*[.\/-]\s*(\d{1,2})/);
+    if(m){const v=make(2000+Number(m[1]),m[2],m[3]);if(v)return v;}
+    m=text.match(/^(\d{1,2})\s*[.\/-]\s*(\d{1,2})(?:\s|$)/);
+    if(m){const v=make(new Date().getFullYear(),m[1],m[2]);if(v)return v;}
   }
   return '';
 }
@@ -1900,10 +1934,11 @@ async function importWorkOrderExcel(file){
   try{
     if(!window.XLSX) throw new Error('Excel 라이브러리를 불러오지 못했습니다.');
     const buf=await file.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    const wb=XLSX.read(buf,{type:'array',cellDates:false});
     const ws=wb.Sheets[wb.SheetNames[0]];
     if(!ws) throw new Error('첫 번째 시트를 찾을 수 없습니다.');
     const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+    const displayRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:'',dateNF:'yyyy-mm-dd'});
     if(!rows.length) throw new Error('Excel에 읽을 데이터가 없습니다.');
 
     let start=0;
@@ -1912,7 +1947,7 @@ async function importWorkOrderExcel(file){
     const planned=[],issues=[],notices=[];
     for(let r=start;r<rows.length;r++){
       const row=rows[r]||[];
-      const parsedDate=parseScheduleExcelDate(row[0]);
+      const parsedDate=parseScheduleExcelDate(row[0],displayRows[r]?.[0]);
       if(parsedDate) lastDate=parsedDate;
       const machine=String(row[2]??'').trim(); if(machine) lastMachine=machine;
       const productName=String(row[3]??'').trim();
@@ -1969,7 +2004,7 @@ async function importWorkOrderExcel(file){
       resultEl.innerHTML=`<b>작업지시 Excel 반영 완료</b><br>신규 ${addCount}건 · 갱신 ${updateCount}건 · 제외/확인 ${issues.length}건${issues.length?'<br><br>'+issues.slice(0,12).map(escapeHtml).join('<br>'):''}${notices.length?`<br><br>제품명 없는 메모/공지 단독행 ${notices.length}건은 작업지시로 만들지 않았습니다.`:''}`;
     }
     flash(`Excel 작업지시 반영 완료: 신규 ${addCount} / 갱신 ${updateCount}`);
-    const list=$('orderList'); if(list) setTimeout(()=>list.scrollIntoView({behavior:'smooth',block:'start'}),80);
+    // 완료 후 자동 스크롤하지 않음. 상단의 '작업지시 목록 보기' 버튼으로 이동한다.
   }catch(e){
     console.error('작업지시 Excel 반영 실패',e);
     if(resultEl){resultEl.style.display='block';resultEl.innerHTML=`<b>작업지시 Excel 반영 실패</b><br>${escapeHtml(e.message||String(e))}`;}
@@ -1978,6 +2013,15 @@ async function importWorkOrderExcel(file){
     if($('workOrderExcelFile')) $('workOrderExcelFile').value='';
   }
 }
+if($('toggleManualOrderBtn')) $('toggleManualOrderBtn').addEventListener('click',()=>{
+  const body=$('manualOrderFormBody'); if(!body)return;
+  const open=body.style.display==='none'||!body.style.display;
+  body.style.display=open?'block':'none';
+  $('toggleManualOrderBtn').textContent=open?'▲ 직접 등록 닫기':'✍ 직접 등록';
+});
+if($('jumpOrderListBtn')) $('jumpOrderListBtn').addEventListener('click',()=>{
+  const list=$('orderList'); if(list) list.scrollIntoView({behavior:'smooth',block:'start'});
+});
 if($('workOrderExcelImportBtn')) $('workOrderExcelImportBtn').addEventListener('click',()=>$('workOrderExcelFile')?.click());
 if($('workOrderExcelFile')) $('workOrderExcelFile').addEventListener('change',e=>importWorkOrderExcel(e.target.files?.[0]));
 
@@ -2594,7 +2638,7 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
 }));
 function showOp(){$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');}
 async function autoSaveLabelWorkBeforeLeaving(){
-  // v4.11.2: 라벨 서식 편집 후 출력/다른 관리 화면으로 이동해도 변경사항이 사라지지 않도록 자동 저장.
+  // v4.11.3: 라벨 서식 편집 후 출력/다른 관리 화면으로 이동해도 변경사항이 사라지지 않도록 자동 저장.
   if(document.body.classList.contains('editing')){
     try{ await saveLayouts(); }catch(e){ console.warn('label layout autosave failed',e); }
   }
@@ -3091,7 +3135,7 @@ function allLabelMaster(){
   const deleted=new Set(DELETED_LABEL_MASTER_CODES||[]);
   const map=new Map();
 
-  // v4.11.2: 최신 Excel에 내장된 라벨 마스터를 항상 기본 복원 목록으로 포함한다.
+  // v4.11.3: 최신 Excel에 내장된 라벨 마스터를 항상 기본 복원 목록으로 포함한다.
   // DB의 사용자 라벨 배열이 비어 있거나 일부만 남아도 LBL-006 같은 기존 라벨이 사라지지 않는다.
   (typeof BUNDLED_LABEL_SPECS!=='undefined'?BUNDLED_LABEL_SPECS:[]).forEach(x=>{
     const code=String(x.labelCode||'').trim();
@@ -3783,7 +3827,7 @@ let PM_SELECTED_IDS = new Set();
 let PM_LAST_FILTERED_IDS = [];
 
 function currentFilteredPmProducts(){
-  // v4.11.2: 제품관리 검색도 출력모드와 동일하게 구분기호를 무시하고
+  // v4.11.3: 제품관리 검색도 출력모드와 동일하게 구분기호를 무시하고
   // 품목명 + 색상처럼 서로 다른 필드에 나뉜 단어를 한 번에 검색한다.
   // 예: O-200 백색 / O200_백색 / O-200/백색 모두 동일하게 검색된다.
   const q=normalizeProductSearch($('pmSearch')?.value||'');
@@ -4159,7 +4203,7 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.11.2 · 클릭하면 재시도';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.11.3 · 클릭하면 재시도';
     }
     dbBadge.style.cursor='pointer';
     dbBadge.onclick=()=>window.retryKsaDb&&window.retryKsaDb();
