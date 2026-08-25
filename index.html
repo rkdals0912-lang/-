@@ -450,7 +450,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.1</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.2</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -1411,6 +1411,27 @@ async function storeGet(key){
 async function saveLayouts(){ await storeSet('ksa-label-layouts-master-v30',JSON.stringify(LAYOUTS)); }
 async function saveWorkOrders(){ await storeSet('ksa-work-orders-master-v30',JSON.stringify(workOrders)); }
 
+
+function normalizeLegacyTableBindings(layout){
+  if(!layout || !Array.isArray(layout.fields)) return layout;
+  layout.fields.forEach(f=>{
+    if(!f || f.kind!=='table' || !Array.isArray(f.cells)) return;
+    const rows=Math.max(1,Number(f.rows)||1), cols=Math.max(1,Number(f.cols)||1);
+    if(cols<2) return;
+    for(let r=0;r<rows;r++){
+      const left=f.cells[r*cols], right=f.cells[r*cols+1];
+      if(!left || !right) continue;
+      const label=String(left.text ?? left.value ?? left.label ?? '').replace(/\s+/g,'').toUpperCase();
+      if(label==='색상'){
+        right.kind='bind'; right.bind='color'; right.text='';
+      }else if(label==='TYPE' || label==='타입'){
+        right.kind='bind'; right.bind='type'; right.text='';
+      }
+    }
+  });
+  return layout;
+}
+
 function normalizeLegacyRotatedFields(layout){
   if(!layout||!Array.isArray(layout.fields)) return layout;
   layout.fields.forEach(f=>{
@@ -1430,9 +1451,9 @@ async function loadLayouts(){
     const defaults=freshLayouts();
     // 기본 서식뿐 아니라 라벨코드별로 생성된 개별 서식도 함께 복원합니다.
     for(const key of Object.keys(saved||{})){
-      if(saved[key]&&Array.isArray(saved[key].fields)) defaults[key]=normalizeLegacyRotatedFields(saved[key]);
+      if(saved[key]&&Array.isArray(saved[key].fields)) defaults[key]=normalizeLegacyTableBindings(normalizeLegacyRotatedFields(saved[key]));
     }
-    Object.keys(defaults).forEach(k=>normalizeLegacyRotatedFields(defaults[k]));
+    Object.keys(defaults).forEach(k=>normalizeLegacyTableBindings(normalizeLegacyRotatedFields(defaults[k])));
     LAYOUTS=defaults;
   }catch(e){}
 }
@@ -1569,7 +1590,7 @@ function computeDongeunLot(order,drumNo){ return computeLotInfo(order,drumNo); }
 
 function buildContext(p,info,drumNo,weightKg,volume){
   return {
-    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),color:(p.color||''),lot:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
+    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),color:(p.color||''),type:(p.type||''),lot:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
     productLine:`Product Name : ${p.name} ${p.color||''}`.trim(),
     weightLine:`Net Weight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,volumeLine:`Volume : Approxi ${volume||'?'}L`,
     expireLine:`Expire date : ${info.exp}`,lotLine:`LOT NO : ${info.lot}`
@@ -1577,7 +1598,7 @@ function buildContext(p,info,drumNo,weightKg,volume){
 }
 function buildDongeunContext(p,info,drumNo,weightKg){
   return {
-    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),color:(p.color||''),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
+    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),color:(p.color||''),type:(p.type||''),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
     lotLine:`LOT : ${info.lot}`,titleKr:(p.fullName||p.shortName||p.name),titleEn:(p.fullName||p.shortName||p.name),
     weightLineKr:`중     량 : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,weightLineEn:`ㆍWeight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,
     dateLineKr:`생산일자 : ${info.prodDateDisp}`,mfdLineEn:`ㆍM.F.D : ${info.prodDateDisp}`,
@@ -2709,6 +2730,7 @@ const FIELD_VARIABLES = [
   ['titleEn','Product Name'],
   ['code','제품 코드'],
   ['color','색상'],
+  ['type','TYPE'],
   ['lot','LOT 값'],
   ['lotRaw','LOT 값(문구 없음)'],
   ['lotLine','LOT 문구 포함'],
@@ -3027,6 +3049,7 @@ document.addEventListener('mousemove',e=>{
 document.addEventListener('mouseup',()=>dragState=null);
 
 function renderEditor(){
+  normalizeLegacyTableBindings(LAYOUTS[editorKey]);
   if(!LAYOUTS[editorKey]){ editorKey='basic'; editorLabelCode=''; }
   if($('editorLabelHint')){
     const lm=editorLabelCode?labelMasterByCode(editorLabelCode):null;
