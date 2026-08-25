@@ -442,7 +442,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.11.7</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.11.8</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -870,7 +870,7 @@ body.workspace-open #homeView{display:none;}
         <div class="masterHint" style="margin-bottom:10px;">
           라벨 자체·서식·기본 LOT 체계는 <b>라벨 마스터·서식</b>에서 관리합니다. 여기서는 이 제품에 사용할 라벨만 선택합니다. <b>여러 개를 동시에 선택</b>할 수 있고, 출력할 때 선택한 라벨의 LOT 체계가 자동 적용됩니다.
         </div>
-        <input type="text" class="field" id="pmLabelPickerSearch" placeholder="라벨코드 / 라벨명 / 비고 검색">
+        <input type="text" class="field" id="pmLabelPickerSearch" placeholder="라벨코드 / 라벨명 검색 (예: LBL002, 탑씰 무지)">
         <div class="pmLabelPickerActions">
           <button type="button" class="btn btn-ghost auto" id="pmLabelPickerAll">검색결과 전체 선택</button>
           <button type="button" class="btn btn-ghost auto" id="pmLabelPickerClear">선택 해제</button>
@@ -3266,7 +3266,7 @@ function setupSeparatedLabelScreens(){
   masterScreen.id='labelMasterScreen';
   const hero=document.createElement('div');
   hero.className='labelMasterHero';
-  hero.innerHTML=`<div><h2>🏷 라벨 마스터</h2><p>모든 라벨을 코드별로 등록·검색·수정하고, 라벨별 기본 LOT 체계를 지정하며 연결 제품을 한 화면에서 관리합니다.<br>제품마스터에서는 사용할 라벨만 선택하면 해당 라벨의 LOT 체계가 자동 적용됩니다.</p></div><div class="labelMasterSearch"><label>라벨 검색</label><input type="search" id="labelMasterSearch" class="field" placeholder="라벨코드 / 라벨명 / 비고 검색"></div>`;
+  hero.innerHTML=`<div><h2>🏷 라벨 마스터</h2><p>모든 라벨을 코드별로 등록·검색·수정하고, 라벨별 기본 LOT 체계를 지정하며 연결 제품을 한 화면에서 관리합니다.<br>제품마스터에서는 사용할 라벨만 선택하면 해당 라벨의 LOT 체계가 자동 적용됩니다.</p></div><div class="labelMasterSearch"><label>라벨 검색</label><input type="search" id="labelMasterSearch" class="field" placeholder="라벨코드 / 라벨명 검색 (예: LBL002, 탑씰 무지)"></div>`;
   const masterGrid=document.createElement('div');
   masterGrid.className='labelMasterScreenGrid';
   masterPanel.classList.add('labelMasterFormPanel');
@@ -3282,7 +3282,7 @@ function setupSeparatedLabelScreens(){
   masterGrid.append(masterPanel,listPanel,linkPanel);
   const masterPreview=document.createElement('div');
   masterPreview.className='panel labelMasterPreviewPanel';
-  masterPreview.innerHTML=`<div class="labelMasterPreviewHead"><div><h2 style="margin:0;"><span class="n">▣</span> 라벨 미리보기</h2><div class="meta" id="labelMasterPreviewMeta">등록 라벨을 선택하면 저장된 실제 서식을 확인할 수 있습니다.</div></div><div class="labelMasterPreviewActions"><button type="button" class="btn btn-ghost auto" id="labelMasterPreviewEditBtn" disabled>🎨 서식 편집</button><button type="button" class="btn btn-primary auto" id="labelMasterPreviewPrintBtn" disabled>🖨 바로 인쇄</button></div></div><div class="labelMasterPreviewViewport"><div class="labelMasterPreviewInner" id="labelMasterPreviewWrap"><div class="empty">라벨을 선택하세요.</div></div></div>`;
+  masterPreview.innerHTML=`<div class="labelMasterPreviewHead"><div><h2 style="margin:0;"><span class="n">▣</span> 라벨 미리보기</h2><div class="meta" id="labelMasterPreviewMeta">등록 라벨을 선택하면 저장된 실제 서식을 확인할 수 있습니다.</div></div><div class="labelMasterPreviewActions" style="align-items:end;flex-wrap:wrap;"><div style="min-width:280px;text-align:left;"><label style="display:block;margin-bottom:4px;font-size:11px;font-weight:800;">선택 라벨 LOT 체계</label><select id="labelMasterPreviewLotRule" class="field" disabled></select></div><button type="button" class="btn btn-ok auto" id="labelMasterPreviewLotSaveBtn" disabled>LOT 체계 저장</button><button type="button" class="btn btn-ghost auto" id="labelMasterPreviewEditBtn" disabled>🎨 서식 편집</button><button type="button" class="btn btn-primary auto" id="labelMasterPreviewPrintBtn" disabled>🖨 바로 인쇄</button></div></div><div class="labelMasterPreviewViewport"><div class="labelMasterPreviewInner" id="labelMasterPreviewWrap"><div class="empty">라벨을 선택하세요.</div></div></div>`;
   masterScreen.append(hero,masterPreview,masterGrid);
 
   const editorScreen=document.createElement('div');
@@ -3304,6 +3304,7 @@ function setupSeparatedLabelScreens(){
 
   oldGrid.replaceWith(masterScreen,editorScreen);
   $('labelMasterSearch')?.addEventListener('input',renderLabelMasterList);
+  refreshLabelMasterPreviewLotRule('');
   $('labelMasterProductSearch')?.addEventListener('input',renderLabelMasterProductLinks);
   $('labelMasterProductClear')?.addEventListener('click',()=>{if($('labelMasterProductSearch'))$('labelMasterProductSearch').value='';renderLabelMasterProductLinks();});
   $('labelMasterConnectSelected')?.addEventListener('click',connectSelectedProductsToLabelMaster);
@@ -3325,6 +3326,7 @@ function setupSeparatedLabelScreens(){
     const code=$('labelMasterPreviewEditBtn')?.dataset.labelCode||'';
     if(code) openLabelEditorScreen(code);
   });
+  $('labelMasterPreviewLotSaveBtn')?.addEventListener('click',saveSelectedLabelLotRule);
   $('labelMasterPreviewPrintBtn')?.addEventListener('click',async()=>{
     const code=$('labelMasterPreviewPrintBtn')?.dataset.labelCode||'';
     if(!code){flash('먼저 라벨을 선택하세요',true);return;}
@@ -3339,6 +3341,29 @@ function setupSeparatedLabelScreens(){
     }catch(e){flash('테스트 인쇄 실패: '+(e?.message||e),true);}
   });
 }
+function refreshLabelMasterPreviewLotRule(code=''){
+  const sel=$('labelMasterPreviewLotRule'), btn=$('labelMasterPreviewLotSaveBtn');
+  if(!sel) return;
+  const lm=code?labelMasterByCode(code):null;
+  sel.innerHTML='<option value="">제품 기본 LOT 규칙 사용</option>'+LOT_RULES.map(r=>`<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)} · ${escapeHtml(r.pattern)}</option>`).join('');
+  sel.disabled=!lm; if(btn) btn.disabled=!lm;
+  if(lm && lm.lotRuleId && LOT_RULES.some(r=>r.id===lm.lotRuleId)) sel.value=lm.lotRuleId; else sel.value='';
+}
+async function saveSelectedLabelLotRule(){
+  const code=selectedLabelMasterPreviewCode, lm=code?labelMasterByCode(code):null;
+  if(!lm){flash('먼저 라벨을 선택하세요',true);return;}
+  const lotRuleId=$('labelMasterPreviewLotRule')?.value||'';
+  const obj={...lm,lotRuleId,builtin:false};
+  const i=CUSTOM_LABEL_MASTER.findIndex(x=>String(x.labelCode||'')===String(code));
+  if(i>=0) CUSTOM_LABEL_MASTER[i]=obj; else CUSTOM_LABEL_MASTER.push(obj);
+  DELETED_LABEL_MASTER_CODES=(DELETED_LABEL_MASTER_CODES||[]).filter(c=>c!==code);
+  await saveCustomLabelMaster();
+  renderLabelMasterList(); renderLabelMasterSelect(); renderPmLabelChecklist(); renderPmLinks(); renderLabelMasterProductLinks();
+  refreshLabelMasterPreviewLotRule(code);
+  const rule=lotRuleId?getLotRuleById(lotRuleId):null;
+  flash(`${code} LOT 체계를 ${rule?rule.name:'제품 기본 규칙'}으로 저장했습니다`);
+}
+
 function showLabelMasterScreen(){
   setupSeparatedLabelScreens();
   const m=$('labelMasterScreen'), e=$('labelEditorScreen');
@@ -3363,6 +3388,7 @@ async function openLabelEditorScreen(code){
 }
 let selectedLabelMasterPreviewCode='';
 async function selectLabelMasterPreview(code){
+  refreshLabelMasterPreviewLotRule(code);
   const lm=labelMasterByCode(code);
   const wrap=$('labelMasterPreviewWrap'),meta=$('labelMasterPreviewMeta');
   const editBtn=$('labelMasterPreviewEditBtn'),printBtn=$('labelMasterPreviewPrintBtn');
@@ -3455,11 +3481,16 @@ function normalizeSearchText(v){
 }
 function renderLabelMasterList(){
   const wrap=$('lmList'); if(!wrap) return;
-  const q=normalizeSearchText($('labelMasterSearch')?.value||'');
+  const rawQ=String($('labelMasterSearch')?.value||'').trim();
+  const q=normalizeProductSearch(rawQ);
+  const tokens=rawQ.split(/\s+/).map(normalizeProductSearch).filter(Boolean);
   const allRows=allLabelMaster();
   const rows=allRows.filter(x=>{
     if(!q) return true;
-    const lr=x.lotRuleId?getLotRuleById(x.lotRuleId):null; return normalizeSearchText([x.labelCode,x.labelName,x.note,lr?.name,lr?.pattern].join(' ')).includes(q);
+    const lr=x.lotRuleId?getLotRuleById(x.lotRuleId):null;
+    const hay=normalizeProductSearch([x.labelCode,x.labelName,x.note,lr?.name,lr?.pattern].filter(Boolean).join(' '));
+    // 제품마스터 검색과 같은 정규화 + 단어 순서가 달라도 모두 포함되면 검색
+    return hay.includes(q) || tokens.every(t=>hay.includes(t));
   });
   const count=$('labelMasterCount'); if(count) count.textContent=`${rows.length} / ${allRows.length}개`;
   if(!rows.length){ wrap.innerHTML='<div class="empty">검색 조건에 맞는 라벨이 없습니다.</div>'; return; }
