@@ -430,7 +430,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.11.1</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.11.2</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -516,6 +516,19 @@ body.workspace-open #homeView{display:none;}
         <label>드럼당 중량 kg</label><input type="number" id="batchWeight" min="1">
         <label>용량 (Approxi, L)</label><input type="number" id="volumeInput" min="0" placeholder="예: 190">
         <label class="checkrow"><input type="checkbox" id="includeBasic" checked> 기본 무지라벨 함께 출력</label>
+
+        <div class="bulkPanel" style="margin-top:14px;border-color:#9db4d4;background:#f7fbff;">
+          <h3>작업지시 Excel 불러오기</h3>
+          <div class="masterHint" style="margin-top:0;">
+            첫 시트의 열 순서를 그대로 읽습니다.<br>
+            <b>A 날짜</b> · B 요일(무시) · <b>C 설비명</b> · <b>D 제품명</b> · <b>E Batch 수</b> · F 빈칸(무시) · <b>G 공유/메모/공지</b><br>
+            날짜/설비명이 병합되어 아래 행이 공란이면 바로 위 값을 자동으로 이어받습니다. Batch 수가 3이면 Batch 1~3 작업지시를 각각 생성합니다.
+          </div>
+          <button type="button" class="btn btn-ok" id="workOrderExcelImportBtn">Excel 작업지시 반영</button>
+          <input type="file" id="workOrderExcelFile" accept=".xlsx,.xls" style="display:none;">
+          <div id="workOrderExcelResult" class="masterHint" style="display:none;margin-top:9px;"></div>
+        </div>
+
         <button type="button" class="btn btn-primary" id="addOrder">+ 작업지시 목록에 추가</button>
         <div class="lockednote">날짜가 오늘이 아니어도 목록에 그대로 표시됩니다. 과거 날짜 작업을 선택해 재출력할 수도 있습니다.</div>
       </div>
@@ -1791,7 +1804,7 @@ function renderOrderList(){
     const weightText=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;
     return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.id}">
       <div class="top"><span class="pname">${escapeHtml(pname)} ${escapeHtml(pcolor)}</span><span class="statusPill ${o.status}">${statusLabel(o.status)}</span></div>
-      <div class="sub"><span class="orderDate">${o.date}</span> · ${o.shift} · ${o.machine}<br>Batch ${o.batchCount}-${pad2(o.batchSeq)} · ${o.batchDrums}드럼×${weightText}kg · 기본무지 ${o.includeBasic!==false?'포함':'제외'}${p?'':'<br><b style="color:#b3261e">현재 마스터에서 품목을 찾지 못함</b>'}</div>
+      <div class="sub"><span class="orderDate">${o.date}</span> · ${o.shift} · ${escapeHtml(o.machine||'')}<br>Batch ${o.batchSeq}/${o.batchCount} · ${o.batchDrums}드럼×${weightText}kg · 기본무지 ${o.includeBasic!==false?'포함':'제외'}${o.memo?`<br><b style="color:#16345c">메모:</b> ${escapeHtml(o.memo)}`:''}${o.importSource==='excel_schedule'?`<br><span style="color:#7a8490">Excel · ${escapeHtml(o.sourceFile||'')} · ${Number(o.sourceRow)||''}행</span>`:''}${p?'':'<br><b style="color:#b3261e">현재 마스터에서 품목을 찾지 못함</b>'}</div>
       <button class="del adminOnly" data-del="${o.id}">삭제</button>
     </div>`;
   }).join('');
@@ -1824,6 +1837,149 @@ function updateReissueManualLotInputVisibility(){
   if($('reissueLotSeqWrap'))$('reissueLotSeqWrap').style.display=showSeq?'block':'none';
 }
 function validManualInput3(value){return /^[A-Za-z0-9]{3}$/.test(String(value||'').trim());}
+
+function parseScheduleExcelDate(value){
+  if(value==null || value==='') return '';
+  if(value instanceof Date && !isNaN(value)){
+    const y=value.getFullYear(),m=String(value.getMonth()+1).padStart(2,'0'),d=String(value.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  if(typeof value==='number' && window.XLSX?.SSF?.parse_date_code){
+    const x=window.XLSX.SSF.parse_date_code(value);
+    if(x?.y) return `${String(x.y).padStart(4,'0')}-${String(x.m).padStart(2,'0')}-${String(x.d).padStart(2,'0')}`;
+  }
+  const text=String(value).trim();
+  let m=text.match(/^(20\d{2}|19\d{2})\s*[.\/-]\s*(\d{1,2})\s*[.\/-]\s*(\d{1,2})/);
+  if(m) return `${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;
+  m=text.match(/^(\d{1,2})\s*[.\/-]\s*(\d{1,2})$/);
+  if(m){
+    const y=new Date().getFullYear();
+    return `${y}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`;
+  }
+  return '';
+}
+function scheduleHeaderRow(row){
+  const t=(row||[]).slice(0,7).map(v=>normalizeProductSearch(v));
+  return t.some(v=>v.includes('날짜')) && t.some(v=>v.includes('설비')) && t.some(v=>v.includes('제품'));
+}
+function matchScheduleProduct(rawName){
+  const q=normalizeProductSearch(rawName);
+  if(!q) return {product:null,reason:'제품명 없음'};
+  const candidates=ALL_PRODUCTS.map((p,i)=>{
+    const parts=[
+      p.shortName,p.name,p.scheduleName,p.fullName,
+      [p.shortName||p.name||p.scheduleName||'',p.color||''].filter(Boolean).join(' '),
+      [p.fullName||'',p.color||''].filter(Boolean).join(' '),
+      productDisplay(p)
+    ].filter(Boolean).map(normalizeProductSearch);
+    const exact=parts.some(x=>x===q);
+    const joined=normalizeProductSearch([p.shortName,p.name,p.scheduleName,p.fullName,p.color,p.type].filter(Boolean).join(' '));
+    const includes=joined.includes(q) || q.includes(joined);
+    let score=exact?100:(includes?60:0);
+    if(score && normalizeProductSearch(p.shortName||p.name||'')===q) score+=20;
+    if(score && normalizeProductSearch([p.shortName||p.name||'',p.color||''].join(' '))===q) score+=30;
+    return {p,i,score};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+  if(!candidates.length) return {product:null,reason:`제품마스터에서 '${rawName}' 검색 결과 없음`};
+  const best=candidates[0].score;
+  const bestRows=candidates.filter(x=>x.score===best);
+  const uniqueMasters=new Map(bestRows.map(x=>[x.p.masterId||x.p.importProfileKey||`${x.p.code}|${x.p.shortName}|${x.p.color}`,x]));
+  if(uniqueMasters.size>1){
+    const names=[...uniqueMasters.values()].slice(0,4).map(x=>productDisplay(x.p)).join(' / ');
+    return {product:null,reason:`'${rawName}' 후보가 여러 개입니다: ${names}`};
+  }
+  return {product:bestRows[0].p,index:bestRows[0].i,reason:''};
+}
+function importedOrderKey(fileName,rowNo,batchSeq){
+  return `${String(fileName||'').trim().toLowerCase()}|${Number(rowNo)||0}|${Number(batchSeq)||1}`;
+}
+async function importWorkOrderExcel(file){
+  if(!file) return;
+  const resultEl=$('workOrderExcelResult');
+  if(resultEl){resultEl.style.display='block';resultEl.innerHTML='Excel을 읽는 중입니다...';}
+  try{
+    if(!window.XLSX) throw new Error('Excel 라이브러리를 불러오지 못했습니다.');
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    if(!ws) throw new Error('첫 번째 시트를 찾을 수 없습니다.');
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+    if(!rows.length) throw new Error('Excel에 읽을 데이터가 없습니다.');
+
+    let start=0;
+    for(let i=0;i<Math.min(rows.length,15);i++) if(scheduleHeaderRow(rows[i])){start=i+1;break;}
+    let lastDate='',lastMachine='';
+    const planned=[],issues=[],notices=[];
+    for(let r=start;r<rows.length;r++){
+      const row=rows[r]||[];
+      const parsedDate=parseScheduleExcelDate(row[0]);
+      if(parsedDate) lastDate=parsedDate;
+      const machine=String(row[2]??'').trim(); if(machine) lastMachine=machine;
+      const productName=String(row[3]??'').trim();
+      const memo=String(row[6]??'').trim();
+      if(!productName){ if(memo) notices.push({row:r+1,memo}); continue; }
+      if(!lastDate){issues.push(`${r+1}행: 날짜를 확인할 수 없습니다.`);continue;}
+      if(!lastMachine){issues.push(`${r+1}행: 설비명이 없습니다.`);continue;}
+      const batchCount=Math.max(0,Math.floor(Number(row[4])||0));
+      if(batchCount<1){issues.push(`${r+1}행 ${productName}: Batch 수가 없습니다.`);continue;}
+      const matched=matchScheduleProduct(productName);
+      if(!matched.product){issues.push(`${r+1}행: ${matched.reason}`);continue;}
+      const p=matched.product,productIdx=matched.index;
+      const variants=availableVariants(p);
+      const variant=variants[0]||'';
+      const labelCode=normalizeSelectedLabelType(p,'',variant);
+      const ruleId=labelEffectiveLotRule(p,labelCode,variant)||getProductLotRuleId(p);
+      if(productUsesManualInput3(p,ruleId)){
+        issues.push(`${r+1}행 ${productName}: LOT 직접입력 3자리가 필요한 제품이라 Excel 자동등록에서 제외했습니다.`);
+        continue;
+      }
+      for(let seq=1;seq<=batchCount;seq++){
+        planned.push({
+          date:lastDate,shift:'주간',productIdx,machine:lastMachine,batchCount:String(batchCount),batchSeq:seq,
+          batchDrums:Math.max(1,Math.round(Number(p.drums)||1)),batchWeight:(p.kg==null||p.kg==='')?null:Number(p.kg),
+          volume:(p.volume==null||p.volume==='')?null:Number(p.volume),includeBasic:true,manualLotInput:'',lotSeq:1,status:'pending',
+          labelCode:labelCode||'',variant:variant||'',lotRuleId:ruleId||'',
+          productMasterId:p.masterId||'',productProfileKey:p.importProfileKey||'',productCode:p.code||'',
+          productName:p.shortName||p.name||p.scheduleName||productName,memo,
+          importSource:'excel_schedule',sourceFile:file.name,sourceRow:r+1,importKey:importedOrderKey(file.name,r+1,seq)
+        });
+      }
+    }
+    if(!planned.length){
+      const text=issues.length?issues.slice(0,20).map(escapeHtml).join('<br>'):'등록 가능한 작업지시가 없습니다.';
+      if(resultEl) resultEl.innerHTML=`<b>반영 가능한 작업지시 0건</b><br>${text}`;
+      flash('Excel에서 등록 가능한 작업지시를 찾지 못했습니다.',true);return;
+    }
+    const existingMap=new Map(workOrders.filter(o=>o.importKey).map(o=>[o.importKey,o]));
+    let addCount=0,updateCount=0;
+    planned.forEach(x=>existingMap.has(x.importKey)?updateCount++:addCount++);
+    const msg=`작업지시 Excel 미리보기\n\n파일: ${file.name}\n생성 Batch: ${planned.length}건\n신규: ${addCount}건\n기존 행 갱신: ${updateCount}건\n확인 필요/제외: ${issues.length}건\n메모/공지 단독행: ${notices.length}건\n\n반영하시겠습니까?`;
+    if(!confirm(msg)){ if(resultEl)resultEl.innerHTML='Excel 작업지시 반영을 취소했습니다.';return; }
+
+    planned.forEach(x=>{
+      const old=existingMap.get(x.importKey);
+      if(old){
+        const idx=workOrders.findIndex(o=>o.id===old.id);
+        if(idx>=0) workOrders[idx]={...old,...x,id:old.id,status:old.status||'pending'};
+      }else workOrders.push({...x,id:Date.now()+Math.floor(Math.random()*1000000)});
+    });
+    await saveWorkOrders();
+    renderOrderList();
+    if(resultEl){
+      resultEl.innerHTML=`<b>작업지시 Excel 반영 완료</b><br>신규 ${addCount}건 · 갱신 ${updateCount}건 · 제외/확인 ${issues.length}건${issues.length?'<br><br>'+issues.slice(0,12).map(escapeHtml).join('<br>'):''}${notices.length?`<br><br>제품명 없는 메모/공지 단독행 ${notices.length}건은 작업지시로 만들지 않았습니다.`:''}`;
+    }
+    flash(`Excel 작업지시 반영 완료: 신규 ${addCount} / 갱신 ${updateCount}`);
+    const list=$('orderList'); if(list) setTimeout(()=>list.scrollIntoView({behavior:'smooth',block:'start'}),80);
+  }catch(e){
+    console.error('작업지시 Excel 반영 실패',e);
+    if(resultEl){resultEl.style.display='block';resultEl.innerHTML=`<b>작업지시 Excel 반영 실패</b><br>${escapeHtml(e.message||String(e))}`;}
+    flash('작업지시 Excel 반영 실패: '+(e.message||e),true);
+  }finally{
+    if($('workOrderExcelFile')) $('workOrderExcelFile').value='';
+  }
+}
+if($('workOrderExcelImportBtn')) $('workOrderExcelImportBtn').addEventListener('click',()=>$('workOrderExcelFile')?.click());
+if($('workOrderExcelFile')) $('workOrderExcelFile').addEventListener('change',e=>importWorkOrderExcel(e.target.files?.[0]));
 
 $('orderFilter').addEventListener('change',renderOrderList);
 
@@ -1864,7 +2020,8 @@ $('addOrder').addEventListener('click',async(e)=>{
       manualLotInput,lotSeq:Math.max(1,Number($('lotSeqInput')?.value)||1),status:'pending',
       labelCode:labelCode||'',variant:variant||'',lotRuleId:addRuleId||'',
       productMasterId:selectedProduct.masterId||'',productProfileKey:selectedProduct.importProfileKey||'',
-      productCode:selectedProduct.code||'',productName:selectedProduct.shortName||selectedProduct.name||selectedProduct.scheduleName||''
+      productCode:selectedProduct.code||'',productName:selectedProduct.shortName||selectedProduct.name||selectedProduct.scheduleName||'',
+      memo:'',importSource:'manual'
     };
 
     workOrders.push(order);
@@ -2437,7 +2594,7 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
 }));
 function showOp(){$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');}
 async function autoSaveLabelWorkBeforeLeaving(){
-  // v4.11.1: 라벨 서식 편집 후 출력/다른 관리 화면으로 이동해도 변경사항이 사라지지 않도록 자동 저장.
+  // v4.11.2: 라벨 서식 편집 후 출력/다른 관리 화면으로 이동해도 변경사항이 사라지지 않도록 자동 저장.
   if(document.body.classList.contains('editing')){
     try{ await saveLayouts(); }catch(e){ console.warn('label layout autosave failed',e); }
   }
@@ -2934,7 +3091,7 @@ function allLabelMaster(){
   const deleted=new Set(DELETED_LABEL_MASTER_CODES||[]);
   const map=new Map();
 
-  // v4.11.1: 최신 Excel에 내장된 라벨 마스터를 항상 기본 복원 목록으로 포함한다.
+  // v4.11.2: 최신 Excel에 내장된 라벨 마스터를 항상 기본 복원 목록으로 포함한다.
   // DB의 사용자 라벨 배열이 비어 있거나 일부만 남아도 LBL-006 같은 기존 라벨이 사라지지 않는다.
   (typeof BUNDLED_LABEL_SPECS!=='undefined'?BUNDLED_LABEL_SPECS:[]).forEach(x=>{
     const code=String(x.labelCode||'').trim();
@@ -3626,7 +3783,7 @@ let PM_SELECTED_IDS = new Set();
 let PM_LAST_FILTERED_IDS = [];
 
 function currentFilteredPmProducts(){
-  // v4.11.1: 제품관리 검색도 출력모드와 동일하게 구분기호를 무시하고
+  // v4.11.2: 제품관리 검색도 출력모드와 동일하게 구분기호를 무시하고
   // 품목명 + 색상처럼 서로 다른 필드에 나뉜 단어를 한 번에 검색한다.
   // 예: O-200 백색 / O200_백색 / O-200/백색 모두 동일하게 검색된다.
   const q=normalizeProductSearch($('pmSearch')?.value||'');
@@ -4002,7 +4159,7 @@ async function initApp(){
       dbBadge.textContent=window.KSA_DB_ERROR?(window.KSA_DB_ERROR.startsWith('CONFIG:')?'DB 설정 확인 필요':'DB 연결 실패 · 로컬'):'DB 설정 없음 · 로컬';
       dbBadge.style.background=window.KSA_DB_ERROR?'#fdecea':'#fff4e2';
       dbBadge.style.color=window.KSA_DB_ERROR?'var(--danger)':'var(--amber)';
-      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.11.1 · 클릭하면 재시도';
+      dbBadge.title=(window.KSA_DB_ERROR||'config.js의 Supabase 설정을 확인하세요.')+' | build v4.11.2 · 클릭하면 재시도';
     }
     dbBadge.style.cursor='pointer';
     dbBadge.onclick=()=>window.retryKsaDb&&window.retryKsaDb();
