@@ -65,7 +65,9 @@
   .fld{position:absolute;white-space:pre-line;overflow:hidden;line-height:1.25;}
   .editorCanvas .fld{border:1px dashed transparent;cursor:move;}
   .editorCanvas .fld:hover{border-color:#9db4d4;}
-  .editorCanvas .fld.selected{border-color:var(--amber);background:rgba(201,130,42,.06);}
+  .editorCanvas .fld.selected{border-color:var(--amber);background:rgba(201,130,42,.06);z-index:40!important;}
+  .fld.tableField{background:#fff;isolation:isolate;}
+  .fld.tableField table,.fld.tableField td{background:#fff;}
 .editorCanvas .fld .resizeHandle{display:none;position:absolute;width:10px;height:10px;background:#fff;border:2px solid #d9861f;border-radius:2px;z-index:30;box-sizing:border-box;touch-action:none;}
 .editorCanvas .fld.selected .resizeHandle{display:block;}
 .editorCanvas .fld .resizeHandle[data-dir="n"]{left:50%;top:-6px;transform:translateX(-50%);cursor:ns-resize;}
@@ -450,7 +452,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.4</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.5</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -1644,7 +1646,10 @@ function buildDongeunContext(p,info,drumNo,weightKg){
 function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function renderLabelHtml(layoutKey,ctx,editable=false){
   const layout=LAYOUTS[layoutKey];
-  const fields=layout.fields.map(f=>{
+  // 레이어 순서: 일반 텍스트/변수를 먼저 그리고 Table은 항상 마지막(최상위)에 그린다.
+  // 같은 위치에 텍스트가 겹쳐도 표의 배경/테두리가 인쇄에서 가려지지 않는다.
+  const orderedFields=[...(layout.fields||[])].sort((a,b)=>(a.kind==='table'?1:0)-(b.kind==='table'?1:0));
+  const fields=orderedFields.map(f=>{
     const posStyle=[`left:${f.x}mm`,`top:${f.y}mm`,`width:${f.w}mm`,`height:${f.h}mm`,
       f.rotate?`transform:rotate(${f.rotate}deg)`:'',f.rotate?'transform-origin:center center':''
     ].filter(Boolean).join(';');
@@ -1687,13 +1692,13 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
         let acc=0; for(let i=0;i<colWidths.length-1;i++){acc+=colWidths[i];innerHandles+=`<span class="tableColHandle" data-split="${i}" style="left:${acc}%" title="드래그하여 열 너비 조절"></span>`;}
         acc=0; for(let i=0;i<rowHeights.length-1;i++){acc+=rowHeights[i];innerHandles+=`<span class="tableRowHandle" data-split="${i}" style="top:${acc}%" title="드래그하여 행 높이 조절"></span>`;}
       }
-      return `<div class="${cls}" ${dataAttr} style="${posStyle};position:absolute;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;${cellBorder?`border:${bw}mm solid #000;`:''}">${colgroup}${cells}</table>${innerHandles}${resizeHandles}</div>`;
+      return `<div class="${cls} tableField" ${dataAttr} style="${posStyle};position:absolute;z-index:20;background:#fff;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;background:#fff;${cellBorder?`border:${bw}mm solid #000;`:''}">${colgroup}${cells}</table>${innerHandles}${resizeHandles}</div>`;
     }
     const text=f.kind==='bind'
       ? ((f.bind==='color'||f.bind==='type') ? (ctx[f.bind]??'') : (ctx[f.bind]??`[${f.bind}]`))
       : f.text;
     const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.mono?'font-family:var(--mono)':'',f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':''].filter(Boolean).join(';');
-    return `<div class="${cls}" ${dataAttr} style="${styles}">${escapeHtml(text).replace(/\n/g,'<br>')}${resizeHandles}</div>`;
+    return `<div class="${cls}" ${dataAttr} style="${styles};z-index:1;">${escapeHtml(text).replace(/\n/g,'<br>')}${resizeHandles}</div>`;
   }).join('');
   return `<div class="canvasBox ${editable?'editorCanvas':''}" id="${editable?'liveEditorCanvas':''}" style="width:${layout.w}mm;height:${layout.h}mm;">${fields}</div>`;
 }
