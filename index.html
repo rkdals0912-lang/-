@@ -450,7 +450,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.3</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.4</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -707,7 +707,13 @@ body.workspace-open #homeView{display:none;}
         <div class="lockednote" id="editorLabelHint">이 화면을 라벨 마스터로 사용합니다. 라벨을 등록한 뒤 탭에서 선택하면 해당 라벨 전용 HTML 서식을 직접 편집할 수 있습니다.</div>
         <label>캔버스 크기 (mm)</label>
         <div class="row2"><input type="number" id="canvasW" min="20"><input type="number" id="canvasH" min="20"></div>
-        <div class="lockednote">항목을 클릭하거나 캔버스에서 드래그해서 조정할 수 있습니다.</div>
+        <label style="margin-top:10px;">라벨 전체 회전</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+          <button type="button" class="btn btn-ghost" id="rotateLayoutCCW">↺ 왼쪽 90°</button>
+          <button type="button" class="btn btn-ghost" id="rotateLayout180">↻ 180°</button>
+          <button type="button" class="btn btn-ghost" id="rotateLayoutCW">↻ 오른쪽 90°</button>
+        </div>
+        <div class="lockednote">전체 회전은 캔버스 크기와 모든 블록 위치·각도를 함께 변환합니다. 저장 후 실제 출력에도 그대로 적용됩니다.</div>
       </div>
 
       <div class="panel">
@@ -1429,7 +1435,7 @@ function normalizeLegacyTableBindings(layout){
       const right=row ? row[1] : f.cells[r*cols+1];
       if(!left || !right) continue;
 
-      const label=String(left.text ?? left.value ?? left.label ?? '')
+      const label=String(left.text ?? left.value ?? left.label ?? (left.kind==='bind'?left.bind:'') ?? '')
         .normalize('NFKC').replace(/\s+/g,'').replace(/[:：]/g,'').toUpperCase();
 
       if(label==='색상' || label==='COLOR'){
@@ -1655,12 +1661,27 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       const colWidths=norm(f.colWidths,cols),rowHeights=norm(f.rowHeights,rows);
       f.colWidths=colWidths; f.rowHeights=rowHeights;
       const colgroup='<colgroup>'+colWidths.map(w=>`<col style="width:${w}%">`).join('')+'</colgroup>';
-      const cells=(f.cells||[]).map((row,ri)=>`<tr style="height:${rowHeights[ri]||100/rows}%">`+row.map(c=>{
-        const val=c.kind==='bind'
-          ? ((c.bind==='color'||c.bind==='type') ? (ctx[c.bind]??'') : (ctx[c.bind]??`[${c.bind}]`))
-          : (c.text||'');
-        return `<td style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
-      }).join('')+'</tr>').join('');
+      const cells=(f.cells||[]).map((row,ri)=>{
+        const first=row?.[0]||{};
+        const firstRaw=first.kind==='bind'?(ctx[first.bind]??first.bind):(first.text??first.value??first.label??'');
+        const semantic=String(firstRaw||'').normalize('NFKC').replace(/\s+/g,'').replace(/[:：]/g,'').toUpperCase();
+        return `<tr style="height:${rowHeights[ri]||100/rows}%">`+row.map((c,ci)=>{
+          let val;
+          // 구형 저장 서식에서 색상 행의 우측 셀이 lotRaw로 남아 있어도 제품마스터 색상을 우선 표시한다.
+          if(ci===1 && (semantic==='색상' || semantic==='COLOR')){
+            val=ctx.color??'';
+            if(c){c.kind='bind';c.bind='color';delete c.text;}
+          }else if(ci===1 && (semantic==='TYPE' || semantic==='타입')){
+            val=ctx.type??'';
+            if(c){c.kind='bind';c.bind='type';delete c.text;}
+          }else{
+            val=c.kind==='bind'
+              ? ((c.bind==='color'||c.bind==='type') ? (ctx[c.bind]??'') : (ctx[c.bind]??`[${c.bind}]`))
+              : (c.text||'');
+          }
+          return `<td style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
+        }).join('')+'</tr>';
+      }).join('');
       let innerHandles='';
       if(editable){
         let acc=0; for(let i=0;i<colWidths.length-1;i++){acc+=colWidths[i];innerHandles+=`<span class="tableColHandle" data-split="${i}" style="left:${acc}%" title="드래그하여 열 너비 조절"></span>`;}
@@ -2890,6 +2911,39 @@ $('inspAlign').addEventListener('change',()=>{if(selectedFieldId){fieldById(sele
 $('inspWeight').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).weight=+$('inspWeight').value;renderCanvasOnly();}});
 $('inspBind').addEventListener('change',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='bind'){f.bind=$('inspBind').value;renderCanvasOnly();renderFieldList();}}});
 $('inspText').addEventListener('input',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='static'){f.text=$('inspText').value;renderCanvasOnly();renderFieldList();}}});
+function rotateWholeLayout(direction='cw'){
+  const l=LAYOUTS[editorKey]; if(!l||!Array.isArray(l.fields)) return;
+  const oldW=Number(l.w)||100, oldH=Number(l.h)||70;
+  const normDeg=v=>((Number(v)||0)%360+360)%360;
+  l.fields.forEach(f=>{
+    const w=Math.max(.1,Number(f.w)||1), h=Math.max(.1,Number(f.h)||1);
+    const cx=(Number(f.x)||0)+w/2, cy=(Number(f.y)||0)+h/2;
+    let ncx=cx,ncy=cy,add=0;
+    if(direction==='cw'){
+      ncx=oldH-cy; ncy=cx; add=90;
+    }else if(direction==='ccw'){
+      ncx=cy; ncy=oldW-cx; add=-90;
+    }else{
+      ncx=oldW-cx; ncy=oldH-cy; add=180;
+    }
+    f.x=+(ncx-w/2).toFixed(2);
+    f.y=+(ncy-h/2).toFixed(2);
+    f.rotate=normDeg((Number(f.rotate)||0)+add);
+  });
+  if(direction==='cw'||direction==='ccw'){
+    l.w=oldH; l.h=oldW;
+  }
+  if($('canvasW')) $('canvasW').value=l.w;
+  if($('canvasH')) $('canvasH').value=l.h;
+  selectedFieldId=null;
+  renderEditor();
+  saveLayouts().catch(()=>{});
+  flash(direction==='cw'?'라벨 전체를 오른쪽 90° 회전했습니다':direction==='ccw'?'라벨 전체를 왼쪽 90° 회전했습니다':'라벨 전체를 180° 회전했습니다');
+}
+if($('rotateLayoutCW')) $('rotateLayoutCW').addEventListener('click',()=>rotateWholeLayout('cw'));
+if($('rotateLayoutCCW')) $('rotateLayoutCCW').addEventListener('click',()=>rotateWholeLayout('ccw'));
+if($('rotateLayout180')) $('rotateLayout180').addEventListener('click',()=>rotateWholeLayout('180'));
+
 $('canvasW').addEventListener('input',()=>{LAYOUTS[editorKey].w=+$('canvasW').value||10;renderCanvasOnly();});
 $('canvasH').addEventListener('input',()=>{LAYOUTS[editorKey].h=+$('canvasH').value||10;renderCanvasOnly();});
 $('resetLayout').addEventListener('click',()=>{
@@ -3082,7 +3136,9 @@ document.addEventListener('mousemove',e=>{
 document.addEventListener('mouseup',()=>dragState=null);
 
 function renderEditor(){
+  const beforeNormalize=JSON.stringify(LAYOUTS[editorKey]||{});
   normalizeLegacyTableBindings(LAYOUTS[editorKey]);
+  if(beforeNormalize!==JSON.stringify(LAYOUTS[editorKey]||{})) saveLayouts().catch(()=>{});
   if(!LAYOUTS[editorKey]){ editorKey='basic'; editorLabelCode=''; }
   if($('editorLabelHint')){
     const lm=editorLabelCode?labelMasterByCode(editorLabelCode):null;
