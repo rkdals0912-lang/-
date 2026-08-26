@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.9.2 — 라벨마스터 · 출력이력</title>
+<title>KSA 라벨 출력 시스템 v4.13.0 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -452,7 +452,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">제품별 LOT 규칙 · Excel 일괄 업로드 · 공유 DB · v4.12.5</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.0</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -523,7 +523,7 @@ body.workspace-open #homeView{display:none;}
               <input type="text" class="field" id="productCodeSearch" placeholder="예: B_O410D_012 / BO410D012">
             </div>
             <div>
-              <label>정식 품명(풀네임) 검색</label>
+              <label>품목명(ECOUNT 풀네임) 검색</label>
               <input type="text" class="field" id="productFullNameSearch" placeholder="예: O200_백색 / O-200 백색">
             </div>
           </div>
@@ -562,7 +562,7 @@ body.workspace-open #homeView{display:none;}
             <input type="text" class="field" id="reissueCodeSearch" placeholder="품목코드">
           </div>
           <div>
-            <label>정식 품명(풀네임) 검색</label>
+            <label>품목명(ECOUNT 풀네임) 검색</label>
             <input type="text" class="field" id="reissueFullNameSearch" placeholder="예: O200_백색 / O-200 백색">
           </div>
         </div>
@@ -787,6 +787,10 @@ body.workspace-open #homeView{display:none;}
           <div><label>회전 안내</label><div class="readout">텍스트를 선택한 뒤 90°를 고르면 세로로 회전합니다.</div></div>
         </div>
 
+        <div id="inspBgWrap">
+          <label class="checkrow"><input type="checkbox" id="inspTransparentBg" checked> 텍스트 배경 투명</label>
+          <div class="lockednote">체크하면 라벨 원본 이미지/선 위에 텍스트만 투명하게 올라갑니다. 해제하면 흰색 배경으로 표시됩니다.</div>
+        </div>
         <div id="inspBindWrap">
           <label>연결 변수</label>
           <select id="inspBind"></select>
@@ -857,9 +861,12 @@ body.workspace-open #homeView{display:none;}
         <h2><span class="n">▦</span>제품관리 (마스터)</h2>
         <input type="hidden" id="pmEditId">
         <div class="masterGrid">
-          <div><label>품목코드 *</label><input type="text" class="field" id="pmCode" placeholder="ERP / 관리 코드"></div>
-          <div><label>품목명(약어) *</label><input type="text" class="field" id="pmShortName" placeholder="현재 Excel에서 쓰는 명칭"></div>
-          <div class="span2"><label>정식 품명 / 라벨 표기명</label><input type="text" class="field" id="pmFullName" placeholder="필요할 때만 입력. 비워두면 약어가 라벨에 표시됩니다."></div>
+          <div><label>품목코드 *</label><input type="text" class="field" id="pmCode" placeholder="ECOUNT 품목코드"></div>
+          <div><label>품목명(ECOUNT 풀네임) *</label><input type="text" class="field" id="pmFullName" placeholder="ECOUNT에 등록된 전체 품목명"></div>
+          <div><label>약어(라벨용) *</label><input type="text" class="field" id="pmShortName" placeholder="라벨에 인쇄할 짧은 품목명"></div>
+          <div><label>바코드</label><input type="text" class="field" id="pmBarcode" placeholder="필요한 품목만 입력 (없으면 비워두기)"></div>
+          <div><label>바코드 종류</label><select id="pmBarcodeType"><option value="CODE128">CODE128</option><option value="EAN13">EAN-13</option><option value="CODE39">CODE39</option><option value="ITF14">ITF-14</option><option value="codabar">CODABAR</option></select></div>
+          <div><label>바코드 아래 숫자</label><select id="pmBarcodeShowText"><option value="true">표시</option><option value="false">숨김</option></select></div>
           <div><label>색상</label><input type="text" class="field" id="pmColor"></div>
           <div><label>TYPE</label><input type="text" class="field" id="pmType"></div>
           <div><label>제품군</label><input type="text" class="field" id="pmFamily" list="familySuggestions" placeholder="예: 탑씰 자사 / 다우 / 우리에프씨"><datalist id="familySuggestions"><option value="탑씰 자사"><option value="다우"><option value="우리에프씨"><option value="HBF"><option value="DONGEUN"><option value="ETC"></datalist></div>
@@ -872,8 +879,8 @@ body.workspace-open #homeView{display:none;}
           <div class="span2"><label>비고</label><input type="text" class="field" id="pmNote" placeholder="고객사 / 포장 / 특이사항"></div>
         </div>
         <div class="masterHint">
-          기존 마스터의 <b>품목명은 약어</b>로 그대로 보존합니다.
-          <b>정식 품명 / 라벨 표기명</b>은 별도 필드이며, 내부 연결은 이름이 아닌 고유 Master ID를 사용합니다.
+          검색과 ECOUNT 연동 기준은 <b>품목코드 + 품목명(ECOUNT 풀네임)</b>입니다. <b>약어</b>는 라벨에 표시하기 위한 전용 값입니다.<br>
+          바코드는 필요한 품목만 입력하고, 숫자 표시/숨김을 품목별로 선택할 수 있습니다. 내부 연결은 이름이 아닌 고유 Master ID를 사용합니다.
         </div>
         <div class="editorActions" style="margin-top:10px;">
           <button class="btn btn-primary" id="pmSaveBtn">+ 신규 품목 등록</button>
@@ -902,7 +909,7 @@ body.workspace-open #homeView{display:none;}
           <span class="masterBadge" id="pmCount">0개</span>
         </div>
         <div class="masterToolbar">
-          <input type="text" id="pmSearch" placeholder="품목코드 / 약어 / 정식품명 / 색상 / TYPE 검색">
+          <input type="text" id="pmSearch" placeholder="품목코드 / 품목명(ECOUNT 풀네임) 검색">
           <select id="pmFamilyFilter" style="width:auto;">
             <option value="ALL">전체 제품군</option><option value="HBF">HBF</option><option value="DONGEUN">동은 OEM</option><option value="ETC">기타</option>
           </select>
@@ -948,7 +955,7 @@ body.workspace-open #homeView{display:none;}
         </div>
 <div class="masterTableWrap">
           <table class="masterTable">
-            <thead><tr><th style="width:42px;text-align:center;">선택</th><th>품목코드</th><th>품목명(약어)</th><th>정식 품명</th><th>색상</th><th>제품군</th><th>LOT 규칙</th><th>TYPE</th><th>관리</th></tr></thead>
+            <thead><tr><th style="width:42px;text-align:center;">선택</th><th>품목코드</th><th>품목명(ECOUNT)</th><th>약어(라벨)</th><th>바코드</th><th>숫자</th><th>색상</th><th>제품군</th><th>LOT 규칙</th><th>TYPE</th><th>관리</th></tr></thead>
             <tbody id="pmTableBody"></tbody>
           </table>
         </div>
@@ -1046,6 +1053,7 @@ body.workspace-open #homeView{display:none;}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script>
 window.KSA_BP_BASE_LOADED=false; window.KSA_BP_BASE_ERROR=false;
 window.KSA_BP_ZEBRA_LOADED=false; window.KSA_BP_ZEBRA_ERROR=false;
@@ -1510,11 +1518,10 @@ const ADMIN_PIN='1234';
 
 function productDisplay(p){
   const code=p.code ? `[${p.code}] ` : '';
-  const shortName=p.shortName||p.name||p.scheduleName||'';
-  const fullName=p.fullName ? ` / ${p.fullName}` : '';
-  const color=p.color ? ` / ${p.color}` : '';
-  const type=p.type ? ` · ${p.type}` : '';
-  return `${code}${shortName}${fullName}${color}${type}`;
+  const fullName=p.fullName||'';
+  const alias=p.shortName||p.name||p.scheduleName||'';
+  const aliasText=alias ? ` / 라벨: ${alias}` : '';
+  return `${code}${fullName||'(ECOUNT 품목명 미등록)'}${aliasText}`;
 }
 function normalizeProductSearch(v){
   // 하이픈/언더바/공백/괄호 등 구분기호를 모두 무시한다.
@@ -1531,14 +1538,9 @@ function productOptionsHtml(filters={}){
   const anyQ=normalizeProductSearch(filters.any||'');
   const rows=ALL_PRODUCTS.map((p,i)=>({p,i})).filter(({p})=>{
     const code=normalizeProductSearch(p.code||'');
-    // 정식 품명이 비어 있는 품목도 검색되도록 약어+색상까지 하나의 검색문자열로 묶는다.
-    // 예: 약어 O-200 + 색상 백색 => O200백색 으로 검색 가능
-    const fullSearch=normalizeProductSearch([
-      p.fullName,p.shortName,p.name,p.scheduleName,p.color,p.type,p.customer
-    ].filter(Boolean).join(' '));
-    const allSearch=normalizeProductSearch([
-      p.code,p.fullName,p.shortName,p.name,p.scheduleName,p.color,p.type,p.customer,p.family
-    ].filter(Boolean).join(' '));
+    // 검색 기준은 ECOUNT 품목코드 + ECOUNT 풀네임만 사용한다. 약어는 라벨 출력 전용이다.
+    const fullSearch=normalizeProductSearch(p.fullName||'');
+    const allSearch=normalizeProductSearch([p.code,p.fullName].filter(Boolean).join(' '));
     if(codeQ && !code.includes(codeQ)) return false;
     if(fullQ && !fullSearch.includes(fullQ)) return false;
     if(anyQ && !allSearch.includes(anyQ)) return false;
@@ -1626,17 +1628,19 @@ function computeLotFor(order,drumNo=1){ return computeLotInfo(order,drumNo); }
 function computeDongeunLot(order,drumNo){ return computeLotInfo(order,drumNo); }
 
 function buildContext(p,info,drumNo,weightKg,volume){
+  const alias=p.shortName||p.name||p.scheduleName||p.fullName||'';
   return {
-    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),color:(p.color||''),type:(p.type||''),lot:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
+    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:(p.barcode||''),barcodeText:(p.barcode&&p.barcodeShowText!==false)?String(p.barcode):'',barcodeType:(p.barcodeType||'CODE128'),lot:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
     productLine:`Product Name : ${p.name} ${p.color||''}`.trim(),
     weightLine:`Net Weight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,volumeLine:`Volume : Approxi ${volume||'?'}L`,
     expireLine:`Expire date : ${info.exp}`,lotLine:`LOT NO : ${info.lot}`
   };
 }
 function buildDongeunContext(p,info,drumNo,weightKg){
+  const alias=p.shortName||p.name||p.scheduleName||p.fullName||'';
   return {
-    code:p.code,name:(p.fullName||p.shortName||p.name),shortName:(p.shortName||p.name),color:(p.color||''),type:(p.type||''),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
-    lotLine:`LOT : ${info.lot}`,titleKr:(p.fullName||p.shortName||p.name),titleEn:(p.fullName||p.shortName||p.name),
+    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:(p.barcode||''),barcodeText:(p.barcode&&p.barcodeShowText!==false)?String(p.barcode):'',barcodeType:(p.barcodeType||'CODE128'),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
+    lotLine:`LOT : ${info.lot}`,titleKr:alias,titleEn:alias,
     weightLineKr:`중     량 : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,weightLineEn:`ㆍWeight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,
     dateLineKr:`생산일자 : ${info.prodDateDisp}`,mfdLineEn:`ㆍM.F.D : ${info.prodDateDisp}`,
     usebyLineKr:`USE  BY : ${info.exp}`,usebyLineEn:`ㆍUSE BY : ${info.exp}`
@@ -1644,6 +1648,19 @@ function buildDongeunContext(p,info,drumNo,weightKg){
 }
 
 function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function renderBarcodeSvg(value,format='CODE128'){
+  const v=String(value||'').trim(); if(!v) return '';
+  if(!window.JsBarcode) return `<div style="font-size:8pt;text-align:center;">[BARCODE] ${escapeHtml(v)}</div>`;
+  try{
+    const ns='http://www.w3.org/2000/svg';
+    const svg=document.createElementNS(ns,'svg');
+    window.JsBarcode(svg,v,{format:format||'CODE128',displayValue:false,margin:0,width:2,height:55});
+    svg.setAttribute('width','100%'); svg.setAttribute('height','100%'); svg.setAttribute('preserveAspectRatio','none');
+    return svg.outerHTML;
+  }catch(e){
+    return `<div style="font-size:7pt;text-align:center;">바코드 형식 확인: ${escapeHtml(v)}</div>`;
+  }
+}
 function renderLabelHtml(layoutKey,ctx,editable=false){
   const layout=LAYOUTS[layoutKey];
   // 레이어 순서: 일반 텍스트/변수를 먼저 그리고 Table은 항상 마지막(최상위)에 그린다.
@@ -1697,8 +1714,10 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
     const text=f.kind==='bind'
       ? ((f.bind==='color'||f.bind==='type') ? (ctx[f.bind]??'') : (ctx[f.bind]??`[${f.bind}]`))
       : f.text;
-    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.mono?'font-family:var(--mono)':'',f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':''].filter(Boolean).join(';');
-    return `<div class="${cls}" ${dataAttr} style="${styles};z-index:1;">${escapeHtml(text).replace(/\n/g,'<br>')}${resizeHandles}</div>`;
+    const transparentBg=f.transparentBackground!==false;
+    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.mono?'font-family:var(--mono)':'',f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
+    const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : escapeHtml(text).replace(/\n/g,'<br>');
+    return `<div class="${cls}" ${dataAttr} style="${styles};z-index:1;">${content}${resizeHandles}</div>`;
   }).join('');
   return `<div class="canvasBox ${editable?'editorCanvas':''}" id="${editable?'liveEditorCanvas':''}" style="width:${layout.w}mm;height:${layout.h}mm;">${fields}</div>`;
 }
@@ -2012,18 +2031,13 @@ function matchScheduleProduct(rawName){
   const q=normalizeProductSearch(rawName);
   if(!q) return {product:null,reason:'제품명 없음'};
   const candidates=ALL_PRODUCTS.map((p,i)=>{
-    const parts=[
-      p.shortName,p.name,p.scheduleName,p.fullName,
-      [p.shortName||p.name||p.scheduleName||'',p.color||''].filter(Boolean).join(' '),
-      [p.fullName||'',p.color||''].filter(Boolean).join(' '),
-      productDisplay(p)
-    ].filter(Boolean).map(normalizeProductSearch);
-    const exact=parts.some(x=>x===q);
-    const joined=normalizeProductSearch([p.shortName,p.name,p.scheduleName,p.fullName,p.color,p.type].filter(Boolean).join(' '));
-    const includes=joined.includes(q) || q.includes(joined);
+    const code=normalizeProductSearch(p.code||'');
+    const fullName=normalizeProductSearch(p.fullName||'');
+    const exact=(code===q)||(fullName===q);
+    const includes=(code&&code.includes(q))||(fullName&&fullName.includes(q))||(q.includes(code)&&code)||(q.includes(fullName)&&fullName);
     let score=exact?100:(includes?60:0);
-    if(score && normalizeProductSearch(p.shortName||p.name||'')===q) score+=20;
-    if(score && normalizeProductSearch([p.shortName||p.name||'',p.color||''].join(' '))===q) score+=30;
+    if(code===q) score+=30;
+    if(fullName===q) score+=20;
     return {p,i,score};
   }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
   if(!candidates.length) return {product:null,reason:`제품마스터에서 '${rawName}' 검색 결과 없음`};
@@ -2784,10 +2798,13 @@ $('resetLive').addEventListener('click',()=>{liveDrumCounter=1;$('nextDrumOut').
 function fieldById(id){return LAYOUTS[editorKey].fields.find(f=>f.id===id);}
 
 const FIELD_VARIABLES = [
-  ['name','품명'],
+  ['name','약어(라벨용)'],
+  ['fullName','품목명(ECOUNT 풀네임)'],
   ['titleKr','품명(국문)'],
   ['titleEn','Product Name'],
-  ['code','제품 코드'],
+  ['code','품목코드'],
+  ['barcode','바코드 이미지'],
+  ['barcodeText','바코드 숫자(표시 설정 적용)'],
   ['color','색상'],
   ['type','TYPE'],
   ['lot','LOT 값'],
@@ -2826,7 +2843,9 @@ function sampleContextForLabel(labelCode='',layoutKey=''){
   return buildContext(p,computeLotInfo(o,4,ruleId),4,p?.kg,p?.volume);
 }
 function sampleContext(){
-  return sampleContextForLabel(editorLabelCode,editorKey);
+  const ctx=sampleContextForLabel(editorLabelCode,editorKey);
+  if(!ctx.barcode){ctx.barcode='8801234567890';ctx.barcodeText='8801234567890';ctx.barcodeType='CODE128';}
+  return ctx;
 }
 function renderFieldList(){
   $('fieldList').innerHTML=LAYOUTS[editorKey].fields.map(f=>{
@@ -2846,6 +2865,8 @@ function selectField(fid){
   if($('inspRotatePreset')){const rv=String(((Number(f.rotate)||0)%360+360)%360);$('inspRotatePreset').value=['0','90','180','270'].includes(rv)?rv:'custom';}
   $('inspWeight').value=String(f.weight||400);
   const isBind=f.kind==='bind',isTable=f.kind==='table';
+  if($('inspBgWrap')) $('inspBgWrap').style.display=isTable?'none':'block';
+  if($('inspTransparentBg')) $('inspTransparentBg').checked=f.transparentBackground!==false;
   if($('inspSizeRow')) $('inspSizeRow').style.display=isTable?'none':'grid';
   let dragHint=$('tableDragHint');
   if(!dragHint){dragHint=document.createElement('div');dragHint.id='tableDragHint';dragHint.className='tableDragHint';$('inspName').insertAdjacentElement('afterend',dragHint);}
@@ -2916,6 +2937,7 @@ $('inspAlign').addEventListener('change',()=>{if(selectedFieldId){fieldById(sele
 $('inspWeight').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).weight=+$('inspWeight').value;renderCanvasOnly();}});
 $('inspBind').addEventListener('change',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='bind'){f.bind=$('inspBind').value;renderCanvasOnly();renderFieldList();}}});
 $('inspText').addEventListener('input',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='static'){f.text=$('inspText').value;renderCanvasOnly();renderFieldList();}}});
+if($('inspTransparentBg')) $('inspTransparentBg').addEventListener('change',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind!=='table'){f.transparentBackground=$('inspTransparentBg').checked;renderCanvasOnly();}}});
 function rotateWholeLayout(direction='cw'){
   const l=LAYOUTS[editorKey]; if(!l||!Array.isArray(l.fields)) return;
   const oldW=Number(l.w)||100, oldH=Number(l.h)||70;
@@ -2970,7 +2992,7 @@ syncNewFieldKind();
 
 $('addFieldBtn').addEventListener('click',()=>{
   const kind=$('newFieldKind').value,label=($('newFieldLabel').value||'새 항목').trim(),id=`custom_${Date.now()}`;
-  const f={id,kind,label,x:5,y:5,w:60,h:10,size:12,weight:700,align:'left',rotate:0};
+  const f={id,kind,label,x:5,y:5,w:60,h:10,size:12,weight:700,align:'left',rotate:0,transparentBackground:true};
   if(kind==='bind') f.bind=$('newFieldBind').value;
   else if(kind==='table'){const rows=Math.max(1,+$('newTableRows').value||3),cols=Math.max(1,+$('newTableCols').value||2);f.rows=rows;f.cols=cols;f.cellBorder=true;f.borderWidth=.3;f.colWidths=Array.from({length:cols},()=>100/cols);f.size=9;f.w=Math.min(90,cols*30);f.h=rows*8;f.cells=Array.from({length:rows},()=>Array.from({length:cols},()=>({kind:'static',text:''})));}
   else f.text=$('newFieldText').value||label;
@@ -2986,7 +3008,7 @@ document.querySelectorAll('[data-quick-field]').forEach(btn=>btn.addEventListene
 if($('quickInfoTable')) $('quickInfoTable').addEventListener('click',()=>{
   const id=`info_table_${Date.now()}`;
   const f={id,kind:'table',label:'기본 정보표',x:5,y:10,w:80,h:36,size:10,weight:400,align:'left',rotate:0,rows:4,cols:2,cellBorder:false,borderWidth:.3,colWidths:[30,70],cells:[
-    [{kind:'static',text:'품 명',size:8,weight:400},{kind:'bind',bind:'shortName',size:12,weight:700}],
+    [{kind:'static',text:'품 명',size:8,weight:400},{kind:'bind',bind:'shortName',size:12,weight:700,transparentBackground:true}],
     [{kind:'static',text:'LOT NO.',size:8,weight:400},{kind:'bind',bind:'lotRaw',size:12,weight:700}],
     [{kind:'static',text:'중 량',size:8,weight:400},{kind:'bind',bind:'weight',size:12,weight:700}],
     [{kind:'static',text:'생산일자',size:8,weight:400},{kind:'bind',bind:'proddate',size:11,weight:700}]
@@ -3429,7 +3451,7 @@ function setupSeparatedLabelScreens(){
   const linkPanel=document.createElement('div');
   linkPanel.className='panel labelMasterLinkPanel';
   linkPanel.id='labelMasterLinkPanel';
-  linkPanel.innerHTML=`<div id="labelMasterLinkEmpty" class="empty">왼쪽 등록 라벨 목록에서 라벨을 선택하세요.<br>선택한 라벨의 연결 제품을 여기서 확인하고 추가·해제할 수 있습니다.</div><div id="labelMasterLinkDetail" style="display:none;"><div class="detailTitle" id="labelMasterLinkTitle">—</div><div class="detailSub" id="labelMasterLinkSub">—</div><div class="labelLinkToolbar"><button type="button" class="miniBtn edit" id="labelMasterLinkEditInfo">정보 수정</button><button type="button" class="miniBtn" id="labelMasterLinkEditLayout">🎨 서식 편집</button><button type="button" class="miniBtn" id="labelMasterLinkPrint">🖨 바로 인쇄</button></div><div class="labelLinkSectionTitle"><span>현재 연결된 제품</span><span class="count" id="labelMasterLinkedCount">0개</span></div><div class="labelConnectedList" id="labelMasterConnectedProducts"></div><div class="labelLinkSectionTitle"><span>제품 추가 연결</span><span class="count" id="labelMasterProductSearchCount">0개</span></div><div class="labelLinkSearch"><input type="search" class="field" id="labelMasterProductSearch" placeholder="품목코드 / 품목명 / 정식품명 / 색상 검색"><button type="button" class="btn btn-ghost auto" id="labelMasterProductClear">초기화</button></div><div class="labelProductSearchList" id="labelMasterProductSearchList"></div><button type="button" class="btn btn-ok" id="labelMasterConnectSelected" style="margin-top:9px;">선택 제품에 이 라벨 연결</button><div class="labelLinkHelp">웹에서 추가·해제한 연결은 수동 연결값으로 기억합니다. Excel 전체 동기화 시에도 수동 추가/해제 상태를 유지하도록 처리됩니다.</div></div>`;
+  linkPanel.innerHTML=`<div id="labelMasterLinkEmpty" class="empty">왼쪽 등록 라벨 목록에서 라벨을 선택하세요.<br>선택한 라벨의 연결 제품을 여기서 확인하고 추가·해제할 수 있습니다.</div><div id="labelMasterLinkDetail" style="display:none;"><div class="detailTitle" id="labelMasterLinkTitle">—</div><div class="detailSub" id="labelMasterLinkSub">—</div><div class="labelLinkToolbar"><button type="button" class="miniBtn edit" id="labelMasterLinkEditInfo">정보 수정</button><button type="button" class="miniBtn" id="labelMasterLinkEditLayout">🎨 서식 편집</button><button type="button" class="miniBtn" id="labelMasterLinkPrint">🖨 바로 인쇄</button></div><div class="labelLinkSectionTitle"><span>현재 연결된 제품</span><span class="count" id="labelMasterLinkedCount">0개</span></div><div class="labelConnectedList" id="labelMasterConnectedProducts"></div><div class="labelLinkSectionTitle"><span>제품 추가 연결</span><span class="count" id="labelMasterProductSearchCount">0개</span></div><div class="labelLinkSearch"><input type="search" class="field" id="labelMasterProductSearch" placeholder="품목코드 / 품목명(ECOUNT 풀네임) 검색"><button type="button" class="btn btn-ghost auto" id="labelMasterProductClear">초기화</button></div><div class="labelProductSearchList" id="labelMasterProductSearchList"></div><button type="button" class="btn btn-ok" id="labelMasterConnectSelected" style="margin-top:9px;">선택 제품에 이 라벨 연결</button><div class="labelLinkHelp">웹에서 추가·해제한 연결은 수동 연결값으로 기억합니다. Excel 전체 동기화 시에도 수동 추가/해제 상태를 유지하도록 처리됩니다.</div></div>`;
   masterGrid.append(masterPanel,listPanel,linkPanel);
   const masterPreview=document.createElement('div');
   masterPreview.className='panel labelMasterPreviewPanel';
@@ -3591,18 +3613,18 @@ function renderLabelMasterProductLinks(){
   const linked=labelMasterLinkedProducts(code);
   $('labelMasterLinkedCount').textContent=`${linked.length}개`;
   const connected=$('labelMasterConnectedProducts');
-  connected.innerHTML=linked.length?linked.map(p=>`<div class="labelConnectedRow"><div><div class="main">${escapeHtml(p.code||'코드 없음')} · ${escapeHtml(p.shortName||p.name||'')}</div><div class="sub">${escapeHtml([p.fullName,p.color,p.type].filter(Boolean).join(' / ')||p.family||'')}</div></div><button type="button" class="miniBtn del" data-label-unlink-product="${escapeHtml(productLinkIdentity(p))}">연결 해제</button></div>`).join(''):'<div class="empty">현재 연결된 제품이 없습니다.</div>';
+  connected.innerHTML=linked.length?linked.map(p=>`<div class="labelConnectedRow"><div><div class="main">${escapeHtml(p.code||'코드 없음')} · ${escapeHtml(p.fullName||'(ECOUNT 품목명 미등록)')}</div><div class="sub">라벨 약어: ${escapeHtml(p.shortName||p.name||'-')}</div></div><button type="button" class="miniBtn del" data-label-unlink-product="${escapeHtml(productLinkIdentity(p))}">연결 해제</button></div>`).join(''):'<div class="empty">현재 연결된 제품이 없습니다.</div>';
   connected.querySelectorAll('[data-label-unlink-product]').forEach(b=>b.addEventListener('click',()=>unlinkProductFromSelectedLabel(b.dataset.labelUnlinkProduct)));
   const q=normalizeProductSearch($('labelMasterProductSearch')?.value||'');
   const linkedIds=new Set(linked.map(productLinkIdentity));
   const candidates=allMasterProducts().filter(p=>!linkedIds.has(productLinkIdentity(p))).filter(p=>{
     if(!q)return true;
-    const hay=normalizeProductSearch([p.code,p.shortName,p.name,p.fullName,p.scheduleName,p.color,p.type,p.family].filter(Boolean).join(' '));
+    const hay=normalizeProductSearch([p.code,p.fullName].filter(Boolean).join(' '));
     return hay.includes(q);
   });
   $('labelMasterProductSearchCount').textContent=`${candidates.length}개`;
   const list=$('labelMasterProductSearchList');
-  list.innerHTML=candidates.length?candidates.slice(0,100).map(p=>`<div class="labelProductRow"><label><input type="checkbox" data-label-connect-product="${escapeHtml(productLinkIdentity(p))}"><span style="min-width:0"><div class="main">${escapeHtml(p.code||'코드 없음')} · ${escapeHtml(p.shortName||p.name||'')}</div><div class="sub">${escapeHtml([p.fullName,p.color,p.type].filter(Boolean).join(' / ')||p.family||'')}</div></span></label></div>`).join(''):'<div class="empty">추가로 연결할 제품이 없습니다.</div>';
+  list.innerHTML=candidates.length?candidates.slice(0,100).map(p=>`<div class="labelProductRow"><label><input type="checkbox" data-label-connect-product="${escapeHtml(productLinkIdentity(p))}"><span style="min-width:0"><div class="main">${escapeHtml(p.code||'코드 없음')} · ${escapeHtml(p.fullName||'(ECOUNT 품목명 미등록)')}</div><div class="sub">라벨 약어: ${escapeHtml(p.shortName||p.name||'-')}</div></span></label></div>`).join(''):'<div class="empty">추가로 연결할 제품이 없습니다.</div>';
 }
 async function connectSelectedProductsToLabelMaster(){
   const code=selectedLabelMasterPreviewCode,lm=labelMasterByCode(code);if(!lm){flash('먼저 라벨을 선택하세요',true);return;}
@@ -3732,8 +3754,8 @@ function resolveExcelLotRule(name,id,family){
 function productToExcelRow(p){
   const lr=getLotRuleById(getProductLotRuleId(p));
   return {
-    '품목코드*':p.code||'', '품목명(약어)*':p.shortName||p.name||p.scheduleName||'',
-    '정식 품명/라벨 표기명':p.fullName||'', '색상':p.color||'', 'TYPE':p.type||'',
+    '품목코드*':p.code||'', '품목명(ECOUNT 풀네임)*':p.fullName||'', '약어(라벨용)*':p.shortName||p.name||p.scheduleName||'',
+    '바코드':p.barcode||'', '바코드 종류':p.barcodeType||'CODE128', '바코드 숫자 표시':p.barcodeShowText===false?'숨김':'표시', '색상':p.color||'', 'TYPE':p.type||'',
     '제품군':p.family||'',
     '사용 여부':p.active===false?'미사용':'사용', 'LOT 규칙명':lr?.name||'', 'LOT 규칙 ID':lr?.id||'',
     '기본 드럼 수':p.drums??1, '기본 중량 kg':p.kg??'', '용량 L':p.volume??'',
@@ -3825,7 +3847,7 @@ async function importLabelMasterFromSpecMap(specMap){
 function makeExcelWorkbook(rows){
   if(!window.XLSX) throw new Error('Excel 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');
   const wb=XLSX.utils.book_new();
-  const headers=['품목코드*','품목명(약어)*','정식 품명/라벨 표기명','색상','라벨코드','라벨명','TYPE','제품군','사용 여부','LOT 규칙명','LOT 규칙 ID','기본 드럼 수','기본 중량 kg','용량 L','USE BY (개월)','비고'];
+  const headers=['품목코드*','품목명(ECOUNT 풀네임)*','약어(라벨용)*','바코드','바코드 종류','바코드 숫자 표시','색상','라벨코드','라벨명','TYPE','제품군','사용 여부','LOT 규칙명','LOT 규칙 ID','기본 드럼 수','기본 중량 kg','용량 L','USE BY (개월)','비고'];
   const exportRows=[];
   const sourceRows=(rows&&rows.length)?rows:null;
   if(sourceRows){
@@ -3838,7 +3860,7 @@ function makeExcelWorkbook(rows){
     });
   }
   const ws=XLSX.utils.json_to_sheet(exportRows,{header:headers});
-  ws['!cols']=[18,28,32,16,14,24,18,16,12,28,28,14,16,12,16,32].map(w=>({wch:w}));
+  ws['!cols']=[18,40,24,22,16,18,16,14,24,18,16,12,28,28,14,16,12,16,32].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,'품목마스터_업로드');
 
   const specs=new Map();
@@ -3855,14 +3877,14 @@ function makeExcelWorkbook(rows){
   labelWs['!cols']=[14,28,12,12].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,labelWs,'라벨 업로드');
 
-  const info=[['입력 안내','내용'],['필수','품목명(약어)* 필수 / 품목코드는 ERP 미등록 품목에 한해 공란 허용'],['반복행','같은 품목코드 + 품목명 + 색상 + TYPE이면 한 제품으로 묶고 라벨만 여러 개 연결'],['프로파일','같은 품목코드라도 품목명/색상/TYPE이 다르면 별도 출력 프로파일로 유지'],['라벨 마스터','라벨 업로드 시트에서 라벨코드/라벨명/가로/세로 관리'],['LOT','LOT규칙_참조 시트의 규칙 ID를 품목마스터에서 지정']];
+  const info=[['입력 안내','내용'],['필수','품목코드* / 품목명(ECOUNT 풀네임)* / 약어(라벨용)* 필수'],['검색','웹 검색은 품목코드 + ECOUNT 품목명만 사용. 약어는 라벨 출력 전용'],['바코드','필요한 품목만 입력. 바코드 숫자 표시는 표시/숨김 선택'],['반복행','같은 제품 행을 반복해 라벨을 여러 개 연결 가능'],['라벨 마스터','라벨 업로드 시트에서 라벨코드/라벨명/가로/세로 관리'],['LOT','LOT규칙_참조 시트의 규칙 ID를 품목마스터에서 지정']];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(info),'입력안내');
   const rules=[['LOT 규칙 ID','LOT 규칙명','패턴','USE BY 계산','설명'],...LOT_RULES.map(r=>[r.id,r.name,r.pattern,r.expiryMode==='fixed_days'?`고정 ${r.expiryValue}일`:(r.expiryMode==='product_months'?'제품마스터 개월':r.expiryMode),r.description||''])];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rules),'LOT규칙_참조');
   return wb;
 }
-function downloadExcelTemplate(){ try{XLSX.writeFile(makeExcelWorkbook([]),'KSA_제품마스터_일괄업로드_양식_v494.xlsx');}catch(e){flash(e.message||'엑셀 양식 생성 실패',true);} }
-function exportCurrentMasterExcel(){ try{XLSX.writeFile(makeExcelWorkbook(allMasterProducts().map(productToExcelRow)),'KSA_제품마스터_현재데이터_v494.xlsx');}catch(e){flash(e.message||'엑셀 내보내기 실패',true);} }
+function downloadExcelTemplate(){ try{XLSX.writeFile(makeExcelWorkbook([]),'KSA_제품마스터_일괄업로드_양식_v4130.xlsx');}catch(e){flash(e.message||'엑셀 양식 생성 실패',true);} }
+function exportCurrentMasterExcel(){ try{XLSX.writeFile(makeExcelWorkbook(allMasterProducts().map(productToExcelRow)),'KSA_제품마스터_현재데이터_v4130.xlsx');}catch(e){flash(e.message||'엑셀 내보내기 실패',true);} }
 async function importProductExcel(file){
   if(!file) return; if(!window.XLSX){flash('Excel 라이브러리를 불러오지 못했습니다',true);return;}
   try{
@@ -3888,20 +3910,25 @@ async function importProductExcel(file){
     rows.forEach((row,idx)=>{
       const n=idx+2;
       const code=excelText(excelCell(row,['품목코드*','품목코드','코드']));
-      const shortName=excelText(excelCell(row,['품목명(약어)*','품목명(약어)','약어','품목명']));
-      if(!shortName){errors.push(`${n}행: 품목명(약어) 필수`);return;}
-      if(!code) warnings.push(`${n}행: 품목코드 공란 → 품명 기준 미등록 프로파일로 가져옴 (${shortName})`);
+      const fullName=excelText(excelCell(row,['품목명(ECOUNT 풀네임)*','품목명(ECOUNT 풀네임)','ECOUNT 품목명','정식 품명/라벨 표기명','정식 품명 / 라벨 표기명','정식 품명']));
+      const shortName=excelText(excelCell(row,['약어(라벨용)*','약어(라벨용)','품목명(약어)*','품목명(약어)','약어']));
+      if(!code){errors.push(`${n}행: 품목코드 필수`);return;}
+      if(!fullName){errors.push(`${n}행: 품목명(ECOUNT 풀네임) 필수`);return;}
+      if(!shortName){errors.push(`${n}행: 약어(라벨용) 필수`);return;}
       const color=excelText(excelCell(row,['색상']));
       const type=excelText(excelCell(row,['TYPE','Type','type']));
       const family=excelFamily(excelCell(row,['제품군']));
       const key=profileIdentity(code,shortName,color,type);
       let g=groups.get(key);
       if(!g){
-        g={profileKey:key,code,shortName,fullName:'',color,type,family,active:true,lotRuleId:'',drums:1,kg:null,volume:null,months:12,note:'',labels:new Map(),sourceRows:[]};
+        g={profileKey:key,code,shortName,fullName,barcode:'',barcodeType:'CODE128',barcodeShowText:true,color,type,family,active:true,lotRuleId:'',drums:1,kg:null,volume:null,months:12,note:'',labels:new Map(),sourceRows:[]};
         groups.set(key,g);
       }
       g.sourceRows.push(n);
-      g.fullName=firstNonBlank(g.fullName,excelText(excelCell(row,['정식 품명/라벨 표기명','정식 품명 / 라벨 표기명','정식 품명','라벨 표기명'])));
+      g.fullName=firstNonBlank(g.fullName,fullName);
+      g.barcode=firstNonBlank(g.barcode,excelText(excelCell(row,['바코드','BARCODE','Barcode'])));
+      g.barcodeType=firstNonBlank(g.barcodeType,excelText(excelCell(row,['바코드 종류','바코드종류','Barcode Type'])))||'CODE128';
+      { const bs=excelText(excelCell(row,['바코드 숫자 표시','바코드 숫자표시','바코드 텍스트 표시'])).toLowerCase(); if(bs) g.barcodeShowText=!['숨김','false','0','n','no','off'].includes(bs); }
       g.family=firstNonBlank(g.family,family)||'ETC';
       g.active=excelActive(excelCell(row,['사용 여부','사용여부']));
       const lotId=resolveExcelLotRule(excelCell(row,['LOT 규칙명','LOT 부여 규칙']),excelCell(row,['LOT 규칙 ID','LOT규칙ID']),g.family);
@@ -3938,8 +3965,8 @@ async function importProductExcel(file){
     const oldByKey=new Map(CUSTOM_PRODUCTS.map(p=>[p.importProfileKey||profileIdentity(p.code,p.shortName||p.name,p.color,p.type),p]));
     const nextByKey=new Map(parsed.map(r=>[r.profileKey,r]));
     const labelCodes=x=>[...(x.labels instanceof Map?x.labels.values():(x.labels||[]))].map(v=>String(v.labelCode||'')).filter(Boolean).sort().join('|');
-    const comparableOld=p=>JSON.stringify({code:p.code||'',shortName:p.shortName||p.name||'',fullName:p.fullName||'',color:p.color||'',type:p.type||'',family:p.family||'',active:p.active!==false,lotRuleId:p.lotRuleId||'',drums:p.drums??1,kg:p.kg??null,volume:p.volume??null,months:p.months??12,note:p.note||''});
-    const comparableNew=r=>JSON.stringify({code:r.code||'',shortName:r.shortName||'',fullName:r.fullName||'',color:r.color||'',type:r.type||'',family:r.family||'',active:r.active!==false,lotRuleId:r.lotRuleId||defaultLotRuleIdForProduct({family:r.family}),drums:r.drums??1,kg:r.kg??null,volume:r.volume??null,months:r.months??12,note:r.note||''});
+    const comparableOld=p=>JSON.stringify({code:p.code||'',shortName:p.shortName||p.name||'',fullName:p.fullName||'',barcode:p.barcode||'',barcodeType:p.barcodeType||'CODE128',barcodeShowText:p.barcodeShowText!==false,color:p.color||'',type:p.type||'',family:p.family||'',active:p.active!==false,lotRuleId:p.lotRuleId||'',drums:p.drums??1,kg:p.kg??null,volume:p.volume??null,months:p.months??12,note:p.note||''});
+    const comparableNew=r=>JSON.stringify({code:r.code||'',shortName:r.shortName||'',fullName:r.fullName||'',barcode:r.barcode||'',barcodeType:r.barcodeType||'CODE128',barcodeShowText:r.barcodeShowText!==false,color:r.color||'',type:r.type||'',family:r.family||'',active:r.active!==false,lotRuleId:r.lotRuleId||defaultLotRuleIdForProduct({family:r.family}),drums:r.drums??1,kg:r.kg??null,volume:r.volume??null,months:r.months??12,note:r.note||''});
     let added=0,updated=0,deleted=0,labelChanged=0,unchanged=0,labelLinks=0;
     for(const r of parsed){
       const old=oldByKey.get(r.profileKey);
@@ -3983,7 +4010,7 @@ async function importProductExcel(file){
         masterId:exactCustom?.masterId||`CUSTOM_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
         source:'custom',overrideOf:exactCustom?.overrideOf||exactBase?.masterId||null,
         importProfileKey:r.profileKey,profileName:r.shortName,active:r.active,code:r.code,
-        shortName:r.shortName,name:r.shortName,fullName:r.fullName,scheduleName:r.shortName,
+        shortName:r.shortName,name:r.shortName,fullName:r.fullName,scheduleName:r.shortName,barcode:r.barcode||'',barcodeType:r.barcodeType||'CODE128',barcodeShowText:r.barcodeShowText!==false,
         color:r.color,type:r.type,family:r.family,customer:original?.customer||'',lotRuleId:r.lotRuleId||defaultLotRuleIdForProduct({family:r.family}),
         drums:r.drums,kg:r.kg,volume:r.volume,months:r.months,note:r.note,labels:syncedLabels,
         manualLabelCodes:[...manualAdds],manualUnlinkedLabelCodes:[...manualRemoves]
@@ -4079,6 +4106,7 @@ async function buildPmSelectedLabelLinks(original){
 function resetPmForm(){
   $('pmEditId').value=''; $('pmCode').dataset.originalCode='';
   $('pmCode').value=''; $('pmShortName').value=''; $('pmFullName').value='';
+  if($('pmBarcode')) $('pmBarcode').value=''; if($('pmBarcodeType')) $('pmBarcodeType').value='CODE128'; if($('pmBarcodeShowText')) $('pmBarcodeShowText').value='true';
   $('pmColor').value=''; $('pmType').value=''; $('pmFamily').value='탑씰 자사';
   $('pmActive').value='true'; $('pmDrums').value='1'; $('pmKg').value='0';
   if($('pmLotRule')) $('pmLotRule').value='LOT_QHA,HBF,노루페인트';
@@ -4092,17 +4120,13 @@ let PM_SELECTED_IDS = new Set();
 let PM_LAST_FILTERED_IDS = [];
 
 function currentFilteredPmProducts(){
-  // v4.11.3: 제품관리 검색도 출력모드와 동일하게 구분기호를 무시하고
-  // 품목명 + 색상처럼 서로 다른 필드에 나뉜 단어를 한 번에 검색한다.
-  // 예: O-200 백색 / O200_백색 / O-200/백색 모두 동일하게 검색된다.
+  // 제품마스터 검색도 ECOUNT 기준인 품목코드 + 품목명 풀네임만 사용한다.
   const q=normalizeProductSearch($('pmSearch')?.value||'');
   const fam=$('pmFamilyFilter')?.value||'ALL';
   let list=allMasterProducts();
   if(fam!=='ALL') list=list.filter(p=>(p.family||'ETC')===fam);
   if(q) list=list.filter(p=>{
-    const haystack=normalizeProductSearch([
-      p.code,p.shortName,p.name,p.fullName,p.scheduleName,p.color,p.type,p.customer,p.note,p.family
-    ].filter(Boolean).join(' '));
+    const haystack=normalizeProductSearch([p.code,p.fullName].filter(Boolean).join(' '));
     return haystack.includes(q);
   });
   return list;
@@ -4181,8 +4205,10 @@ $('pmCount').textContent=`${list.length}개`;
     <tr>
       <td><input type="checkbox" class="rowSelect" data-pm-select="${p.masterId}" ${PM_SELECTED_IDS.has(p.masterId)?'checked':''}></td>
       <td class="code">${escapeHtml(p.code||'')}</td>
-      <td>${escapeHtml(p.shortName||p.name||p.scheduleName||'')}</td>
       <td>${escapeHtml(p.fullName||'-')}</td>
+      <td>${escapeHtml(p.shortName||p.name||p.scheduleName||'-')}</td>
+      <td class="code">${escapeHtml(p.barcode||'-')}<div style="font-size:10px;color:var(--sub)">${escapeHtml(p.barcode?p.barcodeType||'CODE128':'')}</div></td>
+      <td>${p.barcode?(p.barcodeShowText===false?'숨김':'표시'):'-'}</td>
       <td>${escapeHtml(p.color||'-')}</td>
       <td>${escapeHtml(p.family||'ETC')}</td>
       <td>${escapeHtml(getLotRuleById(getProductLotRuleId(p))?.name||'-')}</td>
@@ -4213,6 +4239,9 @@ function editPm(id){
   $('pmCode').dataset.originalCode=String(p.code||'').trim();
   $('pmShortName').value=p.shortName||p.name||p.scheduleName||'';
   $('pmFullName').value=p.fullName||'';
+  if($('pmBarcode')) $('pmBarcode').value=p.barcode||'';
+  if($('pmBarcodeType')) $('pmBarcodeType').value=p.barcodeType||'CODE128';
+  if($('pmBarcodeShowText')) $('pmBarcodeShowText').value=p.barcodeShowText===false?'false':'true';
   $('pmColor').value=p.color||'';
   $('pmType').value=p.type||'';
   $('pmFamily').value=p.family||'ETC';
@@ -4231,9 +4260,11 @@ function editPm(id){
 
 async function savePm(){
   const code=$('pmCode').value.trim();
+  const fullName=$('pmFullName').value.trim();
   const shortName=$('pmShortName').value.trim();
   if(!code){ flash('품목코드를 입력하세요',true); return; }
-  if(!shortName){ flash('품목명(약어)을 입력하세요',true); return; }
+  if(!fullName){ flash('품목명(ECOUNT 풀네임)을 입력하세요',true); return; }
+  if(!shortName){ flash('약어(라벨용)를 입력하세요',true); return; }
 
   const editId=$('pmEditId').value;
   const original=allMasterProducts().find(p=>String(p.masterId)===String(editId));
@@ -4255,8 +4286,8 @@ async function savePm(){
   const id=(original && original.source==='custom') ? original.masterId : `CUSTOM_${Date.now()}`;
   const obj={
     masterId:id, source:'custom', overrideOf:(original&&original.source!=='custom')?original.masterId:(original?.overrideOf||null), active:$('pmActive').value==='true',
-    code, shortName, name:shortName, fullName:$('pmFullName').value.trim(),
-    scheduleName:shortName, color:$('pmColor').value.trim(), type:$('pmType').value.trim(),
+    code, shortName, name:shortName, fullName,
+    scheduleName:shortName, barcode:$('pmBarcode')?.value.trim()||'', barcodeType:$('pmBarcodeType')?.value||'CODE128', barcodeShowText:($('pmBarcodeShowText')?.value||'true')==='true', color:$('pmColor').value.trim(), type:$('pmType').value.trim(),
     family:$('pmFamily').value, customer:original?.customer||'', lotRuleId:$('pmLotRule').value||defaultLotRuleIdForProduct({family:$('pmFamily').value}),
     drums:+$('pmDrums').value||1, kg:$('pmKg').value===''?null:+$('pmKg').value,
     volume:$('pmVolume').value===''?null:+$('pmVolume').value,
@@ -4334,11 +4365,8 @@ function refreshPmLabelProductSelect(){
   const nameQ=normalizeProductSearch(filters.fullName);
   const rows=ALL_PRODUCTS.map((p,i)=>({p,i})).filter(({p})=>{
     const code=normalizeProductSearch(p.code||'');
-    // 제품명 검색은 정식품명뿐 아니라 약어/색상/TYPE까지 묶어서 검색한다.
-    // O200_백색, O-200 백색, O200 백색을 모두 같은 검색으로 처리한다.
-    const nameSearch=normalizeProductSearch([
-      p.fullName,p.shortName,p.name,p.scheduleName,p.color,p.type,p.customer
-    ].filter(Boolean).join(' '));
+    // 라벨 연결 검색도 ECOUNT 품목명만 사용한다. 약어는 결과 표시용이다.
+    const nameSearch=normalizeProductSearch(p.fullName||'');
     if(codeQ && !code.includes(codeQ)) return false;
     if(nameQ && !nameSearch.includes(nameQ)) return false;
     return true;
