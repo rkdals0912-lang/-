@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.12.7 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.12.8 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -452,7 +452,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.12.7</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.12.8</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -1581,12 +1581,20 @@ function splitBarcodeRule(rule){
   }
   if(cur.trim()||text.endsWith('+')) out.push(cur.trim()); return out;
 }
+function normalizeBarcodeLotValue(lot){
+  let s=String(lot??'').trim();
+  // LOT 규칙의 화면 표시문구(Lot., LOT NO., 로트 등)는 바코드 조합값에서는 제거한다.
+  // 예: "Lot. 124" -> "124", 따라서 '0' + {LOT} + {BARCODE_FIXED} -> 0124RSSL0164
+  s=s.replace(/^\s*LOT(?:\s*NO\.?)?\s*[:.]?\s*/i,'').trim();
+  s=s.replace(/^\s*로트(?:\s*번호)?\s*[:.]?\s*/i,'').trim();
+  return s;
+}
 function buildProductBarcode(p,lot,dateValue){
   if(!p) return '';
   const fixed=String(p.barcode||p.barcodeFixed||'').trim();
   const rule=String(p.barcodeRule||'').trim();
   if(!rule) return fixed;
-  const rawLot=String(lot??'').trim();
+  const rawLot=normalizeBarcodeLotValue(lot);
   const dates=productionDateFormats(dateValue);
   const vars={
     LOT:rawLot, LOT_PAD2:rawLot.padStart(2,'0'), LOT_PAD3:rawLot.padStart(3,'0'), LOT_PAD4:rawLot.padStart(4,'0'),
@@ -1671,8 +1679,9 @@ function computeDongeunLot(order,drumNo){ return computeLotInfo(order,drumNo); }
 
 function buildContext(p,info,drumNo,weightKg,volume){
   const alias=p.shortName||p.name||p.scheduleName||p.fullName||'';
+  const barcodeValue=buildProductBarcode(p,info.lot,info.prodDateRaw||info.prodDateDisp);
   return {
-    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:buildProductBarcode(p,info.lot,info.prodDateRaw||info.prodDateDisp),barcodeText:(p.barcodeShowText===false)?'':buildProductBarcode(p,info.lot,info.prodDateRaw||info.prodDateDisp),barcodeType:(p.barcodeType||'CODE128'),lot:info.lot,lotRaw:info.lot,...productionDateFormats(info.prodDateRaw||info.prodDateDisp),weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
+    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:barcodeValue,barcodeText:(p.barcodeShowText===false)?'':barcodeValue,barcodeRuleResult:barcodeValue,barcodeType:(p.barcodeType||'CODE128'),lot:info.lot,lotRaw:info.lot,...productionDateFormats(info.prodDateRaw||info.prodDateDisp),weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
     productLine:`Product Name : ${p.name} ${p.color||''}`.trim(),
     weightLine:`Net Weight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,volumeLine:`Volume : Approxi ${volume||'?'}L`,
     expireLine:`Expire date : ${info.exp}`,lotLine:`LOT NO : ${info.lot}`
@@ -1680,8 +1689,9 @@ function buildContext(p,info,drumNo,weightKg,volume){
 }
 function buildDongeunContext(p,info,drumNo,weightKg){
   const alias=p.shortName||p.name||p.scheduleName||p.fullName||'';
+  const barcodeValue=buildProductBarcode(p,info.lot,info.prodDateRaw||info.prodDateDisp);
   return {
-    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:buildProductBarcode(p,info.lot,info.prodDateRaw||info.prodDateDisp),barcodeText:(p.barcodeShowText===false)?'':buildProductBarcode(p,info.lot,info.prodDateRaw||info.prodDateDisp),barcodeType:(p.barcodeType||'CODE128'),...productionDateFormats(info.prodDateRaw||info.prodDateDisp),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
+    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:barcodeValue,barcodeText:(p.barcodeShowText===false)?'':barcodeValue,barcodeRuleResult:barcodeValue,barcodeType:(p.barcodeType||'CODE128'),...productionDateFormats(info.prodDateRaw||info.prodDateDisp),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
     lotLine:`LOT : ${info.lot}`,titleKr:alias,titleEn:alias,
     weightLineKr:`중     량 : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,weightLineEn:`ㆍWeight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,
     dateLineKr:`생산일자 : ${info.prodDateDisp}`,mfdLineEn:`ㆍM.F.D : ${info.prodDateDisp}`,
@@ -2855,6 +2865,7 @@ const FIELD_VARIABLES = [
   ['code','품목코드'],
   ['barcode','바코드 이미지'],
   ['barcodeText','바코드 숫자(표시 설정 적용)'],
+  ['barcodeRuleResult','바코드 규칙식 결과'],
   ['color','색상'],
   ['type','TYPE'],
   ['lot','LOT 값'],
@@ -2898,12 +2909,12 @@ function sampleContextForLabel(labelCode='',layoutKey=''){
   const info=computeLotInfo(o,4,ruleId);
   const ctx=['kr','en','sample'].includes(base)?buildDongeunContext(p,info,4,p?.kg):buildContext(p,info,4,p?.kg,p?.volume);
   // 서식 설계 단계에서는 바코드 데이터가 비어 있어도 바코드 블록 자체를 확인할 수 있게 테스트값 제공.
-  if(!ctx.barcode){ctx.barcode='8801234567890';ctx.barcodeText=(p?.barcodeShowText===false)?'':'8801234567890';ctx.barcodeType=p?.barcodeType||'CODE128';}
+  if(!ctx.barcode){ctx.barcode='8801234567890';ctx.barcodeText=(p?.barcodeShowText===false)?'':'8801234567890';ctx.barcodeRuleResult='8801234567890';ctx.barcodeType=p?.barcodeType||'CODE128';}
   return ctx;
 }
 function sampleContext(){
   const ctx=sampleContextForLabel(editorLabelCode,editorKey);
-  if(!ctx.barcode){ctx.barcode='8801234567890';ctx.barcodeText='8801234567890';ctx.barcodeType='CODE128';}
+  if(!ctx.barcode){ctx.barcode='8801234567890';ctx.barcodeText='8801234567890';ctx.barcodeRuleResult='8801234567890';ctx.barcodeType='CODE128';}
   return ctx;
 }
 function renderFieldList(){
@@ -3092,7 +3103,7 @@ function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-
 function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
 function effectiveLabelLayoutKey(labelCode,fallback=''){
   const code=String(labelCode||'').trim();
-  // v4.12.7: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
+  // v4.12.8: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
   // 라벨 연결 데이터에 과거 layoutKey가 남아 있어도 전용 저장 서식을 놓치지 않는다.
   const unique=code?labelEditorKey(code):'';
   if(unique && LAYOUTS[unique] && Array.isArray(LAYOUTS[unique].fields)) return unique;
