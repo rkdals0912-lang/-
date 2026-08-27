@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.13.5 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.13.6 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -63,7 +63,11 @@
   .previewWrap{display:flex;gap:16px;flex-wrap:wrap;}
   .canvasBox{position:relative;background:#fff;border:2.5px solid var(--ink);border-radius:2px;overflow:hidden;}
   .fld{position:absolute;white-space:pre-line;overflow:hidden;line-height:1.25;}
-  /* v4.13.5: explicit class-based label fonts */
+  /* v4.13.6: explicit class-based label fonts */
+  .canvasBox .lf-system-batang{font-family:Batang,"바탕",serif!important;}
+  .canvasBox .lf-system-gungsuh{font-family:Gungsuh,"궁서",serif!important;}
+  .canvasBox .lf-system-gulim{font-family:Gulim,"굴림",sans-serif!important;}
+  .canvasBox .lf-system-dotum{font-family:Dotum,"돋움",sans-serif!important;}
   .canvasBox .lf-system-sans{font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif!important;}
   .canvasBox .lf-noto-sans-kr{font-family:"Noto Sans KR","Malgun Gothic",sans-serif!important;}
   .canvasBox .lf-noto-serif-kr{font-family:"Noto Serif KR",Batang,"Times New Roman",serif!important;}
@@ -463,25 +467,29 @@ body.workspace-open #homeView{display:none;}
 </style>
 
   <!-- Open-license label fonts (Google Fonts delivery; system fallbacks remain available) -->
+<!-- v4.13.6 robust font loading: independent requests + CDN fallbacks -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+
+
+
+
+  <!-- v4.13.6: each webfont loads independently so one bad family cannot break all fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Nanum+Gothic:wght@400;700;800&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-  <!-- v4.13.5 robust font loading: independent requests + CDN fallbacks -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/fontsource-noto-sans-kr@4.0.0/index.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-kr@5.3.0/index.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/typeface-nanum-gothic@1.1.13/index.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/typeface-nanum-myeongjo@1.1.13/index.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/fontsource-ibm-plex-mono@4.0.0/index.css" rel="stylesheet">
 </head>
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.5</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.6</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -815,7 +823,7 @@ body.workspace-open #homeView{display:none;}
           </div>
           <div><label>글꼴</label><select id="inspFont"></select><div id="selectedFontStatus" class="lockednote" style="margin-top:4px;padding:4px 6px">글꼴 확인 중 · 변경 즉시 미리보기에 적용</div></div>
         </div>
-        <div class="lockednote">Noto · Nanum · IBM Plex 오픈 라이선스 글꼴을 선택할 수 있습니다. <span id="fontLoadStatus">글꼴 상태 확인 중…</span></div>
+        <div class="lockednote">PC 기본 글꼴은 즉시 적용되고, Noto · Nanum · IBM Plex 등 무료 웹폰트는 로딩 상태를 표시합니다. <span id="fontLoadStatus">글꼴 상태 확인 중…</span></div>
 
         <div id="inspBgWrap">
           <label class="checkrow"><input type="checkbox" id="inspTransparentBg" checked> 텍스트 배경 투명</label>
@@ -3000,24 +3008,52 @@ document.addEventListener('keydown',e=>{
 function fieldById(id){return LAYOUTS[editorKey].fields.find(f=>f.id===id);}
 
 const LABEL_FONTS = [
-  {key:'system-sans',label:'기본 시스템 고딕',css:"Arial, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",test:'Arial'},
-  {key:'noto-sans-kr',label:'Noto Sans KR',css:"'Noto Sans KR', 'Malgun Gothic', sans-serif",test:'Noto Sans KR'},
-  {key:'noto-serif-kr',label:'Noto Serif KR',css:"'Noto Serif KR', Batang, serif",test:'Noto Serif KR'},
-  {key:'nanum-gothic',label:'나눔고딕',css:"'Nanum Gothic', 'Malgun Gothic', sans-serif",test:'Nanum Gothic'},
-  {key:'nanum-myeongjo',label:'나눔명조',css:"'Nanum Myeongjo', Batang, serif",test:'Nanum Myeongjo'},
-  {key:'ibm-plex-sans-kr',label:'IBM Plex Sans KR',css:"'IBM Plex Sans KR', 'Noto Sans KR', 'Malgun Gothic', sans-serif",test:'IBM Plex Sans KR'},
-  {key:'ibm-plex-mono',label:'IBM Plex Mono (영문/숫자)',css:"'IBM Plex Mono', Consolas, monospace",test:'IBM Plex Mono'},
-  {key:'black-han-sans',label:'Black Han Sans (검은고딕)',css:"'Black Han Sans', 'Noto Sans KR', sans-serif",test:'Black Han Sans'},
-  {key:'do-hyeon',label:'Do Hyeon (도현)',css:"'Do Hyeon', 'Noto Sans KR', sans-serif",test:'Do Hyeon'},
-  {key:'jua',label:'Jua (주아)',css:"'Jua', 'Noto Sans KR', sans-serif",test:'Jua'},
-  {key:'system-mono',label:'기본 고정폭',css:"Consolas, 'Courier New', monospace",test:'Consolas'}
-]
+  {key:'system-sans',label:'기본 시스템 고딕',css:"Arial, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",test:'Arial',group:'system'},
+  {key:'system-batang',label:'PC 바탕체',css:"Batang, '바탕', serif",test:'Batang',group:'system'},
+  {key:'system-gungsuh',label:'PC 궁서체',css:"Gungsuh, '궁서', serif",test:'Gungsuh',group:'system'},
+  {key:'system-gulim',label:'PC 굴림체',css:"Gulim, '굴림', sans-serif",test:'Gulim',group:'system'},
+  {key:'system-dotum',label:'PC 돋움체',css:"Dotum, '돋움', sans-serif",test:'Dotum',group:'system'},
+  {key:'system-mono',label:'PC 고정폭 (Consolas)',css:"Consolas, 'Courier New', monospace",test:'Consolas',group:'system'},
+  {key:'noto-sans-kr',label:'Noto Sans KR',css:"'Noto Sans KR', 'Malgun Gothic', sans-serif",test:'Noto Sans KR',group:'web'},
+  {key:'noto-serif-kr',label:'Noto Serif KR',css:"'Noto Serif KR', Batang, serif",test:'Noto Serif KR',group:'web'},
+  {key:'nanum-gothic',label:'나눔고딕',css:"'Nanum Gothic', 'Malgun Gothic', sans-serif",test:'Nanum Gothic',group:'web'},
+  {key:'nanum-myeongjo',label:'나눔명조',css:"'Nanum Myeongjo', Batang, serif",test:'Nanum Myeongjo',group:'web'},
+  {key:'ibm-plex-mono',label:'IBM Plex Mono (영문/숫자)',css:"'IBM Plex Mono', Consolas, monospace",test:'IBM Plex Mono',group:'web'},
+  {key:'ibm-plex-sans-kr',label:'IBM Plex Sans KR (Noto 대체)',css:"'IBM Plex Sans KR', 'Noto Sans KR', 'Malgun Gothic', sans-serif",test:'IBM Plex Sans KR',group:'web'},
+  {key:'black-han-sans',label:'Black Han Sans',css:"'Black Han Sans', 'Noto Sans KR', sans-serif",test:'Black Han Sans',group:'web'},
+  {key:'do-hyeon',label:'Do Hyeon',css:"'Do Hyeon', 'Noto Sans KR', sans-serif",test:'Do Hyeon',group:'web'},
+  {key:'jua',label:'Jua',css:"'Jua', 'Noto Sans KR', sans-serif",test:'Jua',group:'web'}
+];
 function fontOption(key){return LABEL_FONTS.find(x=>x.key===key)||LABEL_FONTS[0];}
 function fontClass(key){return 'lf-'+String(key||'system-sans').replace(/[^a-z0-9-]/g,'');}
-function fontFaceAvailable(key){const f=fontOption(key);if(!document.fonts||!f.test)return true;try{return document.fonts.check(`20px "${f.test}"`,'한글ABC123');}catch(e){return false;}}
-
+function fontCss(key,mono=false){return mono?fontOption('system-mono').css:fontOption(key||'system-sans').css;}
+function fontFaceAvailable(key){
+  const f=fontOption(key);
+  if(!document.fonts||!f.test)return true;
+  try{return document.fonts.check(`20px "${f.test}"`,'한글ABC123');}catch(e){return false;}
+}
+function fillFontSelect(el,selected='system-sans'){
+  if(!el)return;
+  const sys=LABEL_FONTS.filter(x=>x.group==='system');
+  const web=LABEL_FONTS.filter(x=>x.group==='web');
+  const opts=arr=>arr.map(x=>`<option value="${x.key}">${x.label}</option>`).join('');
+  el.innerHTML=`<optgroup label="PC 기본 글꼴 · 즉시 적용">${opts(sys)}</optgroup><optgroup label="무료 웹폰트 · 온라인 로딩">${opts(web)}</optgroup>`;
+  el.value=LABEL_FONTS.some(x=>x.key===selected)?selected:'system-sans';
+}
+function updateSelectedFontStatus(key){
+  const el=$('selectedFontStatus')||$('fontLoadStatus'); if(!el)return;
+  const f=fontOption(key),ok=fontFaceAvailable(key);
+  if(f.group==='system'){
+    el.textContent=`✓ ${f.label} · PC 글꼴 직접 사용`;
+    el.style.color='#1e7d4a';
+  }else{
+    el.textContent=ok?`✓ ${f.label} 로드 완료 · 한글 ABC 123`:`⚠ ${f.label} 로드 실패 · 현재 대체 글꼴 표시 중`;
+    el.style.color=ok?'#1e7d4a':'#b3261e';
+  }
+  el.style.fontFamily=f.css;
+}
 function applyFontDirect(el,key,mono=false){
-  if(!el) return;
+  if(!el)return;
   const css=fontCss(key,mono);
   el.style.setProperty('font-family',css,'important');
   el.setAttribute('data-font',key||'system-sans');
@@ -3027,48 +3063,20 @@ function applyFontDirect(el,key,mono=false){
 function applySelectedFieldFontDirect(fid,key){
   const canvas=$('liveEditorCanvas');
   if(!canvas||!fid)return;
-  const el=canvas.querySelector(`.fld[data-fid="${CSS.escape(fid)}"]`);
+  const safe=(window.CSS&&CSS.escape)?CSS.escape(fid):String(fid).replace(/"/g,'\\"');
+  const el=canvas.querySelector(`.fld[data-fid="${safe}"]`);
   const f=fieldById(fid);
-  if(el&&f&&f.kind!=='table') applyFontDirect(el,key,f.mono);
+  if(el&&f&&f.kind!=='table')applyFontDirect(el,key,f.mono);
 }
 function applyTableCellFontDirect(tableFid,row,col,key){
   const canvas=$('liveEditorCanvas');
   if(!canvas)return;
-  const tableEl=canvas.querySelector(`.fld[data-fid="${CSS.escape(tableFid)}"] table`);
+  const safe=(window.CSS&&CSS.escape)?CSS.escape(tableFid):String(tableFid).replace(/"/g,'\\"');
+  const tableEl=canvas.querySelector(`.fld[data-fid="${safe}"] table`);
   const td=tableEl?.rows?.[row]?.cells?.[col];
   const f=fieldById(tableFid);
   const cell=f?.cells?.[row]?.[col];
-  if(td&&cell) applyFontDirect(td,key,cell.mono);
-}
-function fontCss(key,mono=false){return mono?fontOption('system-mono').css:fontOption(key||'system-sans').css;}
-function fillFontSelect(el,selected='system-sans'){
-  if(!el)return;
-  el.innerHTML=LABEL_FONTS.map(x=>`<option value="${x.key}" style="font-family:${x.css}">${x.label}</option>`).join('');
-  el.value=LABEL_FONTS.some(x=>x.key===selected)?selected:'system-sans';
-}
-
-function updateSelectedFontStatus(key){
-  const el=$('selectedFontStatus'); if(!el)return;
-  const f=fontOption(key), ok=fontFaceAvailable(key);
-  el.className='lockednote '+fontClass(key);
-  el.textContent=ok?`✓ ${f.label} · 한글 ABC 123`:`⚠ ${f.label} 미로드 · 대체 글꼴 사용`;
-  el.style.color=ok?'#1e7d4a':'#b3261e';
-}
-
-if(document.fonts && document.fonts.ready){
-  document.fonts.ready.then(()=>{
-    try{
-      const status=$('fontLoadStatus');
-      const noto=document.fonts.check('16px "Noto Sans KR"');
-      const nanum=document.fonts.check('16px "Nanum Myeongjo"');
-      if(status) status.textContent=(noto||nanum)?'웹폰트 로드 완료':'웹폰트 미로드 · 시스템 대체 글꼴 사용';
-      if(document.body.classList.contains('editing')){
-        renderCanvasOnly();
-        renderEditorOutputPreview();
-      }
-      if(selectedLabelMasterPreviewCode) selectLabelMasterPreview(selectedLabelMasterPreviewCode);
-    }catch(e){}
-  });
+  if(td&&cell)applyFontDirect(td,key,cell.mono);
 }
 
 const FIELD_VARIABLES = [
@@ -3371,7 +3379,7 @@ function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-
 function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
 function effectiveLabelLayoutKey(labelCode,fallback=''){
   const code=String(labelCode||'').trim();
-  // v4.13.5: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
+  // v4.13.6: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
   // 라벨 연결 데이터에 과거 layoutKey가 남아 있어도 전용 저장 서식을 놓치지 않는다.
   const unique=code?labelEditorKey(code):'';
   if(unique && LAYOUTS[unique] && Array.isArray(LAYOUTS[unique].fields)) return unique;
