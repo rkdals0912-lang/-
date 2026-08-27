@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.13.3 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.13.5 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -63,16 +63,18 @@
   .previewWrap{display:flex;gap:16px;flex-wrap:wrap;}
   .canvasBox{position:relative;background:#fff;border:2.5px solid var(--ink);border-radius:2px;overflow:hidden;}
   .fld{position:absolute;white-space:pre-line;overflow:hidden;line-height:1.25;}
-  /* v4.13.3: label font application is keyed by data-font.
-     !important intentionally wins over legacy/table inherited font rules. */
-  .canvasBox [data-font="system-sans"]{font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif!important;}
-  .canvasBox [data-font="noto-sans-kr"]{font-family:"Noto Sans KR","Malgun Gothic",sans-serif!important;}
-  .canvasBox [data-font="noto-serif-kr"]{font-family:"Noto Serif KR",Batang,"Times New Roman",serif!important;}
-  .canvasBox [data-font="nanum-gothic"]{font-family:"Nanum Gothic","Malgun Gothic",sans-serif!important;}
-  .canvasBox [data-font="nanum-myeongjo"]{font-family:"Nanum Myeongjo",Batang,"Times New Roman",serif!important;}
-  .canvasBox [data-font="ibm-plex-sans-kr"]{font-family:"IBM Plex Sans KR","Noto Sans KR","Malgun Gothic",sans-serif!important;}
-  .canvasBox [data-font="ibm-plex-mono"]{font-family:"IBM Plex Mono","Noto Sans KR","Malgun Gothic",monospace!important;}
-  .canvasBox [data-font="system-mono"]{font-family:Consolas,"Courier New","Malgun Gothic",monospace!important;}
+  /* v4.13.5: explicit class-based label fonts */
+  .canvasBox .lf-system-sans{font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif!important;}
+  .canvasBox .lf-noto-sans-kr{font-family:"Noto Sans KR","Malgun Gothic",sans-serif!important;}
+  .canvasBox .lf-noto-serif-kr{font-family:"Noto Serif KR",Batang,"Times New Roman",serif!important;}
+  .canvasBox .lf-nanum-gothic{font-family:"Nanum Gothic","Malgun Gothic",sans-serif!important;}
+  .canvasBox .lf-nanum-myeongjo{font-family:"Nanum Myeongjo",Batang,"Times New Roman",serif!important;}
+  .canvasBox .lf-ibm-plex-sans-kr{font-family:"IBM Plex Sans KR","Noto Sans KR","Malgun Gothic",sans-serif!important;}
+  .canvasBox .lf-ibm-plex-mono{font-family:"IBM Plex Mono",Consolas,"Courier New",monospace!important;}
+  .canvasBox .lf-black-han-sans{font-family:"Black Han Sans","Noto Sans KR","Malgun Gothic",sans-serif!important;}
+  .canvasBox .lf-do-hyeon{font-family:"Do Hyeon","Noto Sans KR","Malgun Gothic",sans-serif!important;}
+  .canvasBox .lf-jua{font-family:"Jua","Noto Sans KR","Malgun Gothic",sans-serif!important;}
+  .canvasBox .lf-system-mono{font-family:Consolas,"Courier New","Malgun Gothic",monospace!important;}
 
   .editorCanvas .fld{border:1px dashed transparent;cursor:move;}
   .editorCanvas .fld:hover{border-color:#9db4d4;}
@@ -464,11 +466,22 @@ body.workspace-open #homeView{display:none;}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Nanum+Gothic:wght@400;700;800&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- v4.13.5 robust font loading: independent requests + CDN fallbacks -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/fontsource-noto-sans-kr@4.0.0/index.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-kr@5.3.0/index.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/typeface-nanum-gothic@1.1.13/index.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/typeface-nanum-myeongjo@1.1.13/index.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/fontsource-ibm-plex-mono@4.0.0/index.css" rel="stylesheet">
 </head>
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.3</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.5</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -800,7 +813,7 @@ body.workspace-open #homeView{display:none;}
               <option value="800">매우 굵게</option>
             </select>
           </div>
-          <div><label>글꼴</label><select id="inspFont"></select></div>
+          <div><label>글꼴</label><select id="inspFont"></select><div id="selectedFontStatus" class="lockednote" style="margin-top:4px;padding:4px 6px">글꼴 확인 중 · 변경 즉시 미리보기에 적용</div></div>
         </div>
         <div class="lockednote">Noto · Nanum · IBM Plex 오픈 라이선스 글꼴을 선택할 수 있습니다. <span id="fontLoadStatus">글꼴 상태 확인 중…</span></div>
 
@@ -1801,7 +1814,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
               : (c.text||'');
           }
           const cellFontKey=c.fontFamily||f.fontFamily||(c.mono?'system-mono':'system-sans');
-          return `<td data-font="${escapeHtml(cellFontKey)}" style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
+          return `<td class="${fontClass(cellFontKey)}" data-font="${escapeHtml(cellFontKey)}" style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};font-family:${fontCss(cellFontKey,c.mono)} !important;text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
         }).join('')+'</tr>';
       }).join('');
       let innerHandles='';
@@ -1816,9 +1829,9 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       ? ((f.bind==='color'||f.bind==='type') ? (ctx[f.bind]??'') : (ctx[f.bind]??`[${f.bind}]`))
       : f.text;
     const transparentBg=f.transparentBackground!==false;
-    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
+    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`font-family:${fontCss(f.fontFamily,f.mono)} !important`,`text-align:${f.align||'left'}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
     const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : escapeHtml(text).replace(/\n/g,'<br>');
-    return `<div class="${cls}" ${dataAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:1;">${content}${resizeHandles}</div>`;
+    return `<div class="${cls} ${fontClass(f.fontFamily||(f.mono?'system-mono':'system-sans'))}" ${dataAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:1;">${content}${resizeHandles}</div>`;
   }).join('');
   return `<div class="canvasBox ${editable?'editorCanvas':''}" id="${editable?'liveEditorCanvas':''}" style="width:${layout.w}mm;height:${layout.h}mm;">${fields}</div>`;
 }
@@ -2987,21 +3000,59 @@ document.addEventListener('keydown',e=>{
 function fieldById(id){return LAYOUTS[editorKey].fields.find(f=>f.id===id);}
 
 const LABEL_FONTS = [
-  {key:'system-sans',label:'기본 시스템 고딕',css:"Arial, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"},
-  {key:'noto-sans-kr',label:'Noto Sans KR',css:"'Noto Sans KR', 'Malgun Gothic', sans-serif"},
-  {key:'noto-serif-kr',label:'Noto Serif KR',css:"'Noto Serif KR', Batang, serif"},
-  {key:'nanum-gothic',label:'나눔고딕',css:"'Nanum Gothic', 'Malgun Gothic', sans-serif"},
-  {key:'nanum-myeongjo',label:'나눔명조',css:"'Nanum Myeongjo', Batang, serif"},
-  {key:'ibm-plex-sans-kr',label:'IBM Plex Sans KR',css:"'IBM Plex Sans KR', 'Malgun Gothic', sans-serif"},
-  {key:'ibm-plex-mono',label:'IBM Plex Mono',css:"'IBM Plex Mono', Consolas, 'Courier New', monospace"},
-  {key:'system-mono',label:'기본 고정폭',css:"Consolas, 'Courier New', monospace"}
-];
+  {key:'system-sans',label:'기본 시스템 고딕',css:"Arial, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",test:'Arial'},
+  {key:'noto-sans-kr',label:'Noto Sans KR',css:"'Noto Sans KR', 'Malgun Gothic', sans-serif",test:'Noto Sans KR'},
+  {key:'noto-serif-kr',label:'Noto Serif KR',css:"'Noto Serif KR', Batang, serif",test:'Noto Serif KR'},
+  {key:'nanum-gothic',label:'나눔고딕',css:"'Nanum Gothic', 'Malgun Gothic', sans-serif",test:'Nanum Gothic'},
+  {key:'nanum-myeongjo',label:'나눔명조',css:"'Nanum Myeongjo', Batang, serif",test:'Nanum Myeongjo'},
+  {key:'ibm-plex-sans-kr',label:'IBM Plex Sans KR',css:"'IBM Plex Sans KR', 'Noto Sans KR', 'Malgun Gothic', sans-serif",test:'IBM Plex Sans KR'},
+  {key:'ibm-plex-mono',label:'IBM Plex Mono (영문/숫자)',css:"'IBM Plex Mono', Consolas, monospace",test:'IBM Plex Mono'},
+  {key:'black-han-sans',label:'Black Han Sans (검은고딕)',css:"'Black Han Sans', 'Noto Sans KR', sans-serif",test:'Black Han Sans'},
+  {key:'do-hyeon',label:'Do Hyeon (도현)',css:"'Do Hyeon', 'Noto Sans KR', sans-serif",test:'Do Hyeon'},
+  {key:'jua',label:'Jua (주아)',css:"'Jua', 'Noto Sans KR', sans-serif",test:'Jua'},
+  {key:'system-mono',label:'기본 고정폭',css:"Consolas, 'Courier New', monospace",test:'Consolas'}
+]
 function fontOption(key){return LABEL_FONTS.find(x=>x.key===key)||LABEL_FONTS[0];}
+function fontClass(key){return 'lf-'+String(key||'system-sans').replace(/[^a-z0-9-]/g,'');}
+function fontFaceAvailable(key){const f=fontOption(key);if(!document.fonts||!f.test)return true;try{return document.fonts.check(`20px "${f.test}"`,'한글ABC123');}catch(e){return false;}}
+
+function applyFontDirect(el,key,mono=false){
+  if(!el) return;
+  const css=fontCss(key,mono);
+  el.style.setProperty('font-family',css,'important');
+  el.setAttribute('data-font',key||'system-sans');
+  LABEL_FONTS.forEach(x=>el.classList.remove(fontClass(x.key)));
+  el.classList.add(fontClass(key||'system-sans'));
+}
+function applySelectedFieldFontDirect(fid,key){
+  const canvas=$('liveEditorCanvas');
+  if(!canvas||!fid)return;
+  const el=canvas.querySelector(`.fld[data-fid="${CSS.escape(fid)}"]`);
+  const f=fieldById(fid);
+  if(el&&f&&f.kind!=='table') applyFontDirect(el,key,f.mono);
+}
+function applyTableCellFontDirect(tableFid,row,col,key){
+  const canvas=$('liveEditorCanvas');
+  if(!canvas)return;
+  const tableEl=canvas.querySelector(`.fld[data-fid="${CSS.escape(tableFid)}"] table`);
+  const td=tableEl?.rows?.[row]?.cells?.[col];
+  const f=fieldById(tableFid);
+  const cell=f?.cells?.[row]?.[col];
+  if(td&&cell) applyFontDirect(td,key,cell.mono);
+}
 function fontCss(key,mono=false){return mono?fontOption('system-mono').css:fontOption(key||'system-sans').css;}
 function fillFontSelect(el,selected='system-sans'){
   if(!el)return;
   el.innerHTML=LABEL_FONTS.map(x=>`<option value="${x.key}" style="font-family:${x.css}">${x.label}</option>`).join('');
   el.value=LABEL_FONTS.some(x=>x.key===selected)?selected:'system-sans';
+}
+
+function updateSelectedFontStatus(key){
+  const el=$('selectedFontStatus'); if(!el)return;
+  const f=fontOption(key), ok=fontFaceAvailable(key);
+  el.className='lockednote '+fontClass(key);
+  el.textContent=ok?`✓ ${f.label} · 한글 ABC 123`:`⚠ ${f.label} 미로드 · 대체 글꼴 사용`;
+  el.style.color=ok?'#1e7d4a':'#b3261e';
 }
 
 if(document.fonts && document.fonts.ready){
@@ -3099,6 +3150,7 @@ function selectField(fid){
   if($('inspRotatePreset')){const rv=String(((Number(f.rotate)||0)%360+360)%360);$('inspRotatePreset').value=['0','90','180','270'].includes(rv)?rv:'custom';}
   $('inspWeight').value=String(f.weight||400);
   fillFontSelect($('inspFont'),f.fontFamily||(f.mono?'system-mono':'system-sans'));
+  updateSelectedFontStatus(f.fontFamily||(f.mono?'system-mono':'system-sans'));
   const isBind=f.kind==='bind',isTable=f.kind==='table';
   if($('inspBgWrap')) $('inspBgWrap').style.display=isTable?'none':'block';
   if($('inspTransparentBg')) $('inspTransparentBg').checked=f.transparentBackground!==false;
@@ -3134,7 +3186,21 @@ function renderTableInspector(f,box){
     sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);fillFontSelect(ft,cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans'));
     sel.addEventListener('change',()=>{if(sel.value){cell.kind='bind';cell.bind=sel.value;delete cell.text;txt.style.display='none';}else{cell.kind='static';cell.text=txt.value;delete cell.bind;txt.style.display='block';}renderCanvasOnly();});
     txt.addEventListener('input',()=>{cell.kind='static';cell.text=txt.value;renderCanvasOnly();});
-    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',async()=>{pushEditorUndoState();cell.fontFamily=LABEL_FONTS.some(x=>x.key===ft.value)?ft.value:'system-sans';cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono');renderCanvasOnly();try{if(document.fonts&&document.fonts.load){await document.fonts.load(`16px ${fontCss(cell.fontFamily,cell.mono)}`);renderCanvasOnly();renderEditorOutputPreview();}}catch(e){}});
+    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',async()=>{
+      pushEditorUndoState();
+      cell.fontFamily=LABEL_FONTS.some(x=>x.key===ft.value)?ft.value:'system-sans';
+      cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono');
+      // 저장 전에도 해당 셀에 바로 글꼴 적용
+      applyTableCellFontDirect(f.id,r,c,cell.fontFamily);
+      renderCanvasOnly(); renderEditorOutputPreview();
+      try{
+        if(document.fonts&&document.fonts.load){
+          await document.fonts.load(`20px ${fontCss(cell.fontFamily,cell.mono)}`,'한글ABC123');
+          applyTableCellFontDirect(f.id,r,c,cell.fontFamily);
+          renderCanvasOnly(); renderEditorOutputPreview();
+        }
+      }catch(e){}
+    });
     grid.appendChild(wrap);
   }
   box.querySelector('#tblBackground').addEventListener('change',e=>{f.tableBg=e.target.value==='transparent'?'transparent':'white';renderCanvasOnly();});
@@ -3177,10 +3243,16 @@ $('inspFont').addEventListener('change',async()=>{if(selectedFieldId){
   const f=fieldById(selectedFieldId);
   f.fontFamily=LABEL_FONTS.some(x=>x.key===$('inspFont').value)?$('inspFont').value:'system-sans';
   f.mono=(f.fontFamily==='system-mono'||f.fontFamily==='ibm-plex-mono');
-  renderCanvasOnly(); renderFieldList();
+  // 즉시 현재 미리보기 DOM에 적용
+  applySelectedFieldFontDirect(selectedFieldId,f.fontFamily);
+  updateSelectedFontStatus(f.fontFamily);
+  // 전체 렌더 재생성
+  renderCanvasOnly(); renderFieldList(); renderEditorOutputPreview();
   try{
-    if(document.fonts && document.fonts.load){
-      await document.fonts.load(`16px ${fontCss(f.fontFamily,f.mono)}`);
+    if(document.fonts&&document.fonts.load){
+      await document.fonts.load(`20px ${fontCss(f.fontFamily,f.mono)}`,'한글ABC123');
+      applySelectedFieldFontDirect(selectedFieldId,f.fontFamily);
+      updateSelectedFontStatus(f.fontFamily);
       renderCanvasOnly(); renderEditorOutputPreview();
     }
   }catch(e){}
@@ -3299,7 +3371,7 @@ function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-
 function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
 function effectiveLabelLayoutKey(labelCode,fallback=''){
   const code=String(labelCode||'').trim();
-  // v4.13.3: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
+  // v4.13.5: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
   // 라벨 연결 데이터에 과거 layoutKey가 남아 있어도 전용 저장 서식을 놓치지 않는다.
   const unique=code?labelEditorKey(code):'';
   if(unique && LAYOUTS[unique] && Array.isArray(LAYOUTS[unique].fields)) return unique;
