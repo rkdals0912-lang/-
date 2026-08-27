@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.13.6 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.13.7 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -63,21 +63,24 @@
   .previewWrap{display:flex;gap:16px;flex-wrap:wrap;}
   .canvasBox{position:relative;background:#fff;border:2.5px solid var(--ink);border-radius:2px;overflow:hidden;}
   .fld{position:absolute;white-space:pre-line;overflow:hidden;line-height:1.25;}
-  /* v4.13.6: explicit class-based label fonts */
+  /* v4.13.7: explicit class-based label fonts */
+  .canvasBox .lf-diag-serif{font-family:Georgia,Batang,serif!important;}
+  .canvasBox .lf-diag-mono{font-family:Consolas,"Courier New",monospace!important;}
+  .canvasBox .lf-diag-display{font-family:Impact,"Arial Black",sans-serif!important;}
   .canvasBox .lf-system-batang{font-family:Batang,"바탕",serif!important;}
   .canvasBox .lf-system-gungsuh{font-family:Gungsuh,"궁서",serif!important;}
   .canvasBox .lf-system-gulim{font-family:Gulim,"굴림",sans-serif!important;}
   .canvasBox .lf-system-dotum{font-family:Dotum,"돋움",sans-serif!important;}
   .canvasBox .lf-system-sans{font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif!important;}
   .canvasBox .lf-noto-sans-kr{font-family:"Noto Sans KR","Malgun Gothic",sans-serif!important;}
-  .canvasBox .lf-noto-serif-kr{font-family:"Noto Serif KR",Batang,"Times New Roman",serif!important;}
+  .canvasBox .lf-noto-serif-kr{font-family:"Noto Serif KR",Batang,Georgia,"Times New Roman",serif!important;}
   .canvasBox .lf-nanum-gothic{font-family:"Nanum Gothic","Malgun Gothic",sans-serif!important;}
-  .canvasBox .lf-nanum-myeongjo{font-family:"Nanum Myeongjo",Batang,"Times New Roman",serif!important;}
+  .canvasBox .lf-nanum-myeongjo{font-family:"Nanum Myeongjo",Batang,Georgia,"Times New Roman",serif!important;}
   .canvasBox .lf-ibm-plex-sans-kr{font-family:"IBM Plex Sans KR","Noto Sans KR","Malgun Gothic",sans-serif!important;}
   .canvasBox .lf-ibm-plex-mono{font-family:"IBM Plex Mono",Consolas,"Courier New",monospace!important;}
-  .canvasBox .lf-black-han-sans{font-family:"Black Han Sans","Noto Sans KR","Malgun Gothic",sans-serif!important;}
-  .canvasBox .lf-do-hyeon{font-family:"Do Hyeon","Noto Sans KR","Malgun Gothic",sans-serif!important;}
-  .canvasBox .lf-jua{font-family:"Jua","Noto Sans KR","Malgun Gothic",sans-serif!important;}
+  .canvasBox .lf-black-han-sans{font-family:"Black Han Sans",Impact,"Arial Black",sans-serif!important;}
+  .canvasBox .lf-do-hyeon{font-family:"Do Hyeon","Arial Rounded MT Bold",Arial,sans-serif!important;}
+  .canvasBox .lf-jua{font-family:"Jua","Comic Sans MS",cursive!important;}
   .canvasBox .lf-system-mono{font-family:Consolas,"Courier New","Malgun Gothic",monospace!important;}
 
   .editorCanvas .fld{border:1px dashed transparent;cursor:move;}
@@ -467,14 +470,14 @@ body.workspace-open #homeView{display:none;}
 </style>
 
   <!-- Open-license label fonts (Google Fonts delivery; system fallbacks remain available) -->
-<!-- v4.13.6 robust font loading: independent requests + CDN fallbacks -->
+<!-- v4.13.7 robust font loading: independent requests + CDN fallbacks -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
 
 
 
 
-  <!-- v4.13.6: each webfont loads independently so one bad family cannot break all fonts -->
+  <!-- v4.13.7: each webfont loads independently so one bad family cannot break all fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -489,7 +492,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.6</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.7</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -3008,6 +3011,9 @@ document.addEventListener('keydown',e=>{
 function fieldById(id){return LAYOUTS[editorKey].fields.find(f=>f.id===id);}
 
 const LABEL_FONTS = [
+  {key:'diag-serif',label:'진단용 Serif (즉시 변화)',css:"Georgia, Batang, serif",test:'Georgia',group:'system'},
+  {key:'diag-mono',label:'진단용 Mono (즉시 변화)',css:"Consolas, 'Courier New', monospace",test:'Consolas',group:'system'},
+  {key:'diag-display',label:'진단용 Display (즉시 변화)',css:"Impact, 'Arial Black', sans-serif",test:'Impact',group:'system'},
   {key:'system-sans',label:'기본 시스템 고딕',css:"Arial, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",test:'Arial',group:'system'},
   {key:'system-batang',label:'PC 바탕체',css:"Batang, '바탕', serif",test:'Batang',group:'system'},
   {key:'system-gungsuh',label:'PC 궁서체',css:"Gungsuh, '궁서', serif",test:'Gungsuh',group:'system'},
@@ -3189,15 +3195,15 @@ function renderTableInspector(f,box){
     const cell=(f.cells[r]&&f.cells[r][c])||{kind:'static',text:'',align:c===0?'left':'left',size:f.size||9,weight:400};
     if(!f.cells[r]) f.cells[r]=[]; f.cells[r][c]=cell;
     const wrap=document.createElement('div');wrap.className='tableCellEditor';
-    wrap.innerHTML=`<div class="cellHead">${r+1}행 ${c+1}열</div><select class="cellVar"><option value="">고정 텍스트</option>${FIELD_VARIABLES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="cellText" type="text" placeholder="셀 텍스트"><div class="tableCellMini"><select class="cellAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><input class="cellSize" type="number" min="5" max="72" step=".5"><select class="cellWeight"><option value="400">보통</option><option value="600">중간</option><option value="700">굵게</option><option value="900">매우 굵게</option></select></div><div style="margin-top:5px"><label style="font-size:10px">셀 글꼴</label><select class="cellFont"></select></div>`;
-    const sel=wrap.querySelector('.cellVar'),txt=wrap.querySelector('.cellText'),al=wrap.querySelector('.cellAlign'),sz=wrap.querySelector('.cellSize'),wt=wrap.querySelector('.cellWeight'),ft=wrap.querySelector('.cellFont');
-    sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);fillFontSelect(ft,cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans'));
+    wrap.innerHTML=`<div class="cellHead">${r+1}행 ${c+1}열</div><select class="cellVar"><option value="">고정 텍스트</option>${FIELD_VARIABLES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="cellText" type="text" placeholder="셀 텍스트"><div class="tableCellMini"><select class="cellAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><input class="cellSize" type="number" min="5" max="72" step=".5"><select class="cellWeight"><option value="400">보통</option><option value="600">중간</option><option value="700">굵게</option><option value="900">매우 굵게</option></select></div><div style="margin-top:5px"><label style="font-size:10px">셀 글꼴</label><select class="cellFont"></select><div class="cellFontState" style="font-size:9px;color:#64748b;margin-top:2px"></div></div>`;
+    const sel=wrap.querySelector('.cellVar'),txt=wrap.querySelector('.cellText'),al=wrap.querySelector('.cellAlign'),sz=wrap.querySelector('.cellSize'),wt=wrap.querySelector('.cellWeight'),ft=wrap.querySelector('.cellFont'),fs=wrap.querySelector('.cellFontState');
+    sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);fillFontSelect(ft,cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans'));if(fs){const fk=cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans');fs.textContent=`적용값: ${fontOption(fk).label}`;}
     sel.addEventListener('change',()=>{if(sel.value){cell.kind='bind';cell.bind=sel.value;delete cell.text;txt.style.display='none';}else{cell.kind='static';cell.text=txt.value;delete cell.bind;txt.style.display='block';}renderCanvasOnly();});
     txt.addEventListener('input',()=>{cell.kind='static';cell.text=txt.value;renderCanvasOnly();});
     al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',async()=>{
       pushEditorUndoState();
       cell.fontFamily=LABEL_FONTS.some(x=>x.key===ft.value)?ft.value:'system-sans';
-      cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono');
+      cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono'); if(fs)fs.textContent=`적용값: ${fontOption(cell.fontFamily).label}`;
       // 저장 전에도 해당 셀에 바로 글꼴 적용
       applyTableCellFontDirect(f.id,r,c,cell.fontFamily);
       renderCanvasOnly(); renderEditorOutputPreview();
@@ -3379,7 +3385,7 @@ function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-
 function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
 function effectiveLabelLayoutKey(labelCode,fallback=''){
   const code=String(labelCode||'').trim();
-  // v4.13.6: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
+  // v4.13.7: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
   // 라벨 연결 데이터에 과거 layoutKey가 남아 있어도 전용 저장 서식을 놓치지 않는다.
   const unique=code?labelEditorKey(code):'';
   if(unique && LAYOUTS[unique] && Array.isArray(LAYOUTS[unique].fields)) return unique;
@@ -3467,6 +3473,20 @@ function renderEditorOutputPreview(){
     }
   }catch(e){ wrap.innerHTML='<div class="empty">미리보기를 생성하지 못했습니다.</div>'; }
 }
+function refreshLiveFontDiagnostics(){
+  const canvas=$('liveEditorCanvas'); if(!canvas)return;
+  const f=selectedFieldId?fieldById(selectedFieldId):null;
+  if(!f||f.kind!=='table')return;
+  const states=document.querySelectorAll('#tblGrid .cellFontState');
+  const table=canvas.querySelector(`.fld[data-fid="${(window.CSS&&CSS.escape)?CSS.escape(f.id):f.id}"] table`);
+  if(!table)return;
+  let k=0;
+  for(let r=0;r<table.rows.length;r++)for(let c=0;c<table.rows[r].cells.length;c++){
+    const td=table.rows[r].cells[c], st=states[k++];
+    if(st)st.textContent=`실제: ${getComputedStyle(td).fontFamily}`;
+  }
+}
+
 function renderCanvasOnly(){
   $('editorCanvasWrap').innerHTML=renderLabelHtml(editorKey,sampleContext(),true);
   renderEditorOutputPreview();
@@ -3484,6 +3504,7 @@ function renderCanvasOnly(){
   canvas.querySelectorAll('.tableRowHandle').forEach(h=>h.addEventListener('mousedown',e=>{
     const fld=h.closest('.fld'); startTableSplit(fld.dataset.fid,'row',+h.dataset.split,e); e.preventDefault(); e.stopPropagation();
   }));
+  requestAnimationFrame(refreshLiveFontDiagnostics);
 }
 document.addEventListener('mousemove',e=>{
   if(!dragState)return;const f=fieldById(dragState.fid);
