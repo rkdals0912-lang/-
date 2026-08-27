@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.13.1 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.13.2 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -457,7 +457,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.1</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.2</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -1806,7 +1806,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
     const transparentBg=f.transparentBackground!==false;
     const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,`font-family:${fontCss(f.fontFamily,f.mono)}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
     const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : escapeHtml(text).replace(/\n/g,'<br>');
-    return `<div class="${cls}" ${dataAttr} style="${styles};z-index:1;">${content}${resizeHandles}</div>`;
+    return `<div class="${cls}" ${dataAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:1;">${content}${resizeHandles}</div>`;
   }).join('');
   return `<div class="canvasBox ${editable?'editorCanvas':''}" id="${editable?'liveEditorCanvas':''}" style="width:${layout.w}mm;height:${layout.h}mm;">${fields}</div>`;
 }
@@ -2975,14 +2975,14 @@ document.addEventListener('keydown',e=>{
 function fieldById(id){return LAYOUTS[editorKey].fields.find(f=>f.id===id);}
 
 const LABEL_FONTS = [
-  {key:'system-sans',label:'기본 시스템 고딕',css:'Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif'},
-  {key:'noto-sans-kr',label:'Noto Sans KR',css:'"Noto Sans KR", "Malgun Gothic", sans-serif'},
-  {key:'noto-serif-kr',label:'Noto Serif KR',css:'"Noto Serif KR", "Batang", serif'},
-  {key:'nanum-gothic',label:'나눔고딕',css:'"Nanum Gothic", "Malgun Gothic", sans-serif'},
-  {key:'nanum-myeongjo',label:'나눔명조',css:'"Nanum Myeongjo", "Batang", serif'},
-  {key:'ibm-plex-sans-kr',label:'IBM Plex Sans KR',css:'"IBM Plex Sans KR", "Malgun Gothic", sans-serif'},
-  {key:'ibm-plex-mono',label:'IBM Plex Mono',css:'"IBM Plex Mono", Consolas, "Courier New", monospace'},
-  {key:'system-mono',label:'기본 고정폭',css:'Consolas, "Courier New", monospace'}
+  {key:'system-sans',label:'기본 시스템 고딕',css:"Arial, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"},
+  {key:'noto-sans-kr',label:'Noto Sans KR',css:"'Noto Sans KR', 'Malgun Gothic', sans-serif"},
+  {key:'noto-serif-kr',label:'Noto Serif KR',css:"'Noto Serif KR', Batang, serif"},
+  {key:'nanum-gothic',label:'나눔고딕',css:"'Nanum Gothic', 'Malgun Gothic', sans-serif"},
+  {key:'nanum-myeongjo',label:'나눔명조',css:"'Nanum Myeongjo', Batang, serif"},
+  {key:'ibm-plex-sans-kr',label:'IBM Plex Sans KR',css:"'IBM Plex Sans KR', 'Malgun Gothic', sans-serif"},
+  {key:'ibm-plex-mono',label:'IBM Plex Mono',css:"'IBM Plex Mono', Consolas, 'Courier New', monospace"},
+  {key:'system-mono',label:'기본 고정폭',css:"Consolas, 'Courier New', monospace"}
 ];
 function fontOption(key){return LABEL_FONTS.find(x=>x.key===key)||LABEL_FONTS[0];}
 function fontCss(key,mono=false){return mono?fontOption('system-mono').css:fontOption(key||'system-sans').css;}
@@ -2990,6 +2990,18 @@ function fillFontSelect(el,selected='system-sans'){
   if(!el)return;
   el.innerHTML=LABEL_FONTS.map(x=>`<option value="${x.key}" style="font-family:${x.css}">${x.label}</option>`).join('');
   el.value=LABEL_FONTS.some(x=>x.key===selected)?selected:'system-sans';
+}
+
+if(document.fonts && document.fonts.ready){
+  document.fonts.ready.then(()=>{
+    try{
+      if(document.body.classList.contains('editing')){
+        renderCanvasOnly();
+        renderEditorOutputPreview();
+      }
+      if(selectedLabelMasterPreviewCode) selectLabelMasterPreview(selectedLabelMasterPreviewCode);
+    }catch(e){}
+  });
 }
 
 const FIELD_VARIABLES = [
@@ -3106,7 +3118,7 @@ function renderTableInspector(f,box){
     sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);fillFontSelect(ft,cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans'));
     sel.addEventListener('change',()=>{if(sel.value){cell.kind='bind';cell.bind=sel.value;delete cell.text;txt.style.display='none';}else{cell.kind='static';cell.text=txt.value;delete cell.bind;txt.style.display='block';}renderCanvasOnly();});
     txt.addEventListener('input',()=>{cell.kind='static';cell.text=txt.value;renderCanvasOnly();});
-    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',()=>{pushEditorUndoState();cell.fontFamily=ft.value;cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono');renderCanvasOnly();});
+    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',async()=>{pushEditorUndoState();cell.fontFamily=ft.value;cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono');renderCanvasOnly();try{if(document.fonts&&document.fonts.load){await document.fonts.load(`16px ${fontCss(cell.fontFamily,cell.mono)}`);renderCanvasOnly();renderEditorOutputPreview();}}catch(e){}});
     grid.appendChild(wrap);
   }
   box.querySelector('#tblBackground').addEventListener('change',e=>{f.tableBg=e.target.value==='transparent'?'transparent':'white';renderCanvasOnly();});
@@ -3144,7 +3156,19 @@ if($('inspRotatePreset')) $('inspRotatePreset').addEventListener('change',()=>{
 });
 $('inspAlign').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).align=$('inspAlign').value;renderCanvasOnly();}});
 $('inspWeight').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).weight=+$('inspWeight').value;renderCanvasOnly();}});
-$('inspFont').addEventListener('change',()=>{if(selectedFieldId){pushEditorUndoState();const f=fieldById(selectedFieldId);f.fontFamily=$('inspFont').value;f.mono=(f.fontFamily==='system-mono'||f.fontFamily==='ibm-plex-mono');renderCanvasOnly();renderFieldList();}});
+$('inspFont').addEventListener('change',async()=>{if(selectedFieldId){
+  pushEditorUndoState();
+  const f=fieldById(selectedFieldId);
+  f.fontFamily=$('inspFont').value;
+  f.mono=(f.fontFamily==='system-mono'||f.fontFamily==='ibm-plex-mono');
+  renderCanvasOnly(); renderFieldList();
+  try{
+    if(document.fonts && document.fonts.load){
+      await document.fonts.load(`16px ${fontCss(f.fontFamily,f.mono)}`);
+      renderCanvasOnly(); renderEditorOutputPreview();
+    }
+  }catch(e){}
+}});
 $('inspBind').addEventListener('change',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='bind'){f.bind=$('inspBind').value;renderCanvasOnly();renderFieldList();}}});
 $('inspText').addEventListener('input',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='static'){f.text=$('inspText').value;renderCanvasOnly();renderFieldList();}}});
 if($('inspTransparentBg')) $('inspTransparentBg').addEventListener('change',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind!=='table'){f.transparentBackground=$('inspTransparentBg').checked;renderCanvasOnly();}}});
@@ -3259,7 +3283,7 @@ function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-
 function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
 function effectiveLabelLayoutKey(labelCode,fallback=''){
   const code=String(labelCode||'').trim();
-  // v4.13.1: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
+  // v4.13.2: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
   // 라벨 연결 데이터에 과거 layoutKey가 남아 있어도 전용 저장 서식을 놓치지 않는다.
   const unique=code?labelEditorKey(code):'';
   if(unique && LAYOUTS[unique] && Array.isArray(LAYOUTS[unique].fields)) return unique;
