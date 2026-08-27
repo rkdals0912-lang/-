@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.13.0 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.13.1 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -448,11 +448,16 @@ body.workspace-open #homeView{display:none;}
 #workOrderExcelResult.compactResult{margin-top:8px;max-height:150px;overflow:auto;}
 @media(max-width:700px){.workOrderQuickBar{grid-template-columns:1fr 1fr}.workOrderQuickBar button:last-child{grid-column:1/-1}}
 </style>
+
+  <!-- Open-license label fonts (Google Fonts delivery; system fallbacks remain available) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Nanum+Gothic:wght@400;700;800&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.0</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.1</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -784,8 +789,9 @@ body.workspace-open #homeView{display:none;}
               <option value="800">매우 굵게</option>
             </select>
           </div>
-          <div><label>회전 안내</label><div class="readout">텍스트를 선택한 뒤 90°를 고르면 세로로 회전합니다.</div></div>
+          <div><label>글꼴</label><select id="inspFont"></select></div>
         </div>
+        <div class="lockednote">Noto · Nanum · IBM Plex 오픈 라이선스 글꼴을 선택할 수 있습니다. 웹폰트를 불러오지 못하면 시스템 대체 글꼴로 표시됩니다.</div>
 
         <div id="inspBgWrap">
           <label class="checkrow"><input type="checkbox" id="inspTransparentBg" checked> 텍스트 배경 투명</label>
@@ -1783,7 +1789,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
               ? ((c.bind==='color'||c.bind==='type') ? (ctx[c.bind]??'') : (ctx[c.bind]??`[${c.bind}]`))
               : (c.text||'');
           }
-          return `<td style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
+          return `<td style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};font-family:${fontCss(c.fontFamily||f.fontFamily,c.mono)};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
         }).join('')+'</tr>';
       }).join('');
       let innerHandles='';
@@ -1798,7 +1804,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       ? ((f.bind==='color'||f.bind==='type') ? (ctx[f.bind]??'') : (ctx[f.bind]??`[${f.bind}]`))
       : f.text;
     const transparentBg=f.transparentBackground!==false;
-    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.mono?'font-family:var(--mono)':'',f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
+    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,`font-family:${fontCss(f.fontFamily,f.mono)}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
     const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : escapeHtml(text).replace(/\n/g,'<br>');
     return `<div class="${cls}" ${dataAttr} style="${styles};z-index:1;">${content}${resizeHandles}</div>`;
   }).join('');
@@ -2968,6 +2974,24 @@ document.addEventListener('keydown',e=>{
 
 function fieldById(id){return LAYOUTS[editorKey].fields.find(f=>f.id===id);}
 
+const LABEL_FONTS = [
+  {key:'system-sans',label:'기본 시스템 고딕',css:'Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif'},
+  {key:'noto-sans-kr',label:'Noto Sans KR',css:'"Noto Sans KR", "Malgun Gothic", sans-serif'},
+  {key:'noto-serif-kr',label:'Noto Serif KR',css:'"Noto Serif KR", "Batang", serif'},
+  {key:'nanum-gothic',label:'나눔고딕',css:'"Nanum Gothic", "Malgun Gothic", sans-serif'},
+  {key:'nanum-myeongjo',label:'나눔명조',css:'"Nanum Myeongjo", "Batang", serif'},
+  {key:'ibm-plex-sans-kr',label:'IBM Plex Sans KR',css:'"IBM Plex Sans KR", "Malgun Gothic", sans-serif'},
+  {key:'ibm-plex-mono',label:'IBM Plex Mono',css:'"IBM Plex Mono", Consolas, "Courier New", monospace'},
+  {key:'system-mono',label:'기본 고정폭',css:'Consolas, "Courier New", monospace'}
+];
+function fontOption(key){return LABEL_FONTS.find(x=>x.key===key)||LABEL_FONTS[0];}
+function fontCss(key,mono=false){return mono?fontOption('system-mono').css:fontOption(key||'system-sans').css;}
+function fillFontSelect(el,selected='system-sans'){
+  if(!el)return;
+  el.innerHTML=LABEL_FONTS.map(x=>`<option value="${x.key}" style="font-family:${x.css}">${x.label}</option>`).join('');
+  el.value=LABEL_FONTS.some(x=>x.key===selected)?selected:'system-sans';
+}
+
 const FIELD_VARIABLES = [
   ['name','약어(라벨용)'],
   ['fullName','품목명(ECOUNT 풀네임)'],
@@ -3046,6 +3070,7 @@ function selectField(fid){
   $('inspSize').value=f.size; $('inspAlign').value=f.align||'left'; $('inspRotate').value=f.rotate||0;
   if($('inspRotatePreset')){const rv=String(((Number(f.rotate)||0)%360+360)%360);$('inspRotatePreset').value=['0','90','180','270'].includes(rv)?rv:'custom';}
   $('inspWeight').value=String(f.weight||400);
+  fillFontSelect($('inspFont'),f.fontFamily||(f.mono?'system-mono':'system-sans'));
   const isBind=f.kind==='bind',isTable=f.kind==='table';
   if($('inspBgWrap')) $('inspBgWrap').style.display=isTable?'none':'block';
   if($('inspTransparentBg')) $('inspTransparentBg').checked=f.transparentBackground!==false;
@@ -3076,12 +3101,12 @@ function renderTableInspector(f,box){
     const cell=(f.cells[r]&&f.cells[r][c])||{kind:'static',text:'',align:c===0?'left':'left',size:f.size||9,weight:400};
     if(!f.cells[r]) f.cells[r]=[]; f.cells[r][c]=cell;
     const wrap=document.createElement('div');wrap.className='tableCellEditor';
-    wrap.innerHTML=`<div class="cellHead">${r+1}행 ${c+1}열</div><select class="cellVar"><option value="">고정 텍스트</option>${FIELD_VARIABLES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="cellText" type="text" placeholder="셀 텍스트"><div class="tableCellMini"><select class="cellAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><input class="cellSize" type="number" min="5" max="72" step=".5"><select class="cellWeight"><option value="400">보통</option><option value="600">중간</option><option value="700">굵게</option><option value="900">매우 굵게</option></select></div>`;
-    const sel=wrap.querySelector('.cellVar'),txt=wrap.querySelector('.cellText'),al=wrap.querySelector('.cellAlign'),sz=wrap.querySelector('.cellSize'),wt=wrap.querySelector('.cellWeight');
-    sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);
+    wrap.innerHTML=`<div class="cellHead">${r+1}행 ${c+1}열</div><select class="cellVar"><option value="">고정 텍스트</option>${FIELD_VARIABLES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="cellText" type="text" placeholder="셀 텍스트"><div class="tableCellMini"><select class="cellAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><input class="cellSize" type="number" min="5" max="72" step=".5"><select class="cellWeight"><option value="400">보통</option><option value="600">중간</option><option value="700">굵게</option><option value="900">매우 굵게</option></select></div><div style="margin-top:5px"><label style="font-size:10px">셀 글꼴</label><select class="cellFont"></select></div>`;
+    const sel=wrap.querySelector('.cellVar'),txt=wrap.querySelector('.cellText'),al=wrap.querySelector('.cellAlign'),sz=wrap.querySelector('.cellSize'),wt=wrap.querySelector('.cellWeight'),ft=wrap.querySelector('.cellFont');
+    sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);fillFontSelect(ft,cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans'));
     sel.addEventListener('change',()=>{if(sel.value){cell.kind='bind';cell.bind=sel.value;delete cell.text;txt.style.display='none';}else{cell.kind='static';cell.text=txt.value;delete cell.bind;txt.style.display='block';}renderCanvasOnly();});
     txt.addEventListener('input',()=>{cell.kind='static';cell.text=txt.value;renderCanvasOnly();});
-    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});
+    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',()=>{pushEditorUndoState();cell.fontFamily=ft.value;cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono');renderCanvasOnly();});
     grid.appendChild(wrap);
   }
   box.querySelector('#tblBackground').addEventListener('change',e=>{f.tableBg=e.target.value==='transparent'?'transparent':'white';renderCanvasOnly();});
@@ -3119,6 +3144,7 @@ if($('inspRotatePreset')) $('inspRotatePreset').addEventListener('change',()=>{
 });
 $('inspAlign').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).align=$('inspAlign').value;renderCanvasOnly();}});
 $('inspWeight').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).weight=+$('inspWeight').value;renderCanvasOnly();}});
+$('inspFont').addEventListener('change',()=>{if(selectedFieldId){pushEditorUndoState();const f=fieldById(selectedFieldId);f.fontFamily=$('inspFont').value;f.mono=(f.fontFamily==='system-mono'||f.fontFamily==='ibm-plex-mono');renderCanvasOnly();renderFieldList();}});
 $('inspBind').addEventListener('change',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='bind'){f.bind=$('inspBind').value;renderCanvasOnly();renderFieldList();}}});
 $('inspText').addEventListener('input',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='static'){f.text=$('inspText').value;renderCanvasOnly();renderFieldList();}}});
 if($('inspTransparentBg')) $('inspTransparentBg').addEventListener('change',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind!=='table'){f.transparentBackground=$('inspTransparentBg').checked;renderCanvasOnly();}}});
@@ -3208,7 +3234,7 @@ document.querySelectorAll('[data-quick-field]').forEach(btn=>btn.addEventListene
 if($('quickInfoTable')) $('quickInfoTable').addEventListener('click',()=>{
   pushEditorUndo('add-info-table');
   const id=`info_table_${Date.now()}`;
-  const f={id,kind:'table',label:'기본 정보표',x:5,y:10,w:80,h:36,size:10,weight:400,align:'left',rotate:0,rows:4,cols:2,cellBorder:false,tableBg:'white',borderWidth:.3,colWidths:[30,70],cells:[
+  const f={id,kind:'table',label:'기본 정보표',x:5,y:10,w:80,h:36,size:10,weight:400,align:'left',rotate:0,fontFamily:'system-sans',rows:4,cols:2,cellBorder:false,tableBg:'white',borderWidth:.3,colWidths:[30,70],cells:[
     [{kind:'static',text:'품 명',size:8,weight:400},{kind:'bind',bind:'shortName',size:12,weight:700,transparentBackground:true}],
     [{kind:'static',text:'LOT NO.',size:8,weight:400},{kind:'bind',bind:'lotRaw',size:12,weight:700}],
     [{kind:'static',text:'중 량',size:8,weight:400},{kind:'bind',bind:'weight',size:12,weight:700}],
@@ -3233,7 +3259,7 @@ function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-
 function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
 function effectiveLabelLayoutKey(labelCode,fallback=''){
   const code=String(labelCode||'').trim();
-  // v4.13.0: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
+  // v4.13.1: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
   // 라벨 연결 데이터에 과거 layoutKey가 남아 있어도 전용 저장 서식을 놓치지 않는다.
   const unique=code?labelEditorKey(code):'';
   if(unique && LAYOUTS[unique] && Array.isArray(LAYOUTS[unique].fields)) return unique;
