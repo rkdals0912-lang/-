@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.13.7 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.13.9 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -63,7 +63,7 @@
   .previewWrap{display:flex;gap:16px;flex-wrap:wrap;}
   .canvasBox{position:relative;background:#fff;border:2.5px solid var(--ink);border-radius:2px;overflow:hidden;}
   .fld{position:absolute;white-space:pre-line;overflow:hidden;line-height:1.25;}
-  /* v4.13.7: explicit class-based label fonts */
+  /* v4.13.9: explicit class-based label fonts */
   .canvasBox .lf-diag-serif{font-family:Georgia,Batang,serif!important;}
   .canvasBox .lf-diag-mono{font-family:Consolas,"Courier New",monospace!important;}
   .canvasBox .lf-diag-display{font-family:Impact,"Arial Black",sans-serif!important;}
@@ -470,29 +470,31 @@ body.workspace-open #homeView{display:none;}
 </style>
 
   <!-- Open-license label fonts (Google Fonts delivery; system fallbacks remain available) -->
-<!-- v4.13.7 robust font loading: independent requests + CDN fallbacks -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<!-- v4.13.9 robust font loading: independent requests + CDN fallbacks -->
+<!-- v4.13.9: each webfont loads independently so one bad family cannot break all fonts -->
 
+  <!-- KSA v4.13.9: project-local fonts. Keep /fonts beside index.html -->
+  <style id="ksa-local-fonts">
+    @font-face{font-family:"Noto Sans KR";src:url("./fonts/NotoSansKR-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Noto Sans KR";src:url("./fonts/NotoSansKR-Bold.woff2") format("woff2");font-weight:700 900;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Noto Serif KR";src:url("./fonts/NotoSerifKR-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Noto Serif KR";src:url("./fonts/NotoSerifKR-Bold.woff2") format("woff2");font-weight:700 900;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Nanum Gothic";src:url("./fonts/NanumGothic-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Nanum Gothic";src:url("./fonts/NanumGothic-Bold.woff2") format("woff2");font-weight:700 900;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Nanum Myeongjo";src:url("./fonts/NanumMyeongjo-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Nanum Myeongjo";src:url("./fonts/NanumMyeongjo-Bold.woff2") format("woff2");font-weight:700 900;font-style:normal;font-display:swap;}
+    @font-face{font-family:"IBM Plex Mono";src:url("./fonts/IBMPlexMono-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
+    @font-face{font-family:"IBM Plex Mono";src:url("./fonts/IBMPlexMono-Bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Black Han Sans";src:url("./fonts/BlackHanSans-Regular.woff2") format("woff2");font-weight:400 900;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Do Hyeon";src:url("./fonts/DoHyeon-Regular.woff2") format("woff2");font-weight:400 900;font-style:normal;font-display:swap;}
+    @font-face{font-family:"Jua";src:url("./fonts/Jua-Regular.woff2") format("woff2");font-weight:400 900;font-style:normal;font-display:swap;}
+  </style>
 
-
-
-
-  <!-- v4.13.7: each webfont loads independently so one bad family cannot break all fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
 </head>
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.7</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.9</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -767,6 +769,7 @@ body.workspace-open #homeView{display:none;}
           <div><label>라벨명 *</label><input type="text" class="field" id="lmName" placeholder="예: 다우 파렛트 라벨"></div>
           <div><label>기본 출력 장수</label><input type="number" id="lmQty" min="1" value="1"></div>
           <div><label>사용 여부</label><select id="lmActive"><option value="true">사용</option><option value="false">미사용</option></select></div>
+          <div class="span2" id="lmCopySourceWrap"><label>복사할 라벨 (신규 등록 시)</label><select id="lmCopySource"></select><div class="lockednote" style="margin-top:5px;">선택한 기존 라벨의 <b>서식만 복사</b>합니다. 캔버스·블록·Table·글꼴·위치·회전·변수 연결은 복제되며, LOT 체계·제품 연결·라벨명은 복사하지 않습니다.</div></div>
           <div class="span2"><label>기본 LOT 체계</label><select id="lmLotRule"></select><div class="lockednote" style="margin-top:5px;">제품에서 이 라벨을 선택하면 이 LOT 체계를 우선 적용합니다. 미지정 시 제품 기본 LOT 규칙을 사용합니다.</div></div>
           <div><label>비고</label><input type="text" class="field" id="lmNote" placeholder="고객사 / 용도 / 특이사항"></div>
         </div>
@@ -3043,7 +3046,7 @@ function fillFontSelect(el,selected='system-sans'){
   const sys=LABEL_FONTS.filter(x=>x.group==='system');
   const web=LABEL_FONTS.filter(x=>x.group==='web');
   const opts=arr=>arr.map(x=>`<option value="${x.key}">${x.label}</option>`).join('');
-  el.innerHTML=`<optgroup label="PC 기본 글꼴 · 즉시 적용">${opts(sys)}</optgroup><optgroup label="무료 웹폰트 · 온라인 로딩">${opts(web)}</optgroup>`;
+  el.innerHTML=`<optgroup label="PC 기본 글꼴 · 즉시 적용">${opts(sys)}</optgroup><optgroup label="프로젝트 폰트 · ./fonts">${opts(web)}</optgroup>`;
   el.value=LABEL_FONTS.some(x=>x.key===selected)?selected:'system-sans';
 }
 function updateSelectedFontStatus(key){
@@ -3053,7 +3056,7 @@ function updateSelectedFontStatus(key){
     el.textContent=`✓ ${f.label} · PC 글꼴 직접 사용`;
     el.style.color='#1e7d4a';
   }else{
-    el.textContent=ok?`✓ ${f.label} 로드 완료 · 한글 ABC 123`:`⚠ ${f.label} 로드 실패 · 현재 대체 글꼴 표시 중`;
+    el.textContent=ok?`✓ ${f.label} 로드 완료 · 한글 ABC 123`:`⚠ ${f.label} 미로드 · ./fonts 파일/경로 확인`;
     el.style.color=ok?'#1e7d4a':'#b3261e';
   }
   el.style.fontFamily=f.css;
@@ -3385,7 +3388,7 @@ function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-
 function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
 function effectiveLabelLayoutKey(labelCode,fallback=''){
   const code=String(labelCode||'').trim();
-  // v4.13.7: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
+  // v4.13.9: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
   // 라벨 연결 데이터에 과거 layoutKey가 남아 있어도 전용 저장 서식을 놓치지 않는다.
   const unique=code?labelEditorKey(code):'';
   if(unique && LAYOUTS[unique] && Array.isArray(LAYOUTS[unique].fields)) return unique;
@@ -3789,9 +3792,27 @@ function refreshLabelMasterLotRuleOptions(selected=''){
   el.innerHTML='<option value="">제품 기본 LOT 규칙 사용</option>'+LOT_RULES.map(r=>`<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)} · ${escapeHtml(r.pattern)}</option>`).join('');
   if(current && LOT_RULES.some(r=>r.id===current)) el.value=current; else el.value='';
 }
+function refreshLabelCopySourceOptions(selected=''){
+  const el=$('lmCopySource'); if(!el) return;
+  const original=$('lmOriginalCode')?.value?.trim()||'';
+  const rows=allLabelMaster()
+    .filter(x=>String(x.labelCode||'')!==original)
+    .sort((a,b)=>String(a.labelCode||'').localeCompare(String(b.labelCode||''),'ko'));
+  el.innerHTML='<option value="">복사하지 않음 · 기본 서식에서 시작</option>'+rows.map(x=>{
+    const key=effectiveLabelLayoutKey(x.labelCode,x.layoutKey);
+    const l=key&&LAYOUTS[key]?LAYOUTS[key]:null;
+    const size=l?` · ${l.w}×${l.h}mm`:'';
+    return `<option value="${escapeHtml(x.labelCode)}">[${escapeHtml(x.labelCode)}] ${escapeHtml(x.labelName||'')}${escapeHtml(size)}</option>`;
+  }).join('');
+  if(selected && rows.some(x=>x.labelCode===selected)) el.value=selected; else el.value='';
+}
+
 function resetLabelMasterForm(){
   if(!$('lmCode')) return;
   $('lmOriginalCode').value=''; $('lmCode').value=nextLabelMasterCode(); $('lmName').value=''; $('lmQty').value='1'; $('lmActive').value='true'; refreshLabelMasterLotRuleOptions(''); $('lmNote').value='';
+  refreshLabelCopySourceOptions('');
+  if($('lmCopySource')) $('lmCopySource').disabled=false;
+  if($('lmCopySourceWrap')) $('lmCopySourceWrap').style.opacity='1';
   $('lmSaveBtn').textContent='+ 신규 라벨 등록';
   if($('lmOpenEditorBtn')){ $('lmOpenEditorBtn').style.display='none'; $('lmOpenEditorBtn').dataset.labelCode=''; }
 }
@@ -3922,6 +3943,7 @@ function showLabelMasterScreen(){
   if(m)m.style.display='block'; if(e)e.style.display='none';
   document.body.classList.remove('label-editor-open');
   renderLabelMasterList();
+  if(!$('lmOriginalCode')?.value) refreshLabelCopySourceOptions($('lmCopySource')?.value||'');
   if(selectedLabelMasterPreviewCode && labelMasterByCode(selectedLabelMasterPreviewCode)) selectLabelMasterPreview(selectedLabelMasterPreviewCode);
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -4071,7 +4093,11 @@ function editLabelMaster(code){
   const x=allLabelMaster().find(v=>v.labelCode===code); if(!x) return;
   selectLabelMasterPreview(code);
   $('lmOriginalCode').value=x.labelCode; $('lmCode').value=x.labelCode; $('lmName').value=x.labelName||'';
-  $('lmQty').value=x.copies||1; $('lmActive').value=String(x.active!==false); refreshLabelMasterLotRuleOptions(x.lotRuleId||''); $('lmNote').value=x.note||''; $('lmSaveBtn').textContent='라벨 수정 저장';
+  $('lmQty').value=x.copies||1; $('lmActive').value=String(x.active!==false); refreshLabelMasterLotRuleOptions(x.lotRuleId||''); $('lmNote').value=x.note||'';
+  refreshLabelCopySourceOptions('');
+  if($('lmCopySource')) $('lmCopySource').disabled=true;
+  if($('lmCopySourceWrap')) $('lmCopySourceWrap').style.opacity='.55';
+  $('lmSaveBtn').textContent='라벨 수정 저장';
   if($('lmOpenEditorBtn')){ $('lmOpenEditorBtn').style.display='inline-flex'; $('lmOpenEditorBtn').dataset.labelCode=x.labelCode; }
   $('lmName').scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -4084,12 +4110,41 @@ async function saveLabelMasterFromForm(){
   const prev=labelMasterByCode(original||code);
   const inheritedLayout=prev?.layoutKey||'';
   const inheritedBase=prev?.baseLayoutKey||inheritedLayout||'basic';
-  const obj={...(prev||{}),labelCode:code,labelName:name,layoutKey:inheritedLayout,baseLayoutKey:inheritedBase,copies:+$('lmQty').value||1,active:$('lmActive').value==='true',lotRuleId:$('lmLotRule')?.value||'',note:$('lmNote').value.trim(),builtin:false};
+
+  // 신규 라벨만 기존 라벨 서식을 복제할 수 있다.
+  // 반드시 새 라벨 전용 key(lbl_LBL_xxx)로 deep clone하여 이후 원본/복사본 수정이 서로 영향을 주지 않는다.
+  const copySourceCode=!original?($('lmCopySource')?.value||''):'';
+  let copiedLayoutKey='', copiedBaseLayoutKey='', copiedFromLabelCode='';
+  if(copySourceCode){
+    const sourceMaster=labelMasterByCode(copySourceCode);
+    if(sourceMaster){
+      let sourceKey=effectiveLabelLayoutKey(copySourceCode,sourceMaster.layoutKey);
+      if(!sourceKey) sourceKey=await ensureLabelEditorLayout(copySourceCode);
+      const sourceLayout=sourceKey?LAYOUTS[sourceKey]:null;
+      if(sourceLayout && Array.isArray(sourceLayout.fields)){
+        copiedLayoutKey=labelEditorKey(code);
+        copiedBaseLayoutKey=sourceKey;
+        copiedFromLabelCode=copySourceCode;
+        LAYOUTS[copiedLayoutKey]=normalizeLegacyTableBindings(normalizeLegacyRotatedFields(cloneLayoutObject(sourceLayout)));
+        await saveLayouts();
+      }else{
+        flash('복사할 라벨의 서식을 찾지 못했습니다. 기본 서식으로 신규 등록합니다.',true);
+      }
+    }
+  }
+
+  const obj={...(prev||{}),labelCode:code,labelName:name,
+    layoutKey:copiedLayoutKey||inheritedLayout,
+    baseLayoutKey:copiedBaseLayoutKey||inheritedBase,
+    copiedFromLabelCode:copiedFromLabelCode||prev?.copiedFromLabelCode||'',
+    copies:+$('lmQty').value||1,active:$('lmActive').value==='true',
+    lotRuleId:$('lmLotRule')?.value||'',note:$('lmNote').value.trim(),builtin:false};
   let i=CUSTOM_LABEL_MASTER.findIndex(x=>x.labelCode===original);
   if(i>=0) CUSTOM_LABEL_MASTER[i]=obj; else { CUSTOM_LABEL_MASTER.push(obj); i=-1; }
   DELETED_LABEL_MASTER_CODES=(DELETED_LABEL_MASTER_CODES||[]).filter(c=>c!==code && c!==original);
   await saveCustomLabelMaster(); selectedLabelMasterPreviewCode=code; resetLabelMasterForm(); renderLabelMasterList(); renderLabelMasterSelect(); renderPmLabelChecklist(); renderPmLinks(); renderEditorTabs(); await selectLabelMasterPreview(code);
-  flash(i>=0?'라벨 마스터를 수정했습니다':'신규 라벨을 등록했습니다');
+  const copyMsg=(!original && copiedFromLabelCode)?` · ${copiedFromLabelCode} 서식 복사 완료`:'';
+  flash(i>=0?'라벨 마스터를 수정했습니다':`신규 라벨을 등록했습니다${copyMsg}`);
 }
 async function deleteLabelMaster(code){
   const x=allLabelMaster().find(v=>v.labelCode===code); if(!x) return;
