@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.12.8 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.13.0 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -452,7 +452,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.12.8</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.0</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -1514,6 +1514,7 @@ let CUSTOM_LABEL_MASTER=[];
 let DELETED_LABEL_MASTER_CODES=[];
 let selectedLabelTypeBatch='full', selectedLabelTypeLive='full';
 let editorKey='basic', selectedFieldId=null, workOrders=[], activeOrderId=null, dragState=null;
+let editorClipboard=null, editorUndoStack=[], editorUndoRestoring=false, editorFocusSnapshotActive=false;
 const $=id=>document.getElementById(id);
 const ADMIN_PIN='1234';
 
@@ -1589,16 +1590,43 @@ function normalizeBarcodeLotValue(lot){
   s=s.replace(/^\s*로트(?:\s*번호)?\s*[:.]?\s*/i,'').trim();
   return s;
 }
+function resolveLatestBarcodeProduct(p){
+  if(!p) return p;
+  try{
+    const rows=typeof allMasterProducts==='function'?allMasterProducts():[];
+    const norm=v=>String(v??'').trim().toUpperCase();
+    const id=norm(p.masterId||p.overrideOf), code=norm(p.code);
+    let candidates=rows.filter(x=>{
+      const xid=norm(x.masterId||x.overrideOf);
+      if(id && xid===id) return true;
+      if(code && norm(x.code)===code){
+        const sameName=!p.shortName || norm(x.shortName||x.name)===norm(p.shortName||p.name);
+        const sameColor=!p.color || norm(x.color)===norm(p.color);
+        const sameType=!p.type || norm(x.type)===norm(p.type);
+        return sameName && sameColor && sameType;
+      }
+      return false;
+    });
+    candidates.sort((a,b)=>{
+      const as=(String(a.barcode||a.barcodeFixed||'').trim()?2:0)+(String(a.barcodeRule||'').trim()?1:0);
+      const bs=(String(b.barcode||b.barcodeFixed||'').trim()?2:0)+(String(b.barcodeRule||'').trim()?1:0);
+      return bs-as;
+    });
+    const latest=candidates[0];
+    return latest?{...p,...latest}:p;
+  }catch(e){ return p; }
+}
 function buildProductBarcode(p,lot,dateValue){
   if(!p) return '';
-  const fixed=String(p.barcode||p.barcodeFixed||'').trim();
-  const rule=String(p.barcodeRule||'').trim();
+  const src=resolveLatestBarcodeProduct(p);
+  const fixed=String(src.barcode||src.barcodeFixed||'').trim();
+  const rule=String(src.barcodeRule||'').trim();
   if(!rule) return fixed;
   const rawLot=normalizeBarcodeLotValue(lot);
   const dates=productionDateFormats(dateValue);
   const vars={
     LOT:rawLot, LOT_PAD2:rawLot.padStart(2,'0'), LOT_PAD3:rawLot.padStart(3,'0'), LOT_PAD4:rawLot.padStart(4,'0'),
-    ITEM_CODE:String(p.code||''), ITEM_NAME:String(p.fullName||''), ALIAS:String(p.shortName||p.name||p.scheduleName||''), BARCODE_FIXED:fixed,
+    ITEM_CODE:String(src.code||''), ITEM_NAME:String(src.fullName||''), ALIAS:String(src.shortName||src.name||src.scheduleName||''), BARCODE_FIXED:fixed,
     PROD_YYYYMMDD:dates.prodDateYYYYMMDD, PROD_YYMMDD:dates.prodDateYYMMDD,
     PROD_YYYY_DOT_MM_DOT_DD:dates.prodDateYYYYdotMMdotDD, PROD_YY_DOT_MM_DOT_DD:dates.prodDateYYdotMMdotDD,
     PROD_YYYY_MM_DD:dates.prodDateYYYYdashMMdashDD, PROD_YY_MM_DD:dates.prodDateYYdashMMdashDD
@@ -1678,20 +1706,22 @@ function computeLotFor(order,drumNo=1){ return computeLotInfo(order,drumNo); }
 function computeDongeunLot(order,drumNo){ return computeLotInfo(order,drumNo); }
 
 function buildContext(p,info,drumNo,weightKg,volume){
+  const bp=resolveLatestBarcodeProduct(p)||p;
   const alias=p.shortName||p.name||p.scheduleName||p.fullName||'';
-  const barcodeValue=buildProductBarcode(p,info.lot,info.prodDateRaw||info.prodDateDisp);
+  const barcodeValue=buildProductBarcode(bp,info.lot,info.prodDateRaw||info.prodDateDisp);
   return {
-    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:barcodeValue,barcodeText:(p.barcodeShowText===false)?'':barcodeValue,barcodeRuleResult:barcodeValue,barcodeType:(p.barcodeType||'CODE128'),lot:info.lot,lotRaw:info.lot,...productionDateFormats(info.prodDateRaw||info.prodDateDisp),weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
+    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:barcodeValue,barcodeText:(bp.barcodeShowText===false)?'':barcodeValue,barcodeRuleResult:barcodeValue,barcodeType:(bp.barcodeType||'CODE128'),lot:info.lot,lotRaw:info.lot,...productionDateFormats(info.prodDateRaw||info.prodDateDisp),weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
     productLine:`Product Name : ${p.name} ${p.color||''}`.trim(),
     weightLine:`Net Weight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,volumeLine:`Volume : Approxi ${volume||'?'}L`,
     expireLine:`Expire date : ${info.exp}`,lotLine:`LOT NO : ${info.lot}`
   };
 }
 function buildDongeunContext(p,info,drumNo,weightKg){
+  const bp=resolveLatestBarcodeProduct(p)||p;
   const alias=p.shortName||p.name||p.scheduleName||p.fullName||'';
-  const barcodeValue=buildProductBarcode(p,info.lot,info.prodDateRaw||info.prodDateDisp);
+  const barcodeValue=buildProductBarcode(bp,info.lot,info.prodDateRaw||info.prodDateDisp);
   return {
-    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:barcodeValue,barcodeText:(p.barcodeShowText===false)?'':barcodeValue,barcodeRuleResult:barcodeValue,barcodeType:(p.barcodeType||'CODE128'),...productionDateFormats(info.prodDateRaw||info.prodDateDisp),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
+    code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:barcodeValue,barcodeText:(bp.barcodeShowText===false)?'':barcodeValue,barcodeRuleResult:barcodeValue,barcodeType:(bp.barcodeType||'CODE128'),...productionDateFormats(info.prodDateRaw||info.prodDateDisp),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
     lotLine:`LOT : ${info.lot}`,titleKr:alias,titleEn:alias,
     weightLineKr:`중     량 : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,weightLineEn:`ㆍWeight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,
     dateLineKr:`생산일자 : ${info.prodDateDisp}`,mfdLineEn:`ㆍM.F.D : ${info.prodDateDisp}`,
@@ -2855,6 +2885,87 @@ $('tabLive').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLea
 $('tabEditor').addEventListener('click',()=>{openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');document.body.classList.add('editing');setupSeparatedLabelScreens();showLabelMasterScreen();renderEditorTabs();renderLabelMasterList();renderEditor();});
 $('resetLive').addEventListener('click',()=>{liveDrumCounter=1;$('nextDrumOut').textContent='1';flash('드럼 카운트 초기화');});
 
+
+function editorDeepClone(v){return JSON.parse(JSON.stringify(v));}
+function editorSnapshot(){
+  const l=LAYOUTS[editorKey];
+  return l?{editorKey,layout:editorDeepClone(l),selectedFieldId}:null;
+}
+function pushEditorUndo(reason=''){
+  if(editorUndoRestoring) return;
+  const snap=editorSnapshot(); if(!snap) return;
+  const json=JSON.stringify(snap.layout);
+  const last=editorUndoStack[editorUndoStack.length-1];
+  if(last && last.editorKey===snap.editorKey && last.json===json) return;
+  editorUndoStack.push({...snap,json,reason});
+  if(editorUndoStack.length>60) editorUndoStack.shift();
+}
+function undoEditorChange(){
+  if(!LAYOUTS[editorKey]) return;
+  while(editorUndoStack.length){
+    const snap=editorUndoStack.pop();
+    if(snap.editorKey!==editorKey) continue;
+    editorUndoRestoring=true;
+    LAYOUTS[editorKey]=editorDeepClone(snap.layout);
+    selectedFieldId=snap.selectedFieldId && LAYOUTS[editorKey].fields.some(f=>f.id===snap.selectedFieldId)?snap.selectedFieldId:null;
+    editorUndoRestoring=false;
+    renderEditor();
+    flash('직전 편집 상태로 되돌렸습니다 (Ctrl+Z)');
+    return;
+  }
+  flash('되돌릴 편집 내역이 없습니다',true);
+}
+function copySelectedEditorField(){
+  const f=selectedFieldId?fieldById(selectedFieldId):null;
+  if(!f){flash('복사할 항목을 먼저 선택하세요',true);return;}
+  editorClipboard=editorDeepClone(f);
+  flash(`${f.label||f.bind||'선택 항목'}을 복사했습니다 (Ctrl+C)`);
+}
+function pasteEditorField(){
+  if(!editorClipboard){flash('먼저 항목을 복사하세요 (Ctrl+C)',true);return;}
+  const l=LAYOUTS[editorKey]; if(!l) return;
+  pushEditorUndo('paste');
+  const f=editorDeepClone(editorClipboard);
+  const oldId=f.id||'field';
+  f.id=`${String(oldId).replace(/_copy_\d+$/,'')}_copy_${Date.now()}`;
+  f.label=f.label?`${f.label} 복사본`:'복사본';
+  const maxX=Math.max(0,(Number(l.w)||100)-Math.max(.1,Number(f.w)||1));
+  const maxY=Math.max(0,(Number(l.h)||70)-Math.max(.1,Number(f.h)||1));
+  // 원본과 거의 겹치되 약간 오른쪽/위로 배치해 붙여넣은 항목을 바로 잡아 이동할 수 있게 한다.
+  f.x=Math.min(maxX,Math.max(0,(Number(f.x)||0)+2));
+  const up=(Number(f.y)||0)-2;
+  f.y=Math.min(maxY,Math.max(0,up>=0?up:(Number(f.y)||0)+2));
+  l.fields.push(f); // 같은 종류 안에서는 가장 앞 레이어. Table은 렌더러 정책상 항상 최상위.
+  selectedFieldId=f.id;
+  renderEditor();
+  selectField(f.id);
+  flash('복사본을 붙여넣었습니다. 선택된 항목을 바로 드래그해 이동하세요 (Ctrl+V)');
+}
+function editorShortcutTargetIsTyping(target){
+  if(!target) return false;
+  const tag=String(target.tagName||'').toLowerCase();
+  return target.isContentEditable || tag==='input' || tag==='textarea' || tag==='select';
+}
+function labelEditorIsVisible(){
+  const screen=$('labelEditorScreen');
+  return !!screen && getComputedStyle(screen).display!=='none' && document.body.classList.contains('editing');
+}
+document.addEventListener('keydown',e=>{
+  if(!labelEditorIsVisible() || editorShortcutTargetIsTyping(e.target)) return;
+  const mod=e.ctrlKey||e.metaKey;
+  if(!mod) return;
+  const key=String(e.key||'').toLowerCase();
+  if(key==='c'){
+    if(!selectedFieldId) return;
+    e.preventDefault(); copySelectedEditorField();
+  }else if(key==='v'){
+    if(!editorClipboard) return;
+    e.preventDefault(); pasteEditorField();
+  }else if(key==='z' && !e.shiftKey){
+    e.preventDefault(); undoEditorChange();
+  }
+});
+
 function fieldById(id){return LAYOUTS[editorKey].fields.find(f=>f.id===id);}
 
 const FIELD_VARIABLES = [
@@ -2905,7 +3016,8 @@ function sampleContextForLabel(labelCode='',layoutKey=''){
   const linked=labelCode?ALL_PRODUCTS.find(p=>(p.labels||[]).some(l=>String(l.labelCode||'')===String(labelCode))):null;
   const p=linked || (['kr','en','sample'].includes(base)?(DONGEUN_PRODUCTS[0]||ALL_PRODUCTS[0]):(PRODUCTS[0]||ALL_PRODUCTS[0]));
   const productIdx=Math.max(0,ALL_PRODUCTS.indexOf(p));
-  const o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1,productIdx,productMasterId:p?.masterId||'',productCode:p?.code||'',manualLotInput:''};
+  const previewManualLot=(typeof ruleUsesManualInput3==='function' && ruleUsesManualInput3(ruleId))?'124':'';
+  const o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1,productIdx,productMasterId:p?.masterId||'',productCode:p?.code||'',manualLotInput:previewManualLot};
   const info=computeLotInfo(o,4,ruleId);
   const ctx=['kr','en','sample'].includes(base)?buildDongeunContext(p,info,4,p?.kg):buildContext(p,info,4,p?.kg,p?.volume);
   // 서식 설계 단계에서는 바코드 데이터가 비어 있어도 바코드 블록 자체를 확인할 수 있게 테스트값 제공.
@@ -3011,6 +3123,7 @@ $('inspBind').addEventListener('change',()=>{if(selectedFieldId){const f=fieldBy
 $('inspText').addEventListener('input',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind==='static'){f.text=$('inspText').value;renderCanvasOnly();renderFieldList();}}});
 if($('inspTransparentBg')) $('inspTransparentBg').addEventListener('change',()=>{if(selectedFieldId){const f=fieldById(selectedFieldId);if(f.kind!=='table'){f.transparentBackground=$('inspTransparentBg').checked;renderCanvasOnly();}}});
 function rotateWholeLayout(direction='cw'){
+  pushEditorUndo('rotate-layout');
   const l=LAYOUTS[editorKey]; if(!l||!Array.isArray(l.fields)) return;
   const oldW=Number(l.w)||100, oldH=Number(l.h)||70;
   const normDeg=v=>((Number(v)||0)%360+360)%360;
@@ -3043,9 +3156,23 @@ if($('rotateLayoutCW')) $('rotateLayoutCW').addEventListener('click',()=>rotateW
 if($('rotateLayoutCCW')) $('rotateLayoutCCW').addEventListener('click',()=>rotateWholeLayout('ccw'));
 if($('rotateLayout180')) $('rotateLayout180').addEventListener('click',()=>rotateWholeLayout('180'));
 
+
+const editorScreenForHistory=$('labelEditorScreen');
+if(editorScreenForHistory){
+  editorScreenForHistory.addEventListener('focusin',e=>{
+    if(editorUndoRestoring || editorFocusSnapshotActive) return;
+    if(editorShortcutTargetIsTyping(e.target)){
+      pushEditorUndo('form-edit');
+      editorFocusSnapshotActive=true;
+    }
+  },true);
+  editorScreenForHistory.addEventListener('focusout',()=>{editorFocusSnapshotActive=false;},true);
+}
+
 $('canvasW').addEventListener('input',()=>{LAYOUTS[editorKey].w=+$('canvasW').value||10;renderCanvasOnly();});
 $('canvasH').addEventListener('input',()=>{LAYOUTS[editorKey].h=+$('canvasH').value||10;renderCanvasOnly();});
 $('resetLayout').addEventListener('click',()=>{
+  pushEditorUndo('reset-layout');
   if(editorLabelCode){ const base=labelBaseLayoutKey(editorLabelCode,'basic'); LAYOUTS[editorKey]=cloneLayoutObject(LAYOUTS[base]||LAYOUTS.basic); }
   else LAYOUTS[editorKey]=defaultLayout(editorKey);
   selectedFieldId=null;renderEditor();flash('기본값으로 초기화했습니다');
@@ -3063,6 +3190,7 @@ fillVariableSelect($('newFieldBind'),'lotRaw');
 syncNewFieldKind();
 
 $('addFieldBtn').addEventListener('click',()=>{
+  pushEditorUndo('add-field');
   const kind=$('newFieldKind').value,label=($('newFieldLabel').value||'새 항목').trim(),id=`custom_${Date.now()}`;
   const f={id,kind,label,x:5,y:5,w:60,h:10,size:12,weight:700,align:'left',rotate:0,transparentBackground:true};
   if(kind==='bind') f.bind=$('newFieldBind').value;
@@ -3078,6 +3206,7 @@ document.querySelectorAll('[data-quick-field]').forEach(btn=>btn.addEventListene
   document.querySelector('.addFieldBox').scrollIntoView({behavior:'smooth',block:'center'});
 }));
 if($('quickInfoTable')) $('quickInfoTable').addEventListener('click',()=>{
+  pushEditorUndo('add-info-table');
   const id=`info_table_${Date.now()}`;
   const f={id,kind:'table',label:'기본 정보표',x:5,y:10,w:80,h:36,size:10,weight:400,align:'left',rotate:0,rows:4,cols:2,cellBorder:false,tableBg:'white',borderWidth:.3,colWidths:[30,70],cells:[
     [{kind:'static',text:'품 명',size:8,weight:400},{kind:'bind',bind:'shortName',size:12,weight:700,transparentBackground:true}],
@@ -3089,6 +3218,7 @@ if($('quickInfoTable')) $('quickInfoTable').addEventListener('click',()=>{
 });
 
 $('deleteFieldBtn').addEventListener('click',()=>{
+  pushEditorUndo('delete-field');
   if(!selectedFieldId) return;
   const f=fieldById(selectedFieldId);
   if(!f) return;
@@ -3103,7 +3233,7 @@ function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-
 function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
 function effectiveLabelLayoutKey(labelCode,fallback=''){
   const code=String(labelCode||'').trim();
-  // v4.12.8: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
+  // v4.13.0: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
   // 라벨 연결 데이터에 과거 layoutKey가 남아 있어도 전용 저장 서식을 놓치지 않는다.
   const unique=code?labelEditorKey(code):'';
   if(unique && LAYOUTS[unique] && Array.isArray(LAYOUTS[unique].fields)) return unique;
@@ -3144,26 +3274,29 @@ function renderEditorTabs(){
   }).join('');
   wrap.innerHTML=templateHtml+labelHtml;
   wrap.querySelectorAll('[data-template-key]').forEach(btn=>btn.addEventListener('click',()=>{
-    editorLabelCode=''; editorKey=btn.dataset.templateKey; selectedFieldId=null; renderEditorTabs(); renderEditor();
+    editorLabelCode=''; editorKey=btn.dataset.templateKey; selectedFieldId=null; editorUndoStack=[]; renderEditorTabs(); renderEditor();
   }));
   wrap.querySelectorAll('[data-label-code]').forEach(btn=>btn.addEventListener('click',async()=>{
-    const code=btn.dataset.labelCode; editorLabelCode=code; editorKey=await ensureLabelEditorLayout(code); selectedFieldId=null; renderEditorTabs(); renderEditor();
+    const code=btn.dataset.labelCode; editorLabelCode=code; editorKey=await ensureLabelEditorLayout(code); selectedFieldId=null; editorUndoStack=[]; renderEditorTabs(); renderEditor();
     flash(`${code} 라벨 전용 서식을 불러왔습니다`);
   }));
 }
 
 
 function startDrag(fid,canvas,e){
+  pushEditorUndo('move');
   const r=canvas.getBoundingClientRect(),f=fieldById(fid);
   dragState={mode:'move',fid,startX:e.clientX,startY:e.clientY,origX:f.x,origY:f.y,pxPerMmX:r.width/LAYOUTS[editorKey].w,pxPerMmY:r.height/LAYOUTS[editorKey].h};
   selectField(fid);
 }
 function startResize(fid,canvas,e,dir='se'){
+  pushEditorUndo('resize');
   const r=canvas.getBoundingClientRect(),f=fieldById(fid); if(!f)return;
   dragState={mode:'resize8',dir,fid,startX:e.clientX,startY:e.clientY,origX:f.x,origY:f.y,origW:f.w,origH:f.h,pxPerMmX:r.width/LAYOUTS[editorKey].w,pxPerMmY:r.height/LAYOUTS[editorKey].h};
   if(selectedFieldId!==fid) selectField(fid);
 }
 function startTableSplit(fid,axis,index,e){
+  pushEditorUndo('table-split');
   const f=fieldById(fid), el=e.target.closest('.fld'); if(!f||!el)return;
   const r=el.getBoundingClientRect();
   if(axis==='col'){
@@ -3544,7 +3677,7 @@ function setupSeparatedLabelScreens(){
   top.innerHTML='<div class="left"><button type="button" class="btn btn-ghost auto" id="backToLabelMaster">← 라벨 마스터</button><div class="editorTitle" id="labelEditorCurrentTitle">라벨 서식 편집</div></div><button type="button" class="btn btn-ok auto" id="labelEditorTopSave">☁ 저장</button>';
   const outputPreview=document.createElement('div');
   outputPreview.className='panel editorOutputPreviewPanel';
-  outputPreview.innerHTML=`<div class="editorOutputPreviewHead"><div><h2 style="margin:0;"><span class="n">▣</span> 실제 출력 미리보기</h2><div class="meta" id="editorOutputPreviewMeta">저장 전 실제 출력 형태를 확인할 수 있습니다.</div></div><button type="button" class="btn btn-primary auto" id="editorDirectPrintBtn">🖨 현재 서식 바로 인쇄</button></div><div class="editorOutputPreviewViewport"><div class="editorOutputPreviewInner" id="editorOutputPreviewWrap"></div></div><div class="editorOutputPreviewNote">아래 편집 캔버스에서 항목을 이동·수정하면 이 미리보기도 즉시 갱신됩니다. 테스트 데이터로 표시되며 실제 작업지시 출력값은 작업지시 화면에서 적용됩니다.</div>`;
+  outputPreview.innerHTML=`<div class="editorOutputPreviewHead"><div><h2 style="margin:0;"><span class="n">▣</span> 실제 출력 미리보기</h2><div class="meta" id="editorOutputPreviewMeta">저장 전 실제 출력 형태를 확인할 수 있습니다.</div></div><button type="button" class="btn btn-primary auto" id="editorDirectPrintBtn">🖨 현재 서식 바로 인쇄</button></div><div class="editorOutputPreviewViewport"><div class="editorOutputPreviewInner" id="editorOutputPreviewWrap"></div></div><div class="editorOutputPreviewNote">아래 편집 캔버스에서 항목을 이동·수정하면 이 미리보기도 즉시 갱신됩니다. <b>단축키: Ctrl+C 복사 · Ctrl+V 붙여넣기 · Ctrl+Z 이전</b> · 입력칸에서는 기본 단축키가 유지됩니다.</div>`;
   const workspace=document.createElement('div');
   workspace.className='labelEditorWorkspace';
   const setupCol=document.createElement('div');
@@ -3674,7 +3807,7 @@ async function selectLabelMasterPreview(code){
     if(!layout) throw new Error('서식 없음');
     if(wrap)wrap.innerHTML=renderLabelHtml(key,sampleContextForLabel(code,key),false);
     requestAnimationFrame(fitLabelMasterPreview);
-    if(meta)meta.textContent=`[${lm.labelCode}] ${lm.labelName||''} · ${layout.w}×${layout.h}mm · 테스트 데이터 미리보기`;
+    if(meta)meta.textContent=`[${lm.labelCode}] ${lm.labelName||''} · ${layout.w}×${layout.h}mm · 테스트 데이터 미리보기${ruleUsesManualInput3(lm.lotRuleId||'')?' (테스트 LOT 124)':''}`;
   }catch(e){
     if(wrap)wrap.innerHTML='<div class="empty">저장된 서식을 불러오지 못했습니다. 서식 편집에서 확인해 주세요.</div>';
     if(meta)meta.textContent=`[${lm.labelCode}] ${lm.labelName||''} · 미리보기 오류`;
