@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.13.2 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.13.3 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -63,6 +63,17 @@
   .previewWrap{display:flex;gap:16px;flex-wrap:wrap;}
   .canvasBox{position:relative;background:#fff;border:2.5px solid var(--ink);border-radius:2px;overflow:hidden;}
   .fld{position:absolute;white-space:pre-line;overflow:hidden;line-height:1.25;}
+  /* v4.13.3: label font application is keyed by data-font.
+     !important intentionally wins over legacy/table inherited font rules. */
+  .canvasBox [data-font="system-sans"]{font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif!important;}
+  .canvasBox [data-font="noto-sans-kr"]{font-family:"Noto Sans KR","Malgun Gothic",sans-serif!important;}
+  .canvasBox [data-font="noto-serif-kr"]{font-family:"Noto Serif KR",Batang,"Times New Roman",serif!important;}
+  .canvasBox [data-font="nanum-gothic"]{font-family:"Nanum Gothic","Malgun Gothic",sans-serif!important;}
+  .canvasBox [data-font="nanum-myeongjo"]{font-family:"Nanum Myeongjo",Batang,"Times New Roman",serif!important;}
+  .canvasBox [data-font="ibm-plex-sans-kr"]{font-family:"IBM Plex Sans KR","Noto Sans KR","Malgun Gothic",sans-serif!important;}
+  .canvasBox [data-font="ibm-plex-mono"]{font-family:"IBM Plex Mono","Noto Sans KR","Malgun Gothic",monospace!important;}
+  .canvasBox [data-font="system-mono"]{font-family:Consolas,"Courier New","Malgun Gothic",monospace!important;}
+
   .editorCanvas .fld{border:1px dashed transparent;cursor:move;}
   .editorCanvas .fld:hover{border-color:#9db4d4;}
   .editorCanvas .fld.selected{border-color:var(--amber);background:rgba(201,130,42,.06);z-index:40!important;}
@@ -457,7 +468,7 @@ body.workspace-open #homeView{display:none;}
 <body class="worker-mode">
 
 <header>
-  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.2</span></h1></div>
+  <div><h1>LABEL PRINT SYSTEM <span class="tag" style="margin-left:8px;">ECOUNT 품목명 · 라벨 약어 · 바코드 · 투명 텍스트 · v4.13.3</span></h1></div>
   <div class="meta">
     <span>작업자</span><input type="text" id="workerName" placeholder="이름 입력">
     <span id="clock"></span>
@@ -791,7 +802,7 @@ body.workspace-open #homeView{display:none;}
           </div>
           <div><label>글꼴</label><select id="inspFont"></select></div>
         </div>
-        <div class="lockednote">Noto · Nanum · IBM Plex 오픈 라이선스 글꼴을 선택할 수 있습니다. 웹폰트를 불러오지 못하면 시스템 대체 글꼴로 표시됩니다.</div>
+        <div class="lockednote">Noto · Nanum · IBM Plex 오픈 라이선스 글꼴을 선택할 수 있습니다. <span id="fontLoadStatus">글꼴 상태 확인 중…</span></div>
 
         <div id="inspBgWrap">
           <label class="checkrow"><input type="checkbox" id="inspTransparentBg" checked> 텍스트 배경 투명</label>
@@ -1789,7 +1800,8 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
               ? ((c.bind==='color'||c.bind==='type') ? (ctx[c.bind]??'') : (ctx[c.bind]??`[${c.bind}]`))
               : (c.text||'');
           }
-          return `<td style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};font-family:${fontCss(c.fontFamily||f.fontFamily,c.mono)};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
+          const cellFontKey=c.fontFamily||f.fontFamily||(c.mono?'system-mono':'system-sans');
+          return `<td data-font="${escapeHtml(cellFontKey)}" style="${tdBorder}font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
         }).join('')+'</tr>';
       }).join('');
       let innerHandles='';
@@ -1804,7 +1816,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       ? ((f.bind==='color'||f.bind==='type') ? (ctx[f.bind]??'') : (ctx[f.bind]??`[${f.bind}]`))
       : f.text;
     const transparentBg=f.transparentBackground!==false;
-    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,`font-family:${fontCss(f.fontFamily,f.mono)}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
+    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`text-align:${f.align||'left'}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
     const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : escapeHtml(text).replace(/\n/g,'<br>');
     return `<div class="${cls}" ${dataAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:1;">${content}${resizeHandles}</div>`;
   }).join('');
@@ -2995,6 +3007,10 @@ function fillFontSelect(el,selected='system-sans'){
 if(document.fonts && document.fonts.ready){
   document.fonts.ready.then(()=>{
     try{
+      const status=$('fontLoadStatus');
+      const noto=document.fonts.check('16px "Noto Sans KR"');
+      const nanum=document.fonts.check('16px "Nanum Myeongjo"');
+      if(status) status.textContent=(noto||nanum)?'웹폰트 로드 완료':'웹폰트 미로드 · 시스템 대체 글꼴 사용';
       if(document.body.classList.contains('editing')){
         renderCanvasOnly();
         renderEditorOutputPreview();
@@ -3118,7 +3134,7 @@ function renderTableInspector(f,box){
     sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);fillFontSelect(ft,cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans'));
     sel.addEventListener('change',()=>{if(sel.value){cell.kind='bind';cell.bind=sel.value;delete cell.text;txt.style.display='none';}else{cell.kind='static';cell.text=txt.value;delete cell.bind;txt.style.display='block';}renderCanvasOnly();});
     txt.addEventListener('input',()=>{cell.kind='static';cell.text=txt.value;renderCanvasOnly();});
-    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',async()=>{pushEditorUndoState();cell.fontFamily=ft.value;cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono');renderCanvasOnly();try{if(document.fonts&&document.fonts.load){await document.fonts.load(`16px ${fontCss(cell.fontFamily,cell.mono)}`);renderCanvasOnly();renderEditorOutputPreview();}}catch(e){}});
+    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',async()=>{pushEditorUndoState();cell.fontFamily=LABEL_FONTS.some(x=>x.key===ft.value)?ft.value:'system-sans';cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono');renderCanvasOnly();try{if(document.fonts&&document.fonts.load){await document.fonts.load(`16px ${fontCss(cell.fontFamily,cell.mono)}`);renderCanvasOnly();renderEditorOutputPreview();}}catch(e){}});
     grid.appendChild(wrap);
   }
   box.querySelector('#tblBackground').addEventListener('change',e=>{f.tableBg=e.target.value==='transparent'?'transparent':'white';renderCanvasOnly();});
@@ -3159,7 +3175,7 @@ $('inspWeight').addEventListener('change',()=>{if(selectedFieldId){fieldById(sel
 $('inspFont').addEventListener('change',async()=>{if(selectedFieldId){
   pushEditorUndoState();
   const f=fieldById(selectedFieldId);
-  f.fontFamily=$('inspFont').value;
+  f.fontFamily=LABEL_FONTS.some(x=>x.key===$('inspFont').value)?$('inspFont').value:'system-sans';
   f.mono=(f.fontFamily==='system-mono'||f.fontFamily==='ibm-plex-mono');
   renderCanvasOnly(); renderFieldList();
   try{
@@ -3283,7 +3299,7 @@ function labelEditorKey(code){ return 'lbl_'+String(code||'LABEL').replace(/[^A-
 function cloneLayoutObject(src){ return JSON.parse(JSON.stringify(src||LAYOUTS.basic||{w:100,h:70,fields:[]})); }
 function effectiveLabelLayoutKey(labelCode,fallback=''){
   const code=String(labelCode||'').trim();
-  // v4.13.2: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
+  // v4.13.3: 라벨마스터에서 생성한 전용 서식(lbl_LBL_xxx)을 최우선으로 찾는다.
   // 라벨 연결 데이터에 과거 layoutKey가 남아 있어도 전용 저장 서식을 놓치지 않는다.
   const unique=code?labelEditorKey(code):'';
   if(unique && LAYOUTS[unique] && Array.isArray(LAYOUTS[unique].fields)) return unique;
