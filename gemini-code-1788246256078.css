@@ -1,0 +1,65 @@
+/* 기본 스타일 설정 */
+:root {
+    --ink: #111;
+}
+
+body {
+    font-family: 'Malgun Gothic', sans-serif;
+    background-color: #f4f6f9;
+    margin: 0;
+    padding: 20px;
+}
+
+.main-container {
+    display: flex;
+    gap: 20px;
+}
+
+.control-panel {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 320px;
+}
+
+.preview-area {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 캔버스 기본 테두리 디자인 */
+.canvasBox {
+    position: relative;
+    background: #fff;
+    border: 2.5px solid var(--ink);
+    border-radius: 2px;
+    overflow: hidden;
+    width: 30mm;
+    height: 50mm;
+}
+
+/* 인쇄 시 적용되는 스타일 (체크박스 상태와 무관하게 테두리 강제 제거) */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #printArea, #printArea * {
+        visibility: visible;
+    }
+    #printArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .canvasBox {
+        border: none !important; /* 인쇄 시 검은색 테두리 완전 제거 */
+    }
+}
