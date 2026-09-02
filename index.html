@@ -67,6 +67,7 @@
 
   .previewWrap{display:flex;gap:16px;flex-wrap:wrap;}
   .canvasBox{position:relative;background:#fff;border:2.5px solid var(--ink);border-radius:2px;overflow:hidden;}
+  body.hide-canvas-border .canvasBox{border-color:transparent!important;}
   .fld{position:absolute;white-space:pre-line;overflow:hidden;line-height:1.25;}
   /* v4.14.1: explicit class-based label fonts */
   .canvasBox .lf-diag-serif{font-family:Georgia,Batang,serif!important;}
@@ -1184,19 +1185,33 @@ body.workspace-open #homeView{display:none;}
   </div>
 </div>
 <script>
-  // 라벨 테두리 토글 기능 적용
-const showBorderToggle = document.getElementById('showBorderToggle');
-const canvasBox = document.querySelector('.canvasBox');
-
-if (showBorderToggle && canvasBox) {
-    showBorderToggle.addEventListener('change', function() {
-        if (this.checked) {
-            canvasBox.style.border = '2.5px solid var(--ink)'; // 체크 시 테두리 보이기
-        } else {
-            canvasBox.style.border = 'none'; // 체크 해제 시 테두리 숨기기
-        }
-    });
-}
+  // 라벨 테두리 표시 토글
+  // - 캔버스는 편집/전환 때마다 innerHTML로 새로 그려지므로(예: renderCanvasOnly, renderPreview),
+  //   특정 .canvasBox 엘리먼트를 한 번만 querySelector로 잡아두면 재렌더링 후 그 참조가
+  //   화면에서 떨어져나가 토글이 더 이상 아무 효과가 없어 보이는 문제가 있었다.
+  //   -> body에 클래스를 붙이고 CSS로 모든(현재+이후 새로 그려지는) .canvasBox에 일괄 적용한다.
+  // - 값은 localStorage에 저장해 새로고침/재접속 후에도 유지되도록 한다.
+  // - 인쇄 시에는 기존 @media print 규칙이 항상 테두리를 제거하므로 출력물에는 영향 없음.
+  const SHOW_BORDER_KEY='ksa-show-canvas-border-v1';
+  function applyShowBorderPref(show){
+    document.body.classList.toggle('hide-canvas-border', !show);
+  }
+  (function initShowBorderToggle(){
+    const el=document.getElementById('showBorderToggle');
+    let show=true;
+    try{
+      const saved=localStorage.getItem(SHOW_BORDER_KEY);
+      if(saved!==null) show=saved==='1';
+    }catch(e){}
+    if(el) el.checked=show;
+    applyShowBorderPref(show);
+    if(el){
+      el.addEventListener('change',function(){
+        applyShowBorderPref(this.checked);
+        try{localStorage.setItem(SHOW_BORDER_KEY,this.checked?'1':'0');}catch(e){}
+      });
+    }
+  })();
 window.KSA_BP_BASE_LOADED=false; window.KSA_BP_BASE_ERROR=false;
 window.KSA_BP_ZEBRA_LOADED=false; window.KSA_BP_ZEBRA_ERROR=false;
 </script>
@@ -3147,12 +3162,12 @@ function editorShortcutTargetIsTyping(target){
   const tag=String(target.tagName||'').toLowerCase();
   return target.isContentEditable || tag==='input' || tag==='textarea' || tag==='select';
 }
-function moveSelectedElement(dx,dy){
+function moveSelectedElement(dx,dy,stepMm){
   const items=selectedEditorFields();
   if(!items.length){flash('먼저 필드를 선택하세요',true);return;}
   const l=LAYOUTS[editorKey]; if(!l) return;
   pushEditorUndo('nudge');
-  const step=0.5; // mm
+  const step=Number(stepMm)>0?Number(stepMm):0.5; // mm
   items.forEach(f=>{
     const maxX=Math.max(0,(Number(l.w)||100)-Math.max(.1,Number(f.w)||1));
     const maxY=Math.max(0,(Number(l.h)||70)-Math.max(.1,Number(f.h)||1));
@@ -3183,6 +3198,18 @@ document.addEventListener('keydown',e=>{
 
   // 텍스트 입력/셀렉트 편집 중에는 Ctrl+C/V/Z의 브라우저 기본 동작을 보존한다.
   if(editorShortcutTargetIsTyping(e.target)) return;
+
+  // 방향키: 선택된 필드를 미세 이동 (Shift = 큰 단위, Alt/Ctrl = 더 미세하게)
+  if(['arrowup','arrowdown','arrowleft','arrowright'].includes(key)){
+    if(!selectedFieldId && !selectedFieldIds.size) return;
+    e.preventDefault(); e.stopPropagation();
+    const step=e.shiftKey?2:(e.altKey||e.ctrlKey||e.metaKey?0.1:0.5);
+    const dx=key==='arrowleft'?-1:key==='arrowright'?1:0;
+    const dy=key==='arrowup'?-1:key==='arrowdown'?1:0;
+    moveSelectedElement(dx,dy,step);
+    return;
+  }
+
   const mod=e.ctrlKey||e.metaKey;
   if(!mod) return;
   if(key==='c'){
