@@ -3136,6 +3136,35 @@ function editorShortcutTargetIsTyping(target){
   const tag=String(target.tagName||'').toLowerCase();
   return target.isContentEditable || tag==='input' || tag==='textarea' || tag==='select';
 }
+  <!-- 왼쪽 또는 오른쪽 설정 패널 영역 시작 -->
+<div class="control-panel">
+    <h3>라벨 서식 편집기</h3>
+    
+    <!-- (중략: 기존 설정 항목들...) -->
+
+    <!-- [1] 여기에 고정 텍스트 입력 텍스트에어리어 배치 -->
+    <div class="input-group">
+        <label>고정 텍스트 (다중 행)</label>
+        <textarea class="fixed-text-input" rows="3" placeholder="텍스트 입력 (Enter 줄바꿈)"></textarea>
+    </div>
+
+    <!-- (중략: X/Y 좌표 입력란 등...) -->
+    
+    <!-- [2] 여기에 모바일 방향키 패드 UI 배치 -->
+    <div class="mobile-direction-pad" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; text-align: center;">
+        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">모바일 미세 이동 조절</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; max-width: 150px; margin: 0 auto;">
+            <div></div>
+            <button type="button" onclick="moveSelectedElement(0, -1)" style="padding: 10px; font-weight: bold;">⬆️</button>
+            <div></div>
+            <button type="button" onclick="moveSelectedElement(-1, 0)" style="padding: 10px; font-weight: bold;">⬅️</button>
+            <button type="button" onclick="moveSelectedElement(0, 1)" style="padding: 10px; font-weight: bold;">⬇️</button>
+            <button type="button" onclick="moveSelectedElement(1, 0)" style="padding: 10px; font-weight: bold;">➡️</button>
+        </div>
+    </div>
+
+</div>
+<!-- 설정 패널 끝 -->
 function labelEditorIsVisible(){
   const screen=$('labelEditorScreen');
   return !!screen && getComputedStyle(screen).display!=='none' && document.body.classList.contains('editing');
