@@ -3,19 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.14.1 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템 v4.14.2 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
     --ink:#1b232f; --sub:#5b6672; --amber:#c9822a; --danger:#b3261e; --ok:#1e7d4a;
     --mono:'SF Mono','Consolas','Menlo',monospace; --sans:-apple-system,'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
   }
-  @media print {
-    .canvasBox {
-        border: none !important; /* 인쇄 시 테두리 강제 제거 */
-    }
-}
-  *{box-sizing:border-box;}
+*{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;}
   header{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
   header h1{font-size:18px;margin:0;font-weight:700;}
@@ -294,14 +289,6 @@
   .printerStatus.warn{background:#fff4e2;color:#966018;}
   .printerStatus.err{background:#fdecea;color:var(--danger);}
   .printModeBadge{font-size:10.5px;font-weight:800;padding:4px 8px;border-radius:99px;background:#eef2f7;color:var(--navy-2);white-space:nowrap;}
-
-  @media print{
-    body *{visibility:hidden;}
-    #printArea,#printArea *{visibility:visible;}
-    #printArea{position:absolute;left:0;top:0;width:100%;}
-    .printPage{page-break-after:always;padding:14mm;}
-  }
-
 /* ============ POP 스타일 오버라이드 v4.9.2 ============ */
 :root{--pop-bg:#eef1f6;--pop-header:#12131a;--pop-blue:#3b82f6;--pop-green:#22c55e;--pop-orange:#f59e0b;--pop-red:#ef4444;--pop-purple:#a855f7;--pop-teal:#14b8a6;--pop-pink:#ec4899;}
 body{background:var(--pop-bg)!important;}
@@ -1939,7 +1926,8 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
     const posStyle=[`left:${f.x}mm`,`top:${f.y}mm`,`width:${f.w}mm`,`height:${f.h}mm`,
       f.rotate?`transform:rotate(${f.rotate}deg)`:'',f.rotate?'transform-origin:center center':''
     ].filter(Boolean).join(';');
-    const cls=`fld${editable&&f.id===selectedFieldId?' selected':''}${editable&&selectedFieldIds.has(f.id)&&f.id!==selectedFieldId?' multiSelected':''}`;
+    const isBarcodeField=(f.kind!=='image'&&f.kind!=='table'&&f.kind!=='bind' ? false : (f.kind==='bind'&&f.bind==='barcode'));
+    const cls=`fld${f.kind==='image'?' imageField':''}${f.kind==='table'?' tableField':''}${isBarcodeField?' barcodeField':''}${editable&&f.id===selectedFieldId?' selected':''}${editable&&selectedFieldIds.has(f.id)&&f.id!==selectedFieldId?' multiSelected':''}`;
     const dataAttr=editable?`data-fid="${f.id}" data-kind="${f.kind||'static'}"`:'';
     const resizeHandles=editable?['nw','n','ne','e','se','s','sw','w'].map(dir=>`<span class="resizeHandle" data-dir="${dir}" title="드래그하여 크기 조절"></span>`).join(''):'';
     if(f.kind==='image'){
@@ -2634,10 +2622,17 @@ function setDynamicPrintPage(layoutKey){
     document.head.appendChild(style);
   }
 
+  /*
+   * 인쇄 짤림 방지:
+   * - @page와 실제 printPage/canvasBox 크기를 동일하게 유지
+   * - 이미지/표/바코드는 .fld의 overflow:hidden 영향을 받지 않도록 처리
+   * - table/SVG/img의 브라우저 기본 최대크기 제한 제거
+   * - 인쇄 시 화면용 선택/편집 테두리는 제거
+   */
   style.textContent=`
     @page{
       size:${pageW}mm ${pageH}mm;
-      margin:0;
+      margin:0 !important;
     }
 
     @media print{
@@ -2645,7 +2640,10 @@ function setDynamicPrintPage(layoutKey){
         margin:0 !important;
         padding:0 !important;
         width:${pageW}mm !important;
+        min-width:${pageW}mm !important;
         background:#fff !important;
+        -webkit-print-color-adjust:exact !important;
+        print-color-adjust:exact !important;
       }
 
       body *{
@@ -2661,15 +2659,18 @@ function setDynamicPrintPage(layoutKey){
         position:absolute !important;
         left:0 !important;
         top:0 !important;
+        width:${pageW}mm !important;
         margin:0 !important;
         padding:0 !important;
-        width:${pageW}mm !important;
         background:#fff !important;
       }
 
       #printArea .printPage{
+        position:relative !important;
         width:${pageW}mm !important;
         height:${pageH}mm !important;
+        min-width:${pageW}mm !important;
+        min-height:${pageH}mm !important;
         margin:0 !important;
         padding:0 !important;
         overflow:hidden !important;
@@ -2684,13 +2685,74 @@ function setDynamicPrintPage(layoutKey){
       }
 
       #printArea .canvasBox{
+        position:relative !important;
         width:${pageW}mm !important;
         height:${pageH}mm !important;
+        min-width:${pageW}mm !important;
+        min-height:${pageH}mm !important;
         margin:0 !important;
         padding:0 !important;
         border:0 !important;
+        outline:0 !important;
+        box-shadow:none !important;
         background:#fff !important;
         overflow:hidden !important;
+      }
+
+      /* 이미지/표/바코드만 별도 처리: .fld의 overflow:hidden 때문에
+         양 끝 픽셀이 잘리는 현상을 방지한다. */
+      #printArea .imageField,
+      #printArea .tableField,
+      #printArea .barcodeField{
+        overflow:visible !important;
+        box-sizing:border-box !important;
+      }
+
+      #printArea .imageField img{
+        display:block !important;
+        width:100% !important;
+        height:100% !important;
+        max-width:none !important;
+        max-height:none !important;
+        box-sizing:border-box !important;
+      }
+
+      #printArea .tableField table{
+        display:table !important;
+        width:100% !important;
+        height:100% !important;
+        max-width:none !important;
+        max-height:none !important;
+        margin:0 !important;
+        padding:0 !important;
+        box-sizing:border-box !important;
+        table-layout:fixed !important;
+        border-spacing:0 !important;
+        page-break-inside:avoid !important;
+        break-inside:avoid !important;
+      }
+
+      #printArea .tableField td,
+      #printArea .tableField th{
+        box-sizing:border-box !important;
+        overflow:hidden !important;
+        max-width:100% !important;
+      }
+
+      #printArea .barcodeField svg{
+        display:block !important;
+        width:100% !important;
+        height:100% !important;
+        max-width:none !important;
+        max-height:none !important;
+        overflow:visible !important;
+        box-sizing:border-box !important;
+      }
+
+      #printArea .resizeHandle,
+      #printArea .tableColHandle,
+      #printArea .tableRowHandle{
+        display:none !important;
       }
     }
   `;
