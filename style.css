@@ -1,91 +1,21 @@
-:root {
-    --ink: #111;
-}
-
-body {
-    font-family: 'Malgun Gothic', sans-serif;
-    background-color: #f4f6f9;
-    margin: 0;
-    padding: 20px;
-}
-
-/* 전체 화면 배치 */
-.main-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    align-items: flex-start;
-}
-
-.control-panel {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    width: 340px;
-    box-sizing: border-box;
-}
-
-.preview-area {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    flex-grow: 1;
-    min-height: 300px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-sizing: border-box;
-}
-
-/* 캔버스 기본 테두리 디자인 (50x30 세로형 기준 예시) */
-.canvasBox {
-    position: relative;
-    background: #fff;
-    border: 2.5px solid var(--ink);
-    border-radius: 2px;
-    overflow: hidden;
-    width: 30mm;
-    height: 50mm;
-}
-
-/* 다중 행 고정 텍스트 입력창 스타일 */
-.fixed-text-input {
-    font-family: inherit;
-    font-size: inherit;
-    text-align: inherit;
-    resize: vertical;
-    box-sizing: border-box;
-    white-space: pre-wrap;
-    word-break: break-all;
-    width: 100%;
-}
-
-/* 드래그 가능한 텍스트 노드 기본 스타일 */
-.draggable-text-node {
-    position: absolute;
-    cursor: move;
-    user-select: none;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
-
-/* 인쇄 시 레이아웃 짤림 방지 및 스타일 최적화 */
+/* ============ 라벨 인쇄 짤림 방지 및 강제 초기화 설정 ============ */
 @media print {
+    /* 페이지 규격 및 기본 여백 제거 */
     @page {
-        size: 30mm 50mm; /* 실제 라벨 크기 (가로 x 세로) */
+        size: 30mm 50mm; /* 실제 라벨 크기 (가로 x 세로) - 필요시 변경 */
         margin: 0 !important;
     }
 
+    /* 화면 전체 초기화 */
     body, html {
         margin: 0 !important;
         padding: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
+        width: 30mm !important;
+        height: 50mm !important;
         background: #fff !important;
     }
 
+    /* 설정 패널 등은 숨기고 인쇄 영역만 100% 노출 */
     body * {
         visibility: hidden !important;
     }
@@ -98,25 +28,26 @@ body {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
+        width: 30mm !important;
+        height: 50mm !important;
         margin: 0 !important;
         padding: 0 !important;
     }
 
+    /* 캔버스 테두리 및 그림자 강제 소멸 (인쇄 시 무조건 제거) */
     .canvasBox {
-        width: 100% !important;
-        height: 100% !important;
         border: none !important;
+        outline: none !important;
         box-shadow: none !important;
+        background: transparent !important;
+        width: 30mm !important;
+        height: 50mm !important;
         margin: 0 !important;
         padding: 0 !important;
-        transform: scale(0.95); /* 하단 짤림 방지 안전 스케일 */
-        transform-origin: top left;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
+        transform: none !important;
     }
 
+    /* 표, 이미지, 바코드 짤림 방지 및 크기 고정 */
     table, img, canvas, svg {
         max-width: 100% !important;
         max-height: 100% !important;
@@ -130,9 +61,10 @@ body {
         overflow: hidden !important;
     }
 
-    .draggable-text-node {
-        position: absolute !important;
-        white-space: pre-wrap !important;
-        word-break: break-all !important;
+    /* 투명 배경 선택 시 셀(td)의 강제 백색 배경 해제 */
+    .fld.tableField[data-table-bg="transparent"] table, 
+    .fld.tableField[data-table-bg="transparent"] td, 
+    .fld.tableField[data-table-bg="transparent"] th {
+        background-color: transparent !important;
     }
 }
