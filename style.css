@@ -1,70 +1,46 @@
-/* ============ 라벨 인쇄 짤림 방지 및 강제 초기화 설정 ============ */
+/* KSA Label System v4.14.2
+   인쇄 스타일은 index.html의 setDynamicPrintPage()가 실제 라벨 크기에 맞춰
+   동적으로 생성합니다. 이 파일에는 동적 인쇄와 충돌하지 않는 안전한 fallback만 둡니다. */
+
 @media print {
-    /* 페이지 규격 및 기본 여백 제거 */
-    @page {
-        size: 30mm 50mm; /* 실제 라벨 크기 (가로 x 세로) - 필요시 변경 */
-        margin: 0 !important;
-    }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
-    /* 화면 전체 초기화 */
-    body, html {
-        margin: 0 !important;
-        padding: 0 !important;
-        width: 30mm !important;
-        height: 50mm !important;
-        background: #fff !important;
-    }
+  .canvasBox {
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
 
-    /* 설정 패널 등은 숨기고 인쇄 영역만 100% 노출 */
-    body * {
-        visibility: hidden !important;
-    }
-    
-    #printArea, #printArea * {
-        visibility: visible !important;
-    }
-    
-    #printArea {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 30mm !important;
-        height: 50mm !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
+  .imageField,
+  .tableField,
+  .barcodeField {
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
 
-    /* 캔버스 테두리 및 그림자 강제 소멸 (인쇄 시 무조건 제거) */
-    .canvasBox {
-        border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
-        background: transparent !important;
-        width: 30mm !important;
-        height: 50mm !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        transform: none !important;
-    }
+  .imageField img,
+  .barcodeField svg {
+    display: block !important;
+    max-width: none !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+  }
 
-    /* 표, 이미지, 바코드 짤림 방지 및 크기 고정 */
-    table, img, canvas, svg {
-        max-width: 100% !important;
-        max-height: 100% !important;
-        box-sizing: border-box !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-    }
-
-    td, th {
-        word-break: break-all !important;
-        overflow: hidden !important;
-    }
-
-    /* 투명 배경 선택 시 셀(td)의 강제 백색 배경 해제 */
-    .fld.tableField[data-table-bg="transparent"] table, 
-    .fld.tableField[data-table-bg="transparent"] td, 
-    .fld.tableField[data-table-bg="transparent"] th {
-        background-color: transparent !important;
-    }
+  .tableField table {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+    table-layout: fixed !important;
+    border-spacing: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 }
