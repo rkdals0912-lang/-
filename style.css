@@ -1,21 +1,102 @@
-/* 인쇄 시 모든 여백, 테두리, 그래픽 짤림을 원천 차단하는 강제 설정 */
+/* ============ 화면 및 레이아웃 자동 맞춤 스타일 ============ */
+
+:root {
+    --dash-bg: #f4f6fa;
+    --dash-dark: #17182b;
+    --dash-text: #273047;
+    --dash-muted: #7e8799;
+    --dash-blue: #4276ef;
+    --ink: #1b232f;
+    --sub: #5b6672;
+    --line: #d7dce3;
+    --amber: #c9822a;
+}
+
+/* 전체 기본 구조를 유연하게 설정 */
+body {
+    background: var(--dash-bg) !important;
+    color: var(--dash-text);
+    margin: 0;
+    font-family: -apple-system, 'Pretendard', 'Malgun Gothic', sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* 메인 컨테이너가 화면 크기에 맞춰 자동으로 여백과 정렬을 잡도록 설정 */
+main {
+    padding: 20px;
+    max-width: 1460px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+/* 2단 그리드 레이아웃: 설정 영역과 미리보기 영역이 화면에 꽉 차게 자동 분할 */
+.grid, .editorGrid {
+    display: grid;
+    grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+/* 모바일이나 화면이 좁아질 경우 자동으로 1단으로 떨어지도록 설정 */
+@media (max-width: 1000px) {
+    .grid, .editorGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 패널 디자인 자동 채우기 */
+.panel {
+    background: #fff !important;
+    border: 1px solid #e3e7ee !important;
+    border-radius: 12px !important;
+    padding: 18px !important;
+    box-shadow: 0 4px 18px rgba(26, 32, 54, 0.045) !important;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+}
+
+/* 캔버스 박스 기본 중앙 정렬 및 자동 맞춤 */
+.preview-area, .editorPreviewViewport, .labelMasterPreviewViewport {
+    background: #eef2f7;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 350px;
+    box-sizing: border-box;
+    width: 100%;
+    overflow: auto;
+}
+
+.canvasBox {
+    position: relative;
+    background: #fff;
+    border: 2.5px solid var(--ink);
+    border-radius: 2px;
+    overflow: hidden;
+    width: 30mm;
+    height: 50mm;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+/* ============ 인쇄 시 자동 맞춤 (Scale-to-Fit) ============ */
 @media print {
-    /* 페이지 규격 및 기본 여백 제거 */
     @page {
-        size: 30mm 50mm; /* 실제 라벨 크기 (가로 x 세로) */
+        size: 30mm 50mm; /* 실제 라벨 크기 규격 */
         margin: 0 !important;
     }
 
-    /* 화면 전체 초기화 */
     body, html {
         margin: 0 !important;
         padding: 0 !important;
-        width: 30mm !important;
-        height: 50mm !important;
+        width: 100% !important;
+        height: 100% !important;
         background: #fff !important;
     }
 
-    /* 설정 패널 등은 숨기고 인쇄 영역만 100% 노출 */
     body * {
         visibility: hidden !important;
     }
@@ -34,12 +115,10 @@
         padding: 0 !important;
     }
 
-    /* 캔버스 테두리 및 그림자 강제 소멸 (인쇄 시 무조건 제거) */
     .canvasBox {
         border: none !important;
         outline: none !important;
         box-shadow: none !important;
-        background: transparent !important;
         width: 30mm !important;
         height: 50mm !important;
         margin: 0 !important;
@@ -47,24 +126,9 @@
         transform: none !important;
     }
 
-    /* 표, 이미지, 바코드 짤림 방지 및 크기 고정 */
     table, img, canvas, svg {
         max-width: 100% !important;
         max-height: 100% !important;
         box-sizing: border-box !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-    }
-
-    td, th {
-        word-break: break-all !important;
-        overflow: hidden !important;
-    }
-
-    /* 투명 배경 선택 시 셀(td)의 강제 백색 배경 해제 */
-    .fld.tableField[data-table-bg="transparent"] table, 
-    .fld.tableField[data-table-bg="transparent"] td, 
-    .fld.tableField[data-table-bg="transparent"] th {
-        background-color: transparent !important;
     }
 }
