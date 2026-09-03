@@ -1,3 +1,9 @@
+// ⚠️ 이 파일은 현재 index.html에서 <script src="script.js">로 연결되어
+// 있지 않습니다. index.html은 모든 동작 로직을 내부 <script> 태그에
+// 직접 포함하고 있는 완전한 단일 파일 구조이며, 이 script.js는 사용되지
+// 않는 예전/별도 버전입니다. 실제 동작을 수정하려면 index.html 내부의
+// 스크립트를 수정해야 합니다.
+
 // === [1] 텍스트 객체 상태 관리 및 실시간 동기화 객체 ===[cite: 1]
 window.LabelState = window.LabelState || {
     selectedId: null,
