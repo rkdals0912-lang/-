@@ -1,21 +1,38 @@
-/* KSA Label System v4.14.2
-   Zebra ZPL / html2canvas + 브라우저 인쇄 공통 스타일
-*/
-
 /* =========================================================
-   기본 필드
+   KSA Label System v4.14.2
+   Zebra ZPL / html2canvas / Browser Print 대응
+   그래픽 요소 좌우 clipping 방지
    ========================================================= */
+
+/* ---------------------------------------------------------
+   라벨 기본 영역
+   --------------------------------------------------------- */
+.canvasBox {
+  position: relative;
+  background: #fff;
+  border: 2.5px solid var(--ink);
+  border-radius: 2px;
+  overflow: visible !important;
+  box-sizing: border-box;
+}
+
+/* ---------------------------------------------------------
+   일반 필드
+   --------------------------------------------------------- */
 .fld {
   position: absolute;
   white-space: pre-line;
   overflow: hidden;
   line-height: 1.25;
+  box-sizing: border-box;
 }
 
-/* =========================================================
-   Zebra ZPL / html2canvas 캡처 대상
-   그래픽 요소 좌우 clipping 방지
-   ========================================================= */
+/* ---------------------------------------------------------
+   이미지 / 표 / 바코드
+   중요:
+   Zebra 직접 출력은 @media print를 사용하지 않고
+   html2canvas가 현재 DOM을 캡처하므로 반드시 전역 적용
+   --------------------------------------------------------- */
 .imageField,
 .tableField,
 .barcodeField {
@@ -23,32 +40,93 @@
   box-sizing: border-box !important;
 }
 
-.imageField img,
-.barcodeField svg {
+/* ---------------------------------------------------------
+   이미지
+   --------------------------------------------------------- */
+.imageField img {
   display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+
   max-width: none !important;
   max-height: none !important;
+
   box-sizing: border-box !important;
+
+  /* 이미지 자체가 필드 경계에서 잘리지 않도록 */
+  overflow: visible !important;
+
+  pointer-events: none;
+  user-select: none;
 }
 
-/* =========================================================
-   테이블
-   ========================================================= */
-.tableField table {
-  width: calc(100% - 2px) !important;
+/* ---------------------------------------------------------
+   바코드 SVG
+   --------------------------------------------------------- */
+.barcodeField svg {
+  display: block !important;
+  width: 100% !important;
   height: 100% !important;
+
   max-width: none !important;
   max-height: none !important;
+
+  overflow: visible !important;
   box-sizing: border-box !important;
+
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------
+   테이블
+   --------------------------------------------------------- */
+.tableField table {
+  display: table !important;
+
+  width: calc(100% - 2px) !important;
+  height: calc(100% - 2px) !important;
+
+  margin: 1px !important;
+  padding: 0 !important;
+
+  max-width: none !important;
+  max-height: none !important;
+
+  box-sizing: border-box !important;
+
   table-layout: fixed !important;
+  border-collapse: collapse !important;
   border-spacing: 0 !important;
+
   page-break-inside: avoid !important;
   break-inside: avoid !important;
 }
 
-/* =========================================================
+/* 표 셀 */
+.tableField td,
+.tableField th {
+  box-sizing: border-box !important;
+
+  max-width: 100% !important;
+
+  overflow: hidden !important;
+
+  /* 셀 내부 여백 때문에 테두리가 밀리는 것을 방지 */
+  min-width: 0 !important;
+}
+
+/* ---------------------------------------------------------
+   편집용 핸들
+   --------------------------------------------------------- */
+.resizeHandle,
+.tableColHandle,
+.tableRowHandle {
+  box-sizing: border-box;
+}
+
+/* ---------------------------------------------------------
    브라우저 인쇄
-   ========================================================= */
+   --------------------------------------------------------- */
 @media print {
 
   html,
@@ -65,5 +143,48 @@
     border: 0 !important;
     outline: 0 !important;
     box-shadow: none !important;
+  }
+
+  .imageField,
+  .tableField,
+  .barcodeField {
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  .imageField img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+  }
+
+  .barcodeField svg {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  .tableField table {
+    width: calc(100% - 2px) !important;
+    height: calc(100% - 2px) !important;
+    margin: 1px !important;
+
+    max-width: none !important;
+    max-height: none !important;
+
+    box-sizing: border-box !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
