@@ -1,190 +1,70 @@
-/* =========================================================
-   KSA Label System v4.14.2
-   Zebra ZPL / html2canvas / Browser Print 대응
-   그래픽 요소 좌우 clipping 방지
-   ========================================================= */
-
-/* ---------------------------------------------------------
-   라벨 기본 영역
-   --------------------------------------------------------- */
-.canvasBox {
-  position: relative;
-  background: #fff;
-  border: 2.5px solid var(--ink);
-  border-radius: 2px;
-  overflow: visible !important;
-  box-sizing: border-box;
-}
-
-/* ---------------------------------------------------------
-   일반 필드
-   --------------------------------------------------------- */
-.fld {
-  position: absolute;
-  white-space: pre-line;
-  overflow: hidden;
-  line-height: 1.25;
-  box-sizing: border-box;
-}
-
-/* ---------------------------------------------------------
-   이미지 / 표 / 바코드
-   중요:
-   Zebra 직접 출력은 @media print를 사용하지 않고
-   html2canvas가 현재 DOM을 캡처하므로 반드시 전역 적용
-   --------------------------------------------------------- */
-.imageField,
-.tableField,
-.barcodeField {
-  overflow: visible !important;
-  box-sizing: border-box !important;
-}
-
-/* ---------------------------------------------------------
-   이미지
-   --------------------------------------------------------- */
-.imageField img {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-
-  max-width: none !important;
-  max-height: none !important;
-
-  box-sizing: border-box !important;
-
-  /* 이미지 자체가 필드 경계에서 잘리지 않도록 */
-  overflow: visible !important;
-
-  pointer-events: none;
-  user-select: none;
-}
-
-/* ---------------------------------------------------------
-   바코드 SVG
-   --------------------------------------------------------- */
-.barcodeField svg {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-
-  max-width: none !important;
-  max-height: none !important;
-
-  overflow: visible !important;
-  box-sizing: border-box !important;
-
-  pointer-events: none;
-}
-
-/* ---------------------------------------------------------
-   테이블
-   --------------------------------------------------------- */
-.tableField table {
-  display: table !important;
-
-  width: calc(100% - 2px) !important;
-  height: calc(100% - 2px) !important;
-
-  margin: 1px !important;
-  padding: 0 !important;
-
-  max-width: none !important;
-  max-height: none !important;
-
-  box-sizing: border-box !important;
-
-  table-layout: fixed !important;
-  border-collapse: collapse !important;
-  border-spacing: 0 !important;
-
-  page-break-inside: avoid !important;
-  break-inside: avoid !important;
-}
-
-/* 표 셀 */
-.tableField td,
-.tableField th {
-  box-sizing: border-box !important;
-
-  max-width: 100% !important;
-
-  overflow: hidden !important;
-
-  /* 셀 내부 여백 때문에 테두리가 밀리는 것을 방지 */
-  min-width: 0 !important;
-}
-
-/* ---------------------------------------------------------
-   편집용 핸들
-   --------------------------------------------------------- */
-.resizeHandle,
-.tableColHandle,
-.tableRowHandle {
-  box-sizing: border-box;
-}
-
-/* ---------------------------------------------------------
-   브라우저 인쇄
-   --------------------------------------------------------- */
+/* 인쇄 시 모든 여백, 테두리, 그래픽 짤림을 원천 차단하는 강제 설정 */
 @media print {
+    /* 페이지 규격 및 기본 여백 제거 */
+    @page {
+        size: 30mm 50mm; /* 실제 라벨 크기 (가로 x 세로) */
+        margin: 0 !important;
+    }
 
-  html,
-  body {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
+    /* 화면 전체 초기화 */
+    body, html {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 30mm !important;
+        height: 50mm !important;
+        background: #fff !important;
+    }
 
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
+    /* 설정 패널 등은 숨기고 인쇄 영역만 100% 노출 */
+    body * {
+        visibility: hidden !important;
+    }
+    
+    #printArea, #printArea * {
+        visibility: visible !important;
+    }
+    
+    #printArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 30mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
 
-  .canvasBox {
-    border: 0 !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-  }
+    /* 캔버스 테두리 및 그림자 강제 소멸 (인쇄 시 무조건 제거) */
+    .canvasBox {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        width: 30mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+    }
 
-  .imageField,
-  .tableField,
-  .barcodeField {
-    overflow: visible !important;
-    box-sizing: border-box !important;
-  }
+    /* 표, 이미지, 바코드 짤림 방지 및 크기 고정 */
+    table, img, canvas, svg {
+        max-width: 100% !important;
+        max-height: 100% !important;
+        box-sizing: border-box !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
 
-  .imageField img {
-    display: block !important;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
-    box-sizing: border-box !important;
-  }
+    td, th {
+        word-break: break-all !important;
+        overflow: hidden !important;
+    }
 
-  .barcodeField svg {
-    display: block !important;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
-    overflow: visible !important;
-    box-sizing: border-box !important;
-  }
-
-  .tableField table {
-    width: calc(100% - 2px) !important;
-    height: calc(100% - 2px) !important;
-    margin: 1px !important;
-
-    max-width: none !important;
-    max-height: none !important;
-
-    box-sizing: border-box !important;
-    table-layout: fixed !important;
-    border-collapse: collapse !important;
-    border-spacing: 0 !important;
-
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
+    /* 투명 배경 선택 시 셀(td)의 강제 백색 배경 해제 */
+    .fld.tableField[data-table-bg="transparent"] table, 
+    .fld.tableField[data-table-bg="transparent"] td, 
+    .fld.tableField[data-table-bg="transparent"] th {
+        background-color: transparent !important;
+    }
 }
