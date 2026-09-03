@@ -53,6 +53,30 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
+// 하단 라벨 테두리 표시 체크박스 연동
+document.addEventListener('DOMContentLoaded', function() {
+    const showBorderToggle = document.getElementById('showBorderToggle'); // 체크박스 ID
+    const canvasBoxes = document.querySelectorAll('.canvasBox'); // 캔버스 박스들
+
+    if (showBorderToggle) {
+        // 페이지 로드 시 초기 상태 반영
+        updateCanvasBorder(showBorderToggle.checked);
+
+        showBorderToggle.addEventListener('change', function() {
+            updateCanvasBorder(this.checked);
+        });
+    }
+
+    function updateCanvasBorder(isVisible) {
+        canvasBoxes.forEach(box => {
+            if (isVisible) {
+                box.style.border = '2.5px solid var(--ink)'; // 테두리 복원
+            } else {
+                box.style.border = 'none'; // 테두리 제거
+            }
+        });
+    }
+});
 
 // === [2] 좌표 변경 및 실시간 동기화 함수 ===[cite: 1]
 window.updateElementPosition = function(id, x, y) {
