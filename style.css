@@ -43,4 +43,18 @@
   page-break-inside: avoid !important;
   break-inside: avoid !important;
 }
+   .fld{
+  position:absolute;
+  white-space:pre-line;
+  overflow:hidden;
+  line-height:1.25;
+}
+
+/* Zebra ZPL(html2canvas) 캡처 시 그래픽 요소의 가장자리 clipping 방지 */
+.imageField,
+.tableField,
+.barcodeField{
+  overflow:visible !important;
+  box-sizing:border-box !important;
+}
 }
