@@ -3309,7 +3309,6 @@ async function renderPartCanvas(part, dpi) {
     host.remove();
   }
 }
-}
 /* =========================================================
    Canvas → Zebra ZPL ^GFA
    v4.14.2
@@ -3417,13 +3416,6 @@ function canvasToZpl(canvas, threshold) {
     '^FS',
     '^XZ'
   ].join('');
-}
-      row+=HEX[(byte>>4)&15]+HEX[byte&15];
-    }
-    hexRows[y]=row;
-  }
-  const hex=hexRows.join('');
-  return `^XA^PW${w}^LL${h}^LH0,0^FO0,0^GFA,${total},${total},${bytesPerRow},${hex}^FS^XZ`;
 }
 async function sendItemsAsZpl(items){
   let device=ZEBRA_SELECTED_DEVICE;
