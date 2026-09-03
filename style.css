@@ -1,38 +1,40 @@
 /* KSA Label System v4.14.2
-   인쇄 스타일은 index.html의 setDynamicPrintPage()가 실제 라벨 크기에 맞춰
-   동적으로 생성합니다. 이 파일에는 동적 인쇄와 충돌하지 않는 안전한 fallback만 둡니다. */
+   Zebra ZPL / html2canvas + 브라우저 인쇄 공통 스타일
+*/
 
-@media print {
-  html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
+/* =========================================================
+   기본 필드
+   ========================================================= */
+.fld {
+  position: absolute;
+  white-space: pre-line;
+  overflow: hidden;
+  line-height: 1.25;
+}
 
-  .canvasBox {
-    border: 0 !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-  }
+/* =========================================================
+   Zebra ZPL / html2canvas 캡처 대상
+   그래픽 요소 좌우 clipping 방지
+   ========================================================= */
+.imageField,
+.tableField,
+.barcodeField {
+  overflow: visible !important;
+  box-sizing: border-box !important;
+}
 
-  .imageField,
-  .tableField,
-  .barcodeField {
-    overflow: visible !important;
-    box-sizing: border-box !important;
-  }
+.imageField img,
+.barcodeField svg {
+  display: block !important;
+  max-width: none !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+}
 
-  .imageField img,
-  .barcodeField svg {
-    display: block !important;
-    max-width: none !important;
-    max-height: none !important;
-    box-sizing: border-box !important;
-  }
-
-  .tableField table {
+/* =========================================================
+   테이블
+   ========================================================= */
+.tableField table {
   width: calc(100% - 2px) !important;
   height: 100% !important;
   max-width: none !important;
@@ -43,18 +45,25 @@
   page-break-inside: avoid !important;
   break-inside: avoid !important;
 }
-   .fld{
-  position:absolute;
-  white-space:pre-line;
-  overflow:hidden;
-  line-height:1.25;
-}
 
-/* Zebra ZPL(html2canvas) 캡처 시 그래픽 요소의 가장자리 clipping 방지 */
-.imageField,
-.tableField,
-.barcodeField{
-  overflow:visible !important;
-  box-sizing:border-box !important;
-}
+/* =========================================================
+   브라우저 인쇄
+   ========================================================= */
+@media print {
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .canvasBox {
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
 }
