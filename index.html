@@ -3166,6 +3166,41 @@ async function renderPartCanvas(part, dpi) {
     const scale = targetDpi / 96;
 
     /* -----------------------------------------------------
+       웹폰트 로드 대기 (Style Invalidation / FOUT 방지)
+       ------------------------------------------------------
+       @font-face가 정상적으로 임베드되어 있어도, 브라우저는
+       실제로 그 글자가 화면에 쓰이기 전까지는 폰트 파일을
+       다운로드하지 않는다(lazy trigger). html2canvas가 이
+       다운로드가 끝나기 전에 스냅샷을 떠버리면, 아직 로드되지
+       않은 웹폰트 대신 시스템 기본 폰트로 폴백된 모습이
+       캔버스에 그대로 굳어버린다.
+       캡처 직전에 이 라벨에서 실제로 쓰인 웹폰트들을 명시적으로
+       document.fonts.load()로 강제 로드하고, document.fonts.ready
+       까지 기다린 뒤, 프레임을 한 번 더 넘겨 레이아웃/페인트에
+       실제로 반영된 상태에서 캡처한다.
+       ----------------------------------------------------- */
+    if (document.fonts) {
+      try {
+        const usedKeys = new Set();
+        el.querySelectorAll('[data-font]').forEach(n => usedKeys.add(n.getAttribute('data-font')));
+        const loadPromises = [];
+        usedKeys.forEach(key => {
+          const opt = fontOption(key);
+          if (opt && opt.group === 'web') {
+            loadPromises.push(document.fonts.load(`400 20px ${opt.css}`, '한글ABC123').catch(() => {}));
+            loadPromises.push(document.fonts.load(`700 20px ${opt.css}`, '한글ABC123').catch(() => {}));
+          }
+        });
+        if (loadPromises.length) await Promise.all(loadPromises);
+        await document.fonts.ready;
+        // 폰트 교체가 실제로 레이아웃/페인트에 반영되도록 프레임 2회 대기
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      } catch (e) {
+        console.warn('[ZEBRA FONT WAIT]', e);
+      }
+    }
+
+    /* -----------------------------------------------------
        html2canvas
        ----------------------------------------------------- */
     const canvas = await window.html2canvas(el, {
@@ -3423,17 +3458,41 @@ async function sendItemsAsZpl(items){
   if(!device) throw new Error('Browser Print에서 Zebra 프린터를 찾지 못했습니다. 프린터 설정의 상태 메시지를 확인하세요.');
   const dpi=Number(PRINTER_SETTINGS.dpi)||203;
   const threshold=Number(PRINTER_SETTINGS.threshold)||185;
-  let sent=0;
+
+  /*
+   * 역순 일괄 스트리밍 출력 (Reverse-sequence Batch Streaming Print)
+   * ------------------------------------------------------------------
+   * items는 이미 genBatch()에서 드럼 수(배수) 기준 역순(N → 1)으로
+   * 생성되어 들어온다. 여기서는 그 순서를 그대로 유지한 채,
+   * 렌더링(캔버스 생성)과 하드웨어 전송을 파이프라인으로 겹쳐서
+   * 처리한다: 현재 라벨을 프린터 큐로 전송하는 동안, 다음 라벨의
+   * 캔버스를 미리(look-ahead 1개) 렌더링해 둔다.
+   * 기존 방식(각 라벨을 렌더링 → 전송 → 렌더링 → 전송으로 완전히
+   * 순차 처리)과 달리, 렌더링 대기시간과 전송 대기시간이 겹쳐지므로
+   * 전체 출력 지연이 줄어든다. 프린터로의 전송 자체는 하드웨어 큐
+   * 특성상 순서를 보장하기 위해 여전히 한 건씩 await 한다.
+   */
+  const queue=[];
   for(const item of items){
-    for(const part of (item.parts||[])){
-      setZebraStatus(`ZPL 변환 중 · ${part.labelName||part.key||''} (${dpi}dpi)`);
-      const canvas=await renderPartCanvas(part,dpi);
-      const zpl=canvasToZpl(canvas,threshold);
-      const size=new Blob([zpl]).size;
-      if(size>1950000) throw new Error(`ZPL 데이터가 약 ${(size/1024/1024).toFixed(2)}MB로 Browser Print 2MB 제한에 가깝습니다. 203dpi로 변경하거나 브라우저 인쇄를 사용하세요.`);
-      setZebraStatus(`ZPL 전송 중 · ${device.name||'Zebra'} · ${(size/1024).toFixed(0)}KB`);
-      await sendToZebraDevice(device,zpl); sent++;
-    }
+    for(const part of (item.parts||[])){ queue.push(part); }
+  }
+  if(!queue.length){ setZebraStatus('전송할 라벨이 없습니다','err'); return true; }
+
+  const renderJob=(part)=>renderPartCanvas(part,dpi).then(canvas=>({part,canvas}));
+  let sent=0;
+  let nextJob=renderJob(queue[0]);
+
+  for(let i=0;i<queue.length;i++){
+    const {part,canvas}=await nextJob;
+    // 다음 라벨 렌더링을 미리 시작해 전송과 병렬로 겹치게 한다.
+    nextJob = (i+1<queue.length) ? renderJob(queue[i+1]) : null;
+
+    setZebraStatus(`ZPL 변환 중 · ${part.labelName||part.key||''} (${dpi}dpi)`);
+    const zpl=canvasToZpl(canvas,threshold);
+    const size=new Blob([zpl]).size;
+    if(size>1950000) throw new Error(`ZPL 데이터가 약 ${(size/1024/1024).toFixed(2)}MB로 Browser Print 2MB 제한에 가깝습니다. 203dpi로 변경하거나 브라우저 인쇄를 사용하세요.`);
+    setZebraStatus(`ZPL 전송 중 · ${device.name||'Zebra'} · ${(size/1024).toFixed(0)}KB (${i+1}/${queue.length})`);
+    await sendToZebraDevice(device,zpl); sent++;
   }
   setZebraStatus(`ZPL 전송 완료 · ${device.name||'Zebra'} · ${sent}건`,'ok');
   return true;
