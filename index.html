@@ -2934,18 +2934,360 @@ function sendToZebraDevice(device,data){
     device.send(data,()=>resolve(true),e=>reject(new Error(String(e||'ZPL 전송 실패'))));
   });
 }
-async function renderPartCanvas(part,dpi){
-  if(!window.html2canvas) throw new Error('html2canvas 라이브러리를 불러오지 못했습니다.');
-  const layout=LAYOUTS[part.key]; if(!layout) throw new Error(`라벨 서식 ${part.key}를 찾을 수 없습니다.`);
-  const host=document.createElement('div');
-  host.style.cssText='position:fixed;left:-20000px;top:0;background:#fff;z-index:-9999;';
-  host.innerHTML=renderLabelHtml(part.key,part.ctx,false);
+/* =========================================================
+   Zebra ZPL 출력용 Canvas 생성
+   v4.14.2
+   - html2canvas 전용 렌더링
+   - @media print 의존 제거
+   - .fld / canvasBox clipping 방지
+   - 이미지 / 표 / 바코드 경계 보정
+   ========================================================= */
+async function renderPartCanvas(part, dpi) {
+
+  if (!window.html2canvas) {
+    throw new Error('html2canvas 라이브러리를 불러오지 못했습니다.');
+  }
+
+  const layout = LAYOUTS[part.key];
+
+  if (!layout) {
+    throw new Error(`라벨 서식 ${part.key}를 찾을 수 없습니다.`);
+  }
+
+  /* -------------------------------------------------------
+     html2canvas 전용 임시 호스트
+     ------------------------------------------------------- */
+  const host = document.createElement('div');
+
+  host.style.cssText = `
+    position: fixed !important;
+    left: -20000px !important;
+    top: 0 !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    background: #fff !important;
+
+    z-index: -9999 !important;
+
+    overflow: visible !important;
+
+    visibility: visible !important;
+  `;
+
+  host.innerHTML = renderLabelHtml(part.key, part.ctx, false);
+
   document.body.appendChild(host);
-  try{
-    const el=host.firstElementChild;
-    const scale=(Number(dpi)||203)/96;
-    return await window.html2canvas(el,{backgroundColor:'#ffffff',scale,useCORS:true,logging:false,width:el.offsetWidth,height:el.offsetHeight});
-  }finally{host.remove();}
+
+  try {
+
+    const el = host.firstElementChild;
+
+    if (!el) {
+      throw new Error('라벨 Canvas 영역을 생성하지 못했습니다.');
+    }
+
+    /* -----------------------------------------------------
+       Zebra 출력용 실제 라벨 크기
+       ----------------------------------------------------- */
+    const labelW = Number(layout.w) || 0;
+    const labelH = Number(layout.h) || 0;
+
+    if (!labelW || !labelH) {
+      throw new Error('라벨 크기(width/height)를 확인할 수 없습니다.');
+    }
+
+    /* -----------------------------------------------------
+       html2canvas 캡처 직전 clipping 관련 스타일 강제
+       ----------------------------------------------------- */
+    el.style.boxSizing = 'border-box';
+    el.style.overflow = 'visible';
+    el.style.margin = '0';
+    el.style.padding = '0';
+
+    /* canvasBox 내부 필드 */
+    el.querySelectorAll('.fld').forEach(field => {
+
+      field.style.boxSizing = 'border-box';
+
+      /*
+       * 일반 텍스트는 기존 overflow:hidden 유지.
+       * 그래픽 요소만 overflow:visible.
+       */
+      if (
+        field.classList.contains('imageField') ||
+        field.classList.contains('tableField') ||
+        field.classList.contains('barcodeField')
+      ) {
+        field.style.overflow = 'visible';
+      }
+    });
+
+    /* -----------------------------------------------------
+       이미지 강제 보정
+       ----------------------------------------------------- */
+    el.querySelectorAll('.imageField img').forEach(img => {
+
+      img.style.display = 'block';
+      img.style.width = '100%';
+      img.style.height = '100%';
+
+      img.style.maxWidth = 'none';
+      img.style.maxHeight = 'none';
+
+      img.style.boxSizing = 'border-box';
+
+      /*
+       * object-fit은 기존 설정을 그대로 사용.
+       * 이미지 자체가 field 경계에서 clipping되지 않게 함.
+       */
+      img.style.overflow = 'visible';
+    });
+
+    /* -----------------------------------------------------
+       바코드 강제 보정
+       ----------------------------------------------------- */
+    el.querySelectorAll('.barcodeField svg').forEach(svg => {
+
+      svg.style.display = 'block';
+
+      svg.style.width = '100%';
+      svg.style.height = '100%';
+
+      svg.style.maxWidth = 'none';
+      svg.style.maxHeight = 'none';
+
+      svg.style.overflow = 'visible';
+      svg.style.boxSizing = 'border-box';
+    });
+
+    /* -----------------------------------------------------
+       테이블 강제 보정
+       ----------------------------------------------------- */
+    el.querySelectorAll('.tableField').forEach(field => {
+
+      field.style.overflow = 'visible';
+      field.style.boxSizing = 'border-box';
+
+      const table = field.querySelector('table');
+
+      if (!table) return;
+
+      /*
+       * field의 정확한 끝점과 table border가
+       * 동일 위치에 겹치지 않도록 1px inset.
+       */
+      table.style.display = 'table';
+
+      table.style.width = 'calc(100% - 2px)';
+      table.style.height = 'calc(100% - 2px)';
+
+      table.style.margin = '1px';
+
+      table.style.padding = '0';
+
+      table.style.maxWidth = 'none';
+      table.style.maxHeight = 'none';
+
+      table.style.boxSizing = 'border-box';
+
+      table.style.tableLayout = 'fixed';
+      table.style.borderCollapse = 'collapse';
+      table.style.borderSpacing = '0';
+
+      table.querySelectorAll('td, th').forEach(cell => {
+
+        cell.style.boxSizing = 'border-box';
+        cell.style.minWidth = '0';
+        cell.style.maxWidth = '100%';
+
+        /*
+         * 텍스트가 셀을 넘지 않도록만 제한.
+         * border 자체는 clipping하지 않음.
+         */
+        cell.style.overflow = 'hidden';
+      });
+    });
+
+    /* -----------------------------------------------------
+       편집용 UI 제거
+       ----------------------------------------------------- */
+    el.querySelectorAll(
+      '.resizeHandle,' +
+      '.tableColHandle,' +
+      '.tableRowHandle'
+    ).forEach(node => {
+      node.style.display = 'none';
+    });
+
+    /* -----------------------------------------------------
+       실제 CSS 픽셀 크기 확인
+       ----------------------------------------------------- */
+    const rect = el.getBoundingClientRect();
+
+    const cssWidth = Math.max(
+      1,
+      Math.ceil(rect.width)
+    );
+
+    const cssHeight = Math.max(
+      1,
+      Math.ceil(rect.height)
+    );
+
+    /* -----------------------------------------------------
+       Zebra DPI
+       기본 203dpi
+       ----------------------------------------------------- */
+    const targetDpi = Number(dpi) || 203;
+
+    const scale = targetDpi / 96;
+
+    /* -----------------------------------------------------
+       html2canvas
+       ----------------------------------------------------- */
+    const canvas = await window.html2canvas(el, {
+
+      backgroundColor: '#ffffff',
+
+      scale: scale,
+
+      useCORS: true,
+
+      logging: false,
+
+      width: cssWidth,
+
+      height: cssHeight,
+
+      scrollX: 0,
+
+      scrollY: 0,
+
+      x: 0,
+
+      y: 0,
+
+      /*
+       * 폰트와 이미지가 실제 DOM에 표시된 상태에서
+       * 캡처하도록 설정
+       */
+      foreignObjectRendering: false,
+
+      /*
+       * 요소의 overflow 때문에 그래픽이 잘리지 않도록
+       * html2canvas 캡처 영역을 현재 element 기준으로 사용
+       */
+      onclone: clonedDoc => {
+
+        const clonedEl = clonedDoc.body.querySelector(
+          '.canvasBox'
+        );
+
+        if (!clonedEl) return;
+
+        clonedEl.style.overflow = 'visible';
+        clonedEl.style.boxSizing = 'border-box';
+
+        clonedEl.querySelectorAll('.fld').forEach(field => {
+
+          field.style.boxSizing = 'border-box';
+
+          if (
+            field.classList.contains('imageField') ||
+            field.classList.contains('tableField') ||
+            field.classList.contains('barcodeField')
+          ) {
+            field.style.overflow = 'visible';
+          }
+        });
+
+        clonedEl.querySelectorAll('.imageField img').forEach(img => {
+
+          img.style.display = 'block';
+          img.style.width = '100%';
+          img.style.height = '100%';
+
+          img.style.maxWidth = 'none';
+          img.style.maxHeight = 'none';
+
+          img.style.boxSizing = 'border-box';
+        });
+
+        clonedEl.querySelectorAll('.barcodeField svg').forEach(svg => {
+
+          svg.style.display = 'block';
+          svg.style.width = '100%';
+          svg.style.height = '100%';
+
+          svg.style.maxWidth = 'none';
+          svg.style.maxHeight = 'none';
+
+          svg.style.overflow = 'visible';
+          svg.style.boxSizing = 'border-box';
+        });
+
+        clonedEl.querySelectorAll('.tableField table').forEach(table => {
+
+          table.style.display = 'table';
+
+          table.style.width = 'calc(100% - 2px)';
+          table.style.height = 'calc(100% - 2px)';
+
+          table.style.margin = '1px';
+
+          table.style.padding = '0';
+
+          table.style.maxWidth = 'none';
+          table.style.maxHeight = 'none';
+
+          table.style.boxSizing = 'border-box';
+
+          table.style.tableLayout = 'fixed';
+          table.style.borderCollapse = 'collapse';
+          table.style.borderSpacing = '0';
+        });
+
+        clonedEl.querySelectorAll(
+          '.resizeHandle,' +
+          '.tableColHandle,' +
+          '.tableRowHandle'
+        ).forEach(node => {
+          node.style.display = 'none';
+        });
+      }
+    });
+
+    /* -----------------------------------------------------
+       Canvas 결과 검증
+       ----------------------------------------------------- */
+    if (!canvas || !canvas.width || !canvas.height) {
+      throw new Error('Zebra 출력용 Canvas 생성에 실패했습니다.');
+    }
+
+    console.log(
+      '[ZEBRA CANVAS]',
+      {
+        label: part.labelName || part.key,
+        layoutWidthMM: labelW,
+        layoutHeightMM: labelH,
+        cssWidth,
+        cssHeight,
+        dpi: targetDpi,
+        scale,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height
+      }
+    );
+
+    return canvas;
+
+  } finally {
+
+    host.remove();
+  }
+}
 }
 function canvasToZpl(canvas,threshold){
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
