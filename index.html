@@ -2641,9 +2641,18 @@ function setDynamicPrintPage(layoutKey){
         padding:0 !important;
         width:${pageW}mm !important;
         min-width:${pageW}mm !important;
+        height:auto !important;
         background:#fff !important;
         -webkit-print-color-adjust:exact !important;
         print-color-adjust:exact !important;
+      }
+
+      /* v4.15.0: visibility:hidden인 화면 UI(사이드바/패널 등)는 실제로는
+         레이아웃 공간을 계속 차지한다. 이 높이가 페이지 매수 계산에 섞여
+         라벨 그래픽이 엉뚱하게 다음 장으로 밀리는 원인이 될 수 있어
+         printArea 밖의 모든 요소는 인쇄 시 완전히 흐름에서 제거한다. */
+      body > *:not(#printArea){
+        display:none !important;
       }
 
       body *{
@@ -2673,9 +2682,14 @@ function setDynamicPrintPage(layoutKey){
         min-height:${pageH}mm !important;
         margin:0 !important;
         padding:0 !important;
-        overflow:hidden !important;
+        /* v4.15.0: hidden → visible. @page 규격 자체가 실제 인쇄 경계를 이미
+           강제하므로, 여기서 다시 hidden으로 자르면 서브픽셀 반올림 오차로
+           그래픽 요소의 아랫단/우측 1px 내외가 잘려나가는 문제가 생긴다. */
+        overflow:visible !important;
         page-break-after:always !important;
         break-after:page !important;
+        break-inside:avoid !important;
+        page-break-inside:avoid !important;
         background:#fff !important;
       }
 
@@ -2696,16 +2710,23 @@ function setDynamicPrintPage(layoutKey){
         outline:0 !important;
         box-shadow:none !important;
         background:#fff !important;
-        overflow:hidden !important;
+        /* v4.15.0: printPage와 동일한 이유로 hidden → visible */
+        overflow:visible !important;
+        break-inside:avoid !important;
+        page-break-inside:avoid !important;
       }
 
       /* 이미지/표/바코드만 별도 처리: .fld의 overflow:hidden 때문에
-         양 끝 픽셀이 잘리는 현상을 방지한다. */
+         양 끝 픽셀이 잘리는 현상을 방지한다.
+         + break-inside:avoid를 추가해 페이지 분할 계산 중 그래픽 요소가
+         다음 장으로 밀리지 않고 항상 한 페이지 안에서만 그려지도록 고정. */
       #printArea .imageField,
       #printArea .tableField,
       #printArea .barcodeField{
         overflow:visible !important;
         box-sizing:border-box !important;
+        break-inside:avoid !important;
+        page-break-inside:avoid !important;
       }
 
       #printArea .imageField img{
