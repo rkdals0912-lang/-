@@ -33,14 +33,14 @@
   }
 
   .tableField table {
-    width: calc(100% - 2px !important;
-    height: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
-    box-sizing: border-box !important;
-    table-layout: fixed !important;
-    border-spacing: 0 !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
+  width: calc(100% - 2px) !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+  table-layout: fixed !important;
+  border-spacing: 0 !important;
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
 }
