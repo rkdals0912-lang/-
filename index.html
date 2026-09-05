@@ -1882,7 +1882,8 @@ function buildContext(p,info,drumNo,weightKg,volume){
     expYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYMMDD'):'',
     expYYYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYYMMDD'):'',
     expYYdotMMdotDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YY.MM.DD'):'',
-    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):''
+    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):'',
+    expYYYYMM:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYY.MM'):''
   };
 }
 function buildDongeunContext(p,info,drumNo,weightKg){
@@ -1901,7 +1902,8 @@ function buildDongeunContext(p,info,drumNo,weightKg){
     expYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYMMDD'):'',
     expYYYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYYMMDD'):'',
     expYYdotMMdotDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YY.MM.DD'):'',
-    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):''
+    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):'',
+    expYYYYMM:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYY.MM'):''
   };
 }
 
