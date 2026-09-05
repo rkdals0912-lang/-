@@ -1802,6 +1802,7 @@ function formatExpiry(d,format){
   if(format==='YYYYMMDD') return `${y}${m}${day}`;
   if(format==='YY.MM.DD') return `${yy}.${m}.${day}`;
   if(format==='MMM. YYYY') return `${d.toLocaleString('en-US',{month:'short'})}. ${y}`;
+  if(format==='YYYY.MM') return `${yyyy}.${mm}`;
   return `${y}-${m}-${day}`;
 }
 function dowYearCode(year){
