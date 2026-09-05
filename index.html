@@ -1150,7 +1150,6 @@ body.workspace-open #homeView{display:none;}
               <option value="YYYYMMDD">YYYYMMDD</option>
               <option value="YY.MM.DD">YY.MM.DD</option>
               <option value="MMM. YYYY">MMM. YYYY</option>
-              <option value="YYYY. MM">YYYY. MM</option>
             </select>
           </div>
         </div>
@@ -1455,7 +1454,7 @@ function defaultLotRules(){
   return [
     {id:'LOT_QHA,HBF,노루페인트',name:'QHA,HBF,노루페인트 기본형',pattern:'{YY}{MM}{DD} {M}{BC}-{BS}',expiryMode:'fixed_days',expiryValue:365,expiryFormat:'YYYY-MM-DD',description:'일자 + 설비 + Batch',system:true},
     {id:'LOT_GPM',name:'GPM 기본형',pattern:'{YY}{MM}{DD} {M}{BC}-{BS}(N)',expiryMode:'fixed_days',expiryValue:365,expiryFormat:'YYYY-MM-DD',description:'GPM 기본형',system:true},
-    {id:'LOT_DSA,GLUZEN_DRUM',name:'DSA,GLUZEN 드럼별',pattern:'{YY}{MM}{DD} {M}{BC}-{BS}-{DRUM}',expiryMode:'product_days',expiryValue:12,expiryFormat:'YYYY. MM',description:'DSA/GLUZEN 드럼번호 포함',system:true},
+    {id:'LOT_DSA,GLUZEN_DRUM',name:'DSA,GLUZEN 드럼별',pattern:'{YY}{MM}{DD} {M}{BC}-{BS}-{DRUM}',expiryMode:'product_days',expiryValue:12,expiryFormat:'YYYY.MM',description:'DSA/GLUZEN 드럼번호 포함',system:true},
     {id:'LOT_DPS250_DRUM',name:'DPS 드럼별',pattern:'{YY}{MM}{DD}',expiryMode:'product_days',expiryValue:12,expiryFormat:'YYYY.MM',description:'DPS 제품용',system:true},
     {id:'LOT_DATE_ONLY',name:'날짜형',pattern:'{YY}{MM}{DD}',expiryMode:'product_days',expiryValue:12,expiryFormat:'YYYY-MM-DD',description:'날짜만 사용하는 단순 LOT',system:true},
     {id:'LOT_DOW',name:'다우 기본형',pattern:'YY00{YCODE}{MCODE}{DCODE}T5{LOTSEQ}',expiryMode:'product_days',expiryValue:18,expiryFormat:'YYYY-MM-DD',description:'다우 연/월/일 문자코드 + LOT 순번',system:true},
@@ -1463,7 +1462,7 @@ function defaultLotRules(){
     {id:'LOT_탑씰자사_DRUM',name:'탑씰 드럼형',pattern:'{YY}{MM}{DD}-{MANUAL3}',expiryMode:'product_days',expiryValue:12,expiryFormat:'YYYY-MM-DD',description:'날짜 + 직접입력 3자리',system:true},
     // 이전 버전 호환
     {id:'LOT_HBF_STD',name:'HBF 기본형(호환)',pattern:'{YY}{MM}{DD} {M}{BC}-{BS}',expiryMode:'fixed_days',expiryValue:365,expiryFormat:'YYYY-MM-DD',description:'이전 버전 호환',system:true},
-    {id:'LOT_DONGEUN_DRUM',name:'동은 드럼별(호환)',pattern:'{YY}{MM}{DD} {M}{BC}-{BS}-{DRUM}',expiryMode:'product_days',expiryValue:12,expiryFormat:'YYYY. MM',description:'이전 버전 호환',system:true},
+    {id:'LOT_DONGEUN_DRUM',name:'동은 드럼별(호환)',pattern:'{YY}{MM}{DD} {M}{BC}-{BS}-{DRUM}',expiryMode:'product_days',expiryValue:12,expiryFormat:'YYYY.MM',description:'이전 버전 호환',system:true},
     {id:'LOT_DATE_INPUT3',name:'날짜 + 직접입력 3자리(호환)',pattern:'{YY}{MM}{DD}-{INPUT3}',expiryMode:'product_days',expiryValue:12,expiryFormat:'YYYY-MM-DD',description:'이전 버전 호환',system:true}
   ];
 }
@@ -1488,7 +1487,7 @@ async function loadLotRules(){
     const base=defaultLotRules();
     const map=new Map(base.map(r=>[r.id,r]));
     if(Array.isArray(saved)) saved.forEach(r=>{ if(r&&r.id) map.set(r.id,r); });
-    LOT_RULES=[...map.values()].map(r=>{ if(r.expiryMode==='product_months') r={...r,expiryMode:'product_days',expiryValue:0,expiryFormat:r.expiryFormat==='YYYY. MM'?'YYYY. MM.DD':r.expiryFormat}; if(r.expiryMode==='fixed_months') r={...r,expiryMode:'fixed_days',expiryValue:(Number(r.expiryValue)||0)*30}; return r; });
+    LOT_RULES=[...map.values()].map(r=>{ if(r.expiryMode==='product_months') r={...r,expiryMode:'product_days',expiryValue:0,expiryFormat:r.expiryFormat==='YYYY.MM'?'YYYY.MM.DD':r.expiryFormat}; if(r.expiryMode==='fixed_months') r={...r,expiryMode:'fixed_days',expiryValue:(Number(r.expiryValue)||0)*30}; return r; });
   }catch(e){ LOT_RULES=defaultLotRules(); }
 }
 
@@ -1802,7 +1801,6 @@ function formatExpiry(d,format){
   if(format==='YYYYMMDD') return `${y}${m}${day}`;
   if(format==='YY.MM.DD') return `${yy}.${m}.${day}`;
   if(format==='MMM. YYYY') return `${d.toLocaleString('en-US',{month:'short'})}. ${y}`;
-  if(format==='YYYY. MM') return `${yyyy}. ${mm}`;
   return `${y}-${m}-${day}`;
 }
 function dowYearCode(year){
@@ -1882,8 +1880,7 @@ function buildContext(p,info,drumNo,weightKg,volume){
     expYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYMMDD'):'',
     expYYYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYYMMDD'):'',
     expYYdotMMdotDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YY.MM.DD'):'',
-    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):'',
-    expYYYYMM:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYY. MM'):''
+    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):''
   };
 }
 function buildDongeunContext(p,info,drumNo,weightKg){
@@ -1902,8 +1899,7 @@ function buildDongeunContext(p,info,drumNo,weightKg){
     expYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYMMDD'):'',
     expYYYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYYMMDD'):'',
     expYYdotMMdotDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YY.MM.DD'):'',
-    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):'',
-    expYYYYMM:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYY. MM'):''
+    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):''
   };
 }
 
@@ -5963,5 +5959,3 @@ setTimeout(showHome,0);
 </div> <!-- 또는 적절한 패널 닫기 태그 위 -->
 </body>
 </html>
-
-
