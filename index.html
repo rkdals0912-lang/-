@@ -478,22 +478,12 @@ body.workspace-open #homeView{display:none;}
 <!-- v4.14.1 robust font loading: independent requests + CDN fallbacks -->
 <!-- v4.14.1: each webfont loads independently so one bad family cannot break all fonts -->
 
-  <!-- KSA v4.14.1: project-local fonts. Keep /fonts beside index.html -->
-  <style id="ksa-local-fonts">
-    @font-face{font-family:"Noto Sans KR";src:url("./fonts/NotoSansKR-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Noto Sans KR";src:url("./fonts/NotoSansKR-Bold.woff2") format("woff2");font-weight:700 900;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Noto Serif KR";src:url("./fonts/NotoSerifKR-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Noto Serif KR";src:url("./fonts/NotoSerifKR-Bold.woff2") format("woff2");font-weight:700 900;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Nanum Gothic";src:url("./fonts/NanumGothic-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Nanum Gothic";src:url("./fonts/NanumGothic-Bold.woff2") format("woff2");font-weight:700 900;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Nanum Myeongjo";src:url("./fonts/NanumMyeongjo-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Nanum Myeongjo";src:url("./fonts/NanumMyeongjo-Bold.woff2") format("woff2");font-weight:700 900;font-style:normal;font-display:swap;}
-    @font-face{font-family:"IBM Plex Mono";src:url("./fonts/IBMPlexMono-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap;}
-    @font-face{font-family:"IBM Plex Mono";src:url("./fonts/IBMPlexMono-Bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Black Han Sans";src:url("./fonts/BlackHanSans-Regular.woff2") format("woff2");font-weight:400 900;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Do Hyeon";src:url("./fonts/DoHyeon-Regular.woff2") format("woff2");font-weight:400 900;font-style:normal;font-display:swap;}
-    @font-face{font-family:"Jua";src:url("./fonts/Jua-Regular.woff2") format("woff2");font-weight:400 900;font-style:normal;font-display:swap;}
-  </style>
+  <!-- v4.14.2: 로컬 ./fonts 폴더에 실제 폰트 파일이 없어 웹폰트가 전혀 적용되지 않던 문제 수정.
+       Google Fonts CDN에서 직접 불러오도록 변경 (인터넷 연결이 있는 환경에서 정상 적용됨). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;700&family=Black+Han+Sans&family=Do+Hyeon&family=Jua&display=swap" rel="stylesheet">
+
 
 </head>
 <body class="worker-mode">
@@ -2603,7 +2593,10 @@ $('genBatch').addEventListener('click',async()=>{
     generated.push({drumNo:n,ctx,parts});
     pushLog({time:new Date().toLocaleString('ko-KR'),worker,product:p.name,lot:info.lot,drumNo:n,weight:o.batchWeight,mode:'일괄'});
   }
-  selectedIdx=0;renderPreview();flash(`${o.date} · 선택한 라벨 ${o.batchDrums}장 생성 완료`);
+  selectedIdx=0;renderPreview();
+  flash(`${o.date} · 선택한 라벨 ${o.batchDrums}장 생성 완료 · 자동 출력 시작`);
+  // v: 생성 즉시 이어서 자동 출력 (드럼 번호 순서 그대로, 6→1)
+  await smartPrint(generated);
 });
 
 $('genLive').addEventListener('click',async()=>{
@@ -3844,7 +3837,7 @@ const LABEL_FONTS = [
 ];
 function fontOption(key){return LABEL_FONTS.find(x=>x.key===key)||LABEL_FONTS[0];}
 function fontClass(key){return 'lf-'+String(key||'system-sans').replace(/[^a-z0-9-]/g,'');}
-function fontCss(key,mono=false){return mono?fontOption('system-mono').css:fontOption(key||'system-sans').css;}
+function fontCss(key,mono=false){const opt=fontOption(key||(mono?'system-mono':'system-sans'));return opt?opt.css:fontOption('system-sans').css;}
 function fontFaceAvailable(key){
   const f=fontOption(key);
   if(!document.fonts||!f.test)return true;
@@ -4041,7 +4034,7 @@ function renderTableInspector(f,box){
     sel.addEventListener('change',()=>{if(sel.value){cell.kind='bind';cell.bind=sel.value;delete cell.text;txt.style.display='none';}else{cell.kind='static';cell.text=txt.value;delete cell.bind;txt.style.display='block';}renderCanvasOnly();});
     txt.addEventListener('input',()=>{cell.kind='static';cell.text=txt.value;renderCanvasOnly();});
     al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',async()=>{
-      pushEditorUndoState();
+      pushEditorUndo('cell-font');
       cell.fontFamily=LABEL_FONTS.some(x=>x.key===ft.value)?ft.value:'system-sans';
       cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono'); if(fs)fs.textContent=`적용값: ${fontOption(cell.fontFamily).label}`;
       // 저장 전에도 해당 셀에 바로 글꼴 적용
@@ -4058,7 +4051,7 @@ function renderTableInspector(f,box){
     grid.appendChild(wrap);
   }
   box.querySelector('#tblBackground').addEventListener('change',e=>{
-    pushEditorUndoState();
+    pushEditorUndo('table-bg');
     f.tableBg=e.target.value==='transparent'?'transparent':'white';
     renderCanvasOnly();
     renderEditorOutputPreview();
@@ -4098,7 +4091,7 @@ if($('inspRotatePreset')) $('inspRotatePreset').addEventListener('change',()=>{
 $('inspAlign').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).align=$('inspAlign').value;renderCanvasOnly();}});
 $('inspWeight').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).weight=+$('inspWeight').value;renderCanvasOnly();}});
 $('inspFont').addEventListener('change',async()=>{if(selectedFieldId){
-  pushEditorUndoState();
+  pushEditorUndo('field-font');
   const f=fieldById(selectedFieldId);
   f.fontFamily=LABEL_FONTS.some(x=>x.key===$('inspFont').value)?$('inspFont').value:'system-sans';
   f.mono=(f.fontFamily==='system-mono'||f.fontFamily==='ibm-plex-mono');
