@@ -2207,13 +2207,23 @@ function renderOrderList(){
     const p=resolveOrderProduct(o);
     const pname=p ? (p.shortName||p.name||p.scheduleName||o.productName||'품목명 없음') : (o.productName||o.productCode||'삭제/변경된 품목');
     const pcolor=p?.color||'';
-    // v4.11.6: 작업자용 작업지시 카드는 제품명과 Batch 번호만 표시한다.
+    // v4.11.6: 작업자용 작업지시 카드는 제품명과 LOT 번호만 한다.
     // 날짜/주야/설비/드럼/중량/출처 등 상세 정보는 관리자 등록 데이터로만 유지한다.
-    return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.id}">
-      <div class="top"><span class="pname">${escapeHtml(pname)}${pcolor?` ${escapeHtml(pcolor)}`:''}</span></div>
-      <div class="sub" style="font-size:13px;font-weight:800;color:#16345c;">Batch ${escapeHtml(o.batchSeq||1)}/${escapeHtml(o.batchCount||1)}</div>
-      <button class="del adminOnly" data-del="${o.id}">삭제</button>
-    </div>`;
+    let lotDisplay = `Batch ${o.batchSeq||1}/${o.batchCount||1}`;
+if(p){
+  try{
+    const labelCode = o.labelCode || '';
+    const variant = o.variant || '';
+    const ruleId = o.lotRuleId || labelEffectiveLotRule(p, labelCode, variant);
+    const info = computeLotInfo(o, 1, ruleId);
+    lotDisplay = info.lot;
+  }catch(e){}
+}
+return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.id}">
+  <div class="top"><span class="pname">${escapeHtml(pname)}${pcolor?` ${escapeHtml(pcolor)}`:''}</span></div>
+  <div class="sub" style="font-size:13px;font-weight:800;color:#16345c;">${escapeHtml(lotDisplay)}</div>
+  <button class="del adminOnly" data-del="${o.id}">삭제</button>
+</div>`;
   }).join('');
   wrap.querySelectorAll('.orderCard').forEach(el=>el.addEventListener('click',e=>{if(!e.target.dataset.del && !e.target.closest('[data-machine-quick]'))selectOrder(+el.dataset.id);}));
   wrap.querySelectorAll('[data-machine-quick]').forEach(btn=>btn.addEventListener('click',e=>{
