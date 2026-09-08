@@ -697,6 +697,8 @@ body.workspace-open #homeView{display:none;}
         <div id="variantWrapBatch" style="display:none;"><label>출력 프로파일</label><div id="variantPickerBatch" class="labelTypePicker"></div></div>
         <label>출력할 라벨 종류</label>
         <div id="labelTypePickerBatch" class="labelTypePicker"></div>
+        <label class="checkrow"><input type="checkbox" id="batchReverseOrder"> 역순 출력 (N → 1)</label>
+        <div class="lockednote">체크 해제: 1 → N 순서 / 체크: N → 1 순서로 드럼 번호를 생성하고 출력합니다.</div>
         <button class="btn btn-primary" id="genBatch">선택한 라벨만 전체 드럼 생성</button>
       </div>
 
@@ -2585,7 +2587,15 @@ $('genBatch').addEventListener('click',async()=>{
     o.manualLotInput=v; await saveWorkOrders(); refreshActiveOrderPanel();
   }
   generated=[];
-  for(let n=o.batchDrums;n>=1;n--){
+  // v4.15.1: 일괄 출력 순서를 체크박스로 선택.
+  // 기본값은 1 → N, 역순 체크 시 N → 1.
+  const reverseOrder = !!$('batchReverseOrder')?.checked;
+  const drumCount = Math.max(1, Math.round(Number(o.batchDrums)||1));
+  const start = reverseOrder ? drumCount : 1;
+  const end = reverseOrder ? 1 : drumCount;
+  const step = reverseOrder ? -1 : 1;
+
+  for(let n=start; reverseOrder ? n>=end : n<=end; n+=step){
     const info=computeLotInfo(o,n,ruleId);
     const ctx=contextForSelectedLabel(p,info,n,o.batchWeight,o.volume,labelCode,selectedVariantBatch);
     const parts=singlePartForType(p,ctx,labelCode,selectedVariantBatch);
@@ -2594,8 +2604,8 @@ $('genBatch').addEventListener('click',async()=>{
     pushLog({time:new Date().toLocaleString('ko-KR'),worker,product:p.name,lot:info.lot,drumNo:n,weight:o.batchWeight,mode:'일괄'});
   }
   selectedIdx=0;renderPreview();
-  flash(`${o.date} · 선택한 라벨 ${o.batchDrums}장 생성 완료 · 자동 출력 시작`);
-  // v: 생성 즉시 이어서 자동 출력 (드럼 번호 순서 그대로, 6→1)
+  const orderText = reverseOrder ? `${drumCount}→1` : `1→${drumCount}`;
+  flash(`${o.date} · 드럼 ${drumCount}장 생성 완료 · 출력 순서 ${orderText} · 자동 출력 시작`);
   await smartPrint(generated);
 });
 
@@ -3464,44 +3474,101 @@ async function sendItemsAsZpl(items){
   let device=ZEBRA_SELECTED_DEVICE;
   if(!device||typeof device.send!=='function') device=await discoverZebraPrinters(false);
   if(!device) throw new Error('Browser Print에서 Zebra 프린터를 찾지 못했습니다. 프린터 설정의 상태 메시지를 확인하세요.');
+
   const dpi=Number(PRINTER_SETTINGS.dpi)||203;
   const threshold=Number(PRINTER_SETTINGS.threshold)||185;
 
   /*
-   * 역순 일괄 스트리밍 출력 (Reverse-sequence Batch Streaming Print)
-   * ------------------------------------------------------------------
-   * items는 이미 genBatch()에서 드럼 수(배수) 기준 역순(N → 1)으로
-   * 생성되어 들어온다. 여기서는 그 순서를 그대로 유지한 채,
-   * 렌더링(캔버스 생성)과 하드웨어 전송을 파이프라인으로 겹쳐서
-   * 처리한다: 현재 라벨을 프린터 큐로 전송하는 동안, 다음 라벨의
-   * 캔버스를 미리(look-ahead 1개) 렌더링해 둔다.
-   * 기존 방식(각 라벨을 렌더링 → 전송 → 렌더링 → 전송으로 완전히
-   * 순차 처리)과 달리, 렌더링 대기시간과 전송 대기시간이 겹쳐지므로
-   * 전체 출력 지연이 줄어든다. 프린터로의 전송 자체는 하드웨어 큐
-   * 특성상 순서를 보장하기 위해 여전히 한 건씩 await 한다.
+   * v4.15.1 · Zebra 일괄 전송 최적화
+   * ------------------------------------------------------------
+   * 기존:
+   *   라벨 1장 렌더링 → ZPL 생성 → device.send() → 완료 대기
+   *   → 다음 라벨...
+   *
+   * 문제:
+   *   Browser Print의 device.send()를 라벨마다 호출하면서
+   *   45장의 경우 45번의 전송 요청/응답 대기가 발생합니다.
+   *
+   * 변경:
+   *   여러 라벨의 ^XA...^XZ를 하나의 ZPL 스트림으로 묶어서
+   *   Browser Print에 일괄 전송합니다.
+   *
+   * 주의:
+   *   Browser Print 전송 크기 제한을 고려해 약 1.75MB 단위로
+   *   자동 분할합니다. 따라서 45장도 가능한 한 적은 횟수의
+   *   send() 호출로 처리하면서 드럼 출력 순서는 그대로 보장됩니다.
    */
+
   const queue=[];
   for(const item of items){
-    for(const part of (item.parts||[])){ queue.push(part); }
+    for(const part of (item.parts||[])) queue.push(part);
   }
-  if(!queue.length){ setZebraStatus('전송할 라벨이 없습니다','err'); return true; }
 
-  const renderJob=(part)=>renderPartCanvas(part,dpi).then(canvas=>({part,canvas}));
-  let sent=0;
-  let nextJob=renderJob(queue[0]);
+  if(!queue.length){
+    setZebraStatus('전송할 라벨이 없습니다','err');
+    return true;
+  }
 
-  for(let i=0;i<queue.length;i++){
-    const {part,canvas}=await nextJob;
-    // 다음 라벨 렌더링을 미리 시작해 전송과 병렬로 겹치게 한다.
-    nextJob = (i+1<queue.length) ? renderJob(queue[i+1]) : null;
+  const MAX_SEND_BYTES = 1750000; // 2MB 제한 대비 안전 여유
+  const chunks=[];
+  let current=[];
+  let currentBytes=0;
 
-    setZebraStatus(`ZPL 변환 중 · ${part.labelName||part.key||''} (${dpi}dpi)`);
+  let rendered=0;
+
+  for(const part of queue){
+    setZebraStatus(`ZPL 변환 중 · ${rendered+1}/${queue.length} · ${part.labelName||part.key||''}`);
+
+    const canvas=await renderPartCanvas(part,dpi);
     const zpl=canvasToZpl(canvas,threshold);
     const size=new Blob([zpl]).size;
-    if(size>1950000) throw new Error(`ZPL 데이터가 약 ${(size/1024/1024).toFixed(2)}MB로 Browser Print 2MB 제한에 가깝습니다. 203dpi로 변경하거나 브라우저 인쇄를 사용하세요.`);
-    setZebraStatus(`ZPL 전송 중 · ${device.name||'Zebra'} · ${(size/1024).toFixed(0)}KB (${i+1}/${queue.length})`);
-    await sendToZebraDevice(device,zpl); sent++;
+
+    if(size>1950000){
+      throw new Error(`단일 라벨 ZPL 데이터가 약 ${(size/1024/1024).toFixed(2)}MB입니다. 203dpi로 변경하거나 라벨 크기를 확인하세요.`);
+    }
+
+    /*
+     * 현재 묶음에 추가했을 때 안전 한도를 넘으면 먼저 전송 묶음을 확정하고,
+     * 현재 라벨은 다음 묶음의 첫 라벨로 넣습니다.
+     */
+    if(current.length && currentBytes+size>MAX_SEND_BYTES){
+      chunks.push(current.join(''));
+      current=[];
+      currentBytes=0;
+    }
+
+    current.push(zpl);
+    currentBytes+=size;
+    rendered++;
   }
+
+  if(current.length) chunks.push(current.join(''));
+
+  let sent=0;
+
+  for(let c=0;c<chunks.length;c++){
+    const zpl=chunks[c];
+    const size=new Blob([zpl]).size;
+
+    setZebraStatus(
+      `ZPL 일괄 전송 중 · ${device.name||'Zebra'} · 묶음 ${c+1}/${chunks.length} · ${sent+1}~${Math.min(queue.length, sent + 999)}`
+    );
+
+    await sendToZebraDevice(device,zpl);
+
+    /*
+     * 실제 라벨 수는 ^XA 기준으로 계산.
+     * chunks가 생성될 때 라벨별 ZPL을 그대로 유지하므로
+     * 전송 순서는 queue와 동일합니다.
+     */
+    const count=(zpl.match(/\^XA/g)||[]).length;
+    sent+=count;
+
+    setZebraStatus(
+      `ZPL 일괄 전송 완료 · ${device.name||'Zebra'} · ${sent}/${queue.length}건`
+    );
+  }
+
   setZebraStatus(`ZPL 전송 완료 · ${device.name||'Zebra'} · ${sent}건`,'ok');
   return true;
 }
