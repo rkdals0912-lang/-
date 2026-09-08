@@ -3366,98 +3366,104 @@ async function renderPartCanvas(part, dpi) {
    Canvas → Zebra ZPL ^GFA
    v4.14.2
    ========================================================= */
-function canvasToZpl(canvas, threshold) {
+async function canvasToZpl(canvas, threshold) {
+  if (!canvas) throw new Error('Canvas가 없습니다.');
 
-  if (!canvas) {
-    throw new Error('Canvas가 없습니다.');
-  }
-
-  const ctx = canvas.getContext('2d', {
-    willReadFrequently: true
-  });
-
-  if (!ctx) {
-    throw new Error('Canvas 2D context를 생성하지 못했습니다.');
-  }
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('Canvas 2D context를 생성하지 못했습니다.');
 
   const w = canvas.width;
   const h = canvas.height;
-
   const bytesPerRow = Math.ceil(w / 8);
   const totalBytes = bytesPerRow * h;
-
-  const img = ctx.getImageData(
-    0,
-    0,
-    w,
-    h
-  ).data;
-
+  const img = ctx.getImageData(0, 0, w, h).data;
   const limit = Number(threshold) || 185;
 
+  /*
+   * v4.15.2
+   * 기존 ^GFA ASCII-HEX 방식은 1바이트를 문자 2개로 전송하므로
+   * 라벨 한 장의 데이터가 매우 커지고, 여러 장을 연속 출력할 때
+   * Browser Print → 프린터 전송량과 프린터의 bitmap 처리량이 커집니다.
+   *
+   * 따라서 실제 1bit bitmap 바이트를 만든 뒤 Zebra 공식 Z64 방식
+   * (Deflate + Base64 + CRC16/XMODEM)으로 압축합니다.
+   * Zebra 문서상 Z64는 기존 ASCII hexadecimal graphic data의
+   * drop-in replacement로 ^GF에서 사용할 수 있습니다.
+   */
+  const raw = new Uint8Array(totalBytes);
   const HEX = '0123456789ABCDEF';
 
-  const rows = new Array(h);
-
   for (let y = 0; y < h; y++) {
-
-    let row = '';
-
     for (let byteIndex = 0; byteIndex < bytesPerRow; byteIndex++) {
-
       let byte = 0;
-
       for (let bit = 0; bit < 8; bit++) {
-
         const x = byteIndex * 8 + bit;
-
-        /*
-         * 실제 Canvas 폭보다 큰 마지막 bit는
-         * 흰색으로 처리
-         */
-        if (x >= w) {
-          continue;
-        }
-
+        if (x >= w) continue;
         const i = (y * w + x) * 4;
-
         const r = img[i];
         const g = img[i + 1];
         const b = img[i + 2];
         const a = img[i + 3];
-
-        /*
-         * 투명 영역은 무조건 흰색
-         */
-        if (a <= 20) {
-          continue;
-        }
-
-        /*
-         * 인간 시각 기준 밝기
-         */
-        const luminance =
-          (r * 299 +
-           g * 587 +
-           b * 114) / 1000;
-
-        /*
-         * threshold보다 어두운 픽셀만 검정
-         */
-        if (luminance < limit) {
-          byte |= (1 << (7 - bit));
-        }
+        if (a <= 20) continue;
+        const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+        if (luminance < limit) byte |= (1 << (7 - bit));
       }
-
-      row +=
-        HEX[(byte >> 4) & 15] +
-        HEX[byte & 15];
+      raw[y * bytesPerRow + byteIndex] = byte;
     }
-
-    rows[y] = row;
   }
 
-  const hex = rows.join('');
+  /* Browser/Chromium의 표준 Deflate 스트림을 사용합니다.
+     Chrome/Edge 기반 현장 PC에서는 지원됩니다. */
+  if (typeof CompressionStream !== 'function') {
+    /* 구형 브라우저에서는 기존 ASCII HEX 방식으로 안전하게 fallback */
+    const rows = new Array(h);
+    for (let y = 0; y < h; y++) {
+      let row = '';
+      const offset = y * bytesPerRow;
+      for (let x = 0; x < bytesPerRow; x++) {
+        const v = raw[offset + x];
+        row += HEX[(v >> 4) & 15] + HEX[v & 15];
+      }
+      rows[y] = row;
+    }
+    return [
+      '^XA', `^PW${w}`, `^LL${h}`, '^LH0,0', '^FO0,0',
+      `^GFA,${totalBytes},${totalBytes},${bytesPerRow},${rows.join('')}`,
+      '^FS', '^XZ'
+    ].join('');
+  }
+
+  const compressed = await (async()=>{
+    const cs = new CompressionStream('deflate');
+    const writer = cs.writable.getWriter();
+    writer.write(raw);
+    writer.close();
+    const buffer = await new Response(cs.readable).arrayBuffer();
+    return new Uint8Array(buffer);
+  })();
+
+  /* Uint8Array → Base64. btoa()에 너무 큰 배열을 한 번에 넣지 않습니다. */
+  let binary = '';
+  const STEP = 0x8000;
+  for (let i = 0; i < compressed.length; i += STEP) {
+    binary += String.fromCharCode(...compressed.subarray(i, Math.min(i + STEP, compressed.length)));
+  }
+  const base64 = btoa(binary);
+
+  /* Zebra Z64 CRC: CRC-16/XMODEM, 초기값 0x0000, polynomial 0x1021.
+     CRC는 압축 데이터 자체가 아니라 Base64 encoded_data에 계산합니다. */
+  let crc = 0x0000;
+  for (let i = 0; i < base64.length; i++) {
+    const code = base64.charCodeAt(i);
+    for (let bit = 0; bit < 8; bit++) {
+      const inputBit = (code >> (7 - bit)) & 1;
+      const topBit = (crc >> 15) & 1;
+      crc = (crc << 1) & 0xFFFF;
+      if ((topBit ^ inputBit) !== 0) crc ^= 0x1021;
+    }
+  }
+  const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
+  const z64 = `:Z64:${base64}:${crcHex}`;
 
   return [
     '^XA',
@@ -3465,11 +3471,12 @@ function canvasToZpl(canvas, threshold) {
     `^LL${h}`,
     '^LH0,0',
     '^FO0,0',
-    `^GFA,${totalBytes},${totalBytes},${bytesPerRow},${hex}`,
+    `^GFA,${totalBytes},${totalBytes},${bytesPerRow},${z64}`,
     '^FS',
     '^XZ'
   ].join('');
 }
+
 async function sendItemsAsZpl(items){
   let device=ZEBRA_SELECTED_DEVICE;
   if(!device||typeof device.send!=='function') device=await discoverZebraPrinters(false);
@@ -3479,7 +3486,7 @@ async function sendItemsAsZpl(items){
   const threshold=Number(PRINTER_SETTINGS.threshold)||185;
 
   /*
-   * v4.15.1 · Zebra 일괄 전송 최적화
+   * v4.15.2 · Zebra Z64 압축 + 일괄 전송 최적화
    * ------------------------------------------------------------
    * 기존:
    *   라벨 1장 렌더링 → ZPL 생성 → device.send() → 완료 대기
@@ -3517,10 +3524,10 @@ async function sendItemsAsZpl(items){
   let rendered=0;
 
   for(const part of queue){
-    setZebraStatus(`ZPL 변환 중 · ${rendered+1}/${queue.length} · ${part.labelName||part.key||''}`);
+    setZebraStatus(`ZPL 압축 변환 중 · ${rendered+1}/${queue.length} · ${part.labelName||part.key||''}`);
 
     const canvas=await renderPartCanvas(part,dpi);
-    const zpl=canvasToZpl(canvas,threshold);
+    const zpl=await canvasToZpl(canvas,threshold);
     const size=new Blob([zpl]).size;
 
     if(size>1950000){
@@ -3569,7 +3576,7 @@ async function sendItemsAsZpl(items){
     );
   }
 
-  setZebraStatus(`ZPL 전송 완료 · ${device.name||'Zebra'} · ${sent}건`,'ok');
+  setZebraStatus(`ZPL 전송 완료 · ${device.name||'Zebra'} · ${sent}건 (Z64 압축)`,'ok');
   return true;
 }
 
@@ -3592,7 +3599,7 @@ async function smartPrint(items){
     await recordPrintHistory(items); triggerPrint(items); return;
   }
   if(method==='zebra'){
-    try{await sendItemsAsZpl(items);await recordPrintHistory(items);flash('Zebra ZPL 전송 완료');}
+    try{await sendItemsAsZpl(items);await recordPrintHistory(items);flash('Zebra ZPL 전송 완료 · Z64 압축 일괄 출력');}
     catch(e){console.error(e);setZebraStatus(`ZPL 출력 실패 · ${e.message||e}`,'err');flash(`ZPL 출력 실패: ${e.message||e}`,true);}
     return;
   }
@@ -3600,7 +3607,7 @@ async function smartPrint(items){
   if(browserPrintSdkReady()){
     try{
       if(!ZEBRA_SELECTED_DEVICE) await discoverZebraPrinters(true);
-      if(ZEBRA_SELECTED_DEVICE){await sendItemsAsZpl(items);await recordPrintHistory(items);flash('Zebra ZPL 전송 완료');return;}
+      if(ZEBRA_SELECTED_DEVICE){await sendItemsAsZpl(items);await recordPrintHistory(items);flash('Zebra ZPL 전송 완료 · Z64 압축 일괄 출력');return;}
     }catch(e){console.warn('Auto ZPL failed; browser print fallback:',e);}
   }
   await recordPrintHistory(items); triggerPrint(items);
