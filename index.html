@@ -1146,6 +1146,7 @@ body.workspace-open #homeView{display:none;}
               <option value="YYYYMMDD">YYYYMMDD</option>
               <option value="YY.MM.DD">YY.MM.DD</option>
               <option value="MMM. YYYY">MMM. YYYY</option>
+              <option value="YYYY.MM">YYYY.MM</option>
             </select>
           </div>
         </div>
@@ -1797,6 +1798,7 @@ function formatExpiry(d,format){
   if(format==='YYYYMMDD') return `${y}${m}${day}`;
   if(format==='YY.MM.DD') return `${yy}.${m}.${day}`;
   if(format==='MMM. YYYY') return `${d.toLocaleString('en-US',{month:'short'})}. ${y}`;
+  if(format==='YYYY.MM') return `${y}.${m}`;
   return `${y}-${m}-${day}`;
 }
 function dowYearCode(year){
