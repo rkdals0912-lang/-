@@ -1878,7 +1878,8 @@ function buildContext(p,info,drumNo,weightKg,volume){
     expYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYMMDD'):'',
     expYYYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYYMMDD'):'',
     expYYdotMMdotDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YY.MM.DD'):'',
-    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):''
+    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):'',
+    expYYYYdotMM:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYY.MM'):''
   };
 }
 function buildDongeunContext(p,info,drumNo,weightKg){
@@ -1897,7 +1898,8 @@ function buildDongeunContext(p,info,drumNo,weightKg){
     expYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYMMDD'):'',
     expYYYYMMDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYYMMDD'):'',
     expYYdotMMdotDD:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YY.MM.DD'):'',
-    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):''
+    expMMMYYYY:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'MMM. YYYY'):'',
+    expYYYYdotMM:info.expDateRaw?formatExpiry(new Date(info.expDateRaw+'T00:00:00'),'YYYY.MM'):''
   };
 }
 
@@ -3988,12 +3990,13 @@ const FIELD_VARIABLES = [
   ['lotDateMMMYYYY','LOT 날짜 MMM. YYYY'],
   ['exp','EXP'],
   ['expLine','EXP 문구 포함'],
-  ['expYYYYdotMMdotDD','EXP YYYY.MM.DD'],
-  ['expYYYYdashMMdashDD','EXP YYYY-MM-DD'],
-  ['expYYMMDD','EXP YYMMDD'],
-  ['expYYYYMMDD','EXP YYYYMMDD'],
-  ['expYYdotMMdotDD','EXP YY.MM.DD'],
-  ['expMMMYYYY','EXP MMM. YYYY'],
+  ['expYYYYdotMMdotDD','YYYY.MM.DD'],
+  ['expYYYYdashMMdashDD','YYYY-MM-DD'],
+  ['expYYMMDD','YYMMDD'],
+  ['expYYYYMMDD','YYYYMMDD'],
+  ['expYYdotMMdotDD','YY.MM.DD'],
+  ['expMMMYYYY','MMM. YYYY'],
+  ['expYYYYdotMM','YYYY.MM'],
   ['weight','중량'],
   ['weightLineKr','중량(국문 문구 포함)'],
   ['weightLineEn','Weight(영문 문구 포함)'],
