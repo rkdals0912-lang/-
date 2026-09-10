@@ -522,7 +522,7 @@ body.workspace-open #homeView{display:none;}
     <button class="homeCard adminOnly" data-go="lot"><span class="homeIcon c-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span><b>LOT 규칙</b><small>제품별 채번 규칙</small></button>
     <button class="homeCard adminOnly" data-go="history"><span class="homeIcon c-cyan"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><b>출력 이력</b><small>품목 · 라벨 · LOT</small></button>
     <button class="homeCard adminOnly" data-go="printer"><span class="homeIcon c-indigo"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg></span><b>프린터</b><small>Zebra ZT420 / 421</small></button>
-    <button class="homeCard" data-go="reissue"><span class="homeIcon c-brown"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></svg></span><b>재발행</b><small>날짜 지정 재출력</small></button>
+    <button class="homeCard" data-go="reissue" style="display:none;"><span class="homeIcon c-brown"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></svg></span><b>재발행</b><small>날짜 지정 재출력</small></button>
   </div>
 </section>
 
@@ -638,7 +638,7 @@ body.workspace-open #homeView{display:none;}
           <select id="orderFilter" style="width:auto;padding:6px 8px;font-size:12px;">
             <option value="all">전체 날짜</option>
             <option value="today">오늘만</option>
-            <option value="pending">미완료만</option>
+            <option value="pending" selected>미완료만</option>
           </select>
         </div>
         <div id="orderMachineFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;">
@@ -729,7 +729,7 @@ body.workspace-open #homeView{display:none;}
         </div>
         <div class="previewWrap" id="previewWrap"><div class="empty">라벨을 생성하세요.</div></div>
       </div>
-      <div class="panel" id="printHistoryPanel">
+      <div class="panel" id="printHistoryPanel" style="display:none;">
         <div class="toolbar">
           <h2 style="margin:0;">라벨 출력 이력</h2>
           <button class="btn btn-ghost auto" id="exportBtn">CSV 내보내기</button>
@@ -2124,6 +2124,7 @@ function renderLabelTypePickers(){
   render('labelTypePickerBatch',selectedLabelTypeBatch,selectedVariantBatch,(key)=>{selectedLabelTypeBatch=key;renderLabelTypePickers();});
   render('labelTypePickerLive',selectedLabelTypeLive,selectedVariantLive,(key)=>{selectedLabelTypeLive=key;renderLabelTypePickers();});
   updateManualLotInputVisibility();
+  if(o && typeof autoPreviewOrder==='function') autoPreviewOrder();
 }
 function singlePartForType(p,ctx,labelCode,variant=''){
   const code=String(labelCode||'').trim();
@@ -2508,7 +2509,29 @@ function activeOrder(){return workOrders.find(o=>o.id===activeOrderId)||null;}
 async function selectOrder(id){
   activeOrderId=id; const o=activeOrder();
   if(o&&o.status==='pending'){o.status='in_progress';await saveWorkOrders();}
-  liveDrumCounter=1;generated=[];renderOrderList();refreshActiveOrderPanel();renderPreview();
+  liveDrumCounter=1;generated=[];renderOrderList();refreshActiveOrderPanel();
+  autoPreviewOrder();
+}
+// v4.16: 작업지시를 선택하면 실제 인쇄 없이 드럼 1번 기준 라벨 미리보기를 자동으로 생성한다.
+function autoPreviewOrder(){
+  const o=activeOrder();
+  if(!o){generated=[];renderPreview();return;}
+  const p=resolveOrderProduct(o);
+  if(!p){generated=[];renderPreview();return;}
+  try{
+    const labelCode=(mode==='live'?selectedLabelTypeLive:selectedLabelTypeBatch)||selectedLabelTypeBatch||selectedLabelTypeLive;
+    const variant=(mode==='live'?selectedVariantLive:selectedVariantBatch)||'';
+    if(!labelCode){generated=[];renderPreview();return;}
+    const ruleId=labelEffectiveLotRule(p,labelCode,variant);
+    const drumNo=mode==='live'?(liveDrumCounter||1):1;
+    const info=computeLotInfo(o,drumNo,ruleId);
+    const weight=mode==='live'?($('liveWeight')?.value||p.kg||''):o.batchWeight;
+    const ctx=contextForSelectedLabel(p,info,drumNo,weight,o.volume,labelCode,variant);
+    const parts=singlePartForType(p,ctx,labelCode,variant);
+    generated=parts.length?[{drumNo,ctx,parts}]:[];
+    selectedIdx=0;
+  }catch(e){generated=[];}
+  renderPreview();
 }
 function refreshActiveOrderPanel(){
   const o=activeOrder();
@@ -3719,7 +3742,7 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
   else if(go==='editor') $('tabEditor').click();
   else if(go==='products') $('tabProductMaster').click();
   else if(go==='lot') $('tabLotRules').click();
-  else if(go==='history'){ $('tabBatch').click(); setTimeout(()=>$('printHistoryPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
+  else if(go==='history'){ $('tabBatch').click(); setTimeout(()=>{ if($('printHistoryPanel'))$('printHistoryPanel').style.display='block'; $('printHistoryPanel')?.scrollIntoView({behavior:'smooth',block:'start'}); },120); }
   else if(go==='printer'){ $('tabBatch').click(); setTimeout(()=>$('printerSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
   else if(go==='reissue'){ $('tabBatch').click(); setTimeout(()=>document.querySelector('#reissueProduct')?.scrollIntoView({behavior:'smooth',block:'center'}),120); }
 }));
@@ -3730,8 +3753,8 @@ async function autoSaveLabelWorkBeforeLeaving(){
     try{ await saveLayouts(); }catch(e){ console.warn('label layout autosave failed',e); }
   }
 }
-$('tabBatch').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();openWorkspace();mode='batch';$('tabBatch').classList.add('active');$('tabLive').classList.remove('active');$('tabEditor').classList.remove('active');$('panelBatch').style.display='block';$('panelLive').style.display='none';showOp();});
-$('tabLive').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();openWorkspace();mode='live';$('tabLive').classList.add('active');$('tabBatch').classList.remove('active');$('tabEditor').classList.remove('active');$('panelLive').style.display='block';$('panelBatch').style.display='none';$('nextDrumOut').textContent=liveDrumCounter;showOp();});
+$('tabBatch').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();openWorkspace();mode='batch';$('tabBatch').classList.add('active');$('tabLive').classList.remove('active');$('tabEditor').classList.remove('active');$('panelBatch').style.display='block';$('panelLive').style.display='none';if($('printHistoryPanel'))$('printHistoryPanel').style.display='none';showOp();refreshActiveOrderPanel();});
+$('tabLive').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();openWorkspace();mode='live';$('tabLive').classList.add('active');$('tabBatch').classList.remove('active');$('tabEditor').classList.remove('active');$('panelLive').style.display='block';$('panelBatch').style.display='none';if($('printHistoryPanel'))$('printHistoryPanel').style.display='none';$('nextDrumOut').textContent=liveDrumCounter;showOp();refreshActiveOrderPanel();});
 $('tabEditor').addEventListener('click',()=>{openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');document.body.classList.add('editing');setupSeparatedLabelScreens();showLabelMasterScreen();renderEditorTabs();renderLabelMasterList();renderEditor();});
 $('resetLive').addEventListener('click',()=>{liveDrumCounter=1;$('nextDrumOut').textContent='1';flash('드럼 카운트 초기화');});
 
@@ -3990,13 +4013,13 @@ const FIELD_VARIABLES = [
   ['lotDateMMMYYYY','LOT 날짜 MMM. YYYY'],
   ['exp','EXP'],
   ['expLine','EXP 문구 포함'],
-  ['expYYYYdotMMdotDD','YYYY.MM.DD'],
-  ['expYYYYdashMMdashDD','YYYY-MM-DD'],
-  ['expYYMMDD','YYMMDD'],
-  ['expYYYYMMDD','YYYYMMDD'],
-  ['expYYdotMMdotDD','YY.MM.DD'],
-  ['expMMMYYYY','MMM. YYYY'],
-  ['expYYYYdotMM','YYYY.MM'],
+  ['expYYYYdotMMdotDD','EXP YYYY.MM.DD'],
+  ['expYYYYdashMMdashDD','EXP YYYY-MM-DD'],
+  ['expYYMMDD','EXP YYMMDD'],
+  ['expYYYYMMDD','EXP YYYYMMDD'],
+  ['expYYdotMMdotDD','EXP YY.MM.DD'],
+  ['expMMMYYYY','EXP MMM. YYYY'],
+  ['expYYYYdotMM','EXP YYYY.MM'],
   ['weight','중량'],
   ['weightLineKr','중량(국문 문구 포함)'],
   ['weightLineEn','Weight(영문 문구 포함)'],
