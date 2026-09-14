@@ -598,6 +598,7 @@ body.workspace-open #homeView{display:none;}
           <label>드럼당 중량 kg</label><input type="number" id="batchWeight" min="1">
           <label>용량 (Approxi, L)</label><input type="number" id="volumeInput" min="0" placeholder="예: 190">
           <label class="checkrow"><input type="checkbox" id="includeBasic" checked> 기본 무지라벨 함께 출력</label>
+          <div class="readout" id="manualOrderLotPreview" style="margin:10px 0;font-weight:700;">LOT 미리보기: 제품을 먼저 선택하세요</div>
           <button type="button" class="btn btn-primary" id="addOrder">+ 작업지시 목록에 추가</button>
           <div class="lockednote">직접 등록이 필요할 때만 이 영역을 열어 사용합니다.</div>
         </div>
@@ -705,6 +706,18 @@ body.workspace-open #homeView{display:none;}
         <div class="lockednote">ZPL 직접 인쇄는 이 PC에 <b>Zebra Browser Print</b>가 설치·실행되어 있고, GitHub 저장소 루트에 공식 SDK의 <b>BrowserPrint-3.1.250.min.js</b>와 <b>BrowserPrint-Zebra-1.1.250.min.js</b> 두 파일을 원래 이름 그대로 두는 것을 권장합니다. 라벨 화면을 흑백 비트맵으로 변환한 뒤 ZPL <b>^GFA</b> 명령으로 전송하므로 한글도 화면 모습 그대로 출력할 수 있습니다.</div>
       </div>
 
+      <div class="panel adminOnly" id="featureFlagsPanel">
+        <h2><span class="n">⚙</span>출력 모드 사용 설정</h2>
+        <div class="lockednote" style="margin-bottom:10px;">끄면 홈 화면 및 상단 탭에서 해당 모드가 숨겨지고 접근할 수 없습니다. (관리자만 변경 가능)</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="featureFlagBatch" style="width:auto;"> 일괄 출력 모드 사용
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;">
+          <input type="checkbox" id="featureFlagLive" style="width:auto;"> 실시간 출력 모드 사용
+        </label>
+      </div>
+
+
       <div class="panel" id="panelBatch">
         <h2><span class="n">2</span>일괄 출력</h2>
         <div class="readout" style="margin-bottom:8px;">드럼 <b id="batchDrumsOut">-</b>개 × <b id="batchWeightOut">-</b>kg</div>
@@ -737,7 +750,8 @@ body.workspace-open #homeView{display:none;}
       <div class="panel">
         <div class="toolbar">
           <h2 style="margin:0;">라벨 미리보기</h2>
-          <button class="btn btn-primary auto" id="printBtn">🖨 바로 인쇄</button>
+          <button class="btn btn-primary auto" id="printBtn">🖨 바로 인쇄 (선택한 드럼만)</button>
+          <button class="btn btn-ghost auto" id="printAllBtn" style="display:none;">🖨 전체 드럼 인쇄</button>
           <span id="printModeBadge" class="printModeBadge">인쇄 방식 확인중</span>
           <span style="font-size:11px;color:var(--sub);">Zebra ZPL 또는 브라우저 인쇄를 설정에 따라 사용합니다.</span>
         </div>
@@ -829,6 +843,7 @@ body.workspace-open #homeView{display:none;}
           <div><label>글자크기 (pt)</label><input type="number" id="inspSize" step="0.5"></div>
           <div><label>정렬</label><select id="inspAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></div>
         </div>
+        <label class="checkrow" id="inspAutoFitRow"><input type="checkbox" id="inspAutoFit"> 자동맞춤 (상자 크기에 맞게 글자 꽉 채우기)</label>
         <div class="inspRow">
           <div><label>회전 빠른 선택</label>
             <select id="inspRotatePreset">
@@ -1337,6 +1352,36 @@ MASTER_PRODUCTS.forEach((p,i)=>{
 MASTER_PRODUCTS.forEach(p=>{ if(p.useByDays==null) p.useByDays=Math.max(0,(Number(p.months)||12)*30); if(!p.expRuleId) p.expRuleId='EXP_USEBY_DAYS'; delete p.months; });
 let CUSTOM_PRODUCTS=[];
 let DELETED_MASTER_PRODUCT_IDS=[];
+let FEATURE_FLAGS={batchEnabled:true,liveEnabled:true};
+async function loadFeatureFlags(){
+  try{
+    const raw=await storeGet('ksa-feature-flags-v1');
+    if(raw){ const v=JSON.parse(raw); FEATURE_FLAGS={batchEnabled:v.batchEnabled!==false,liveEnabled:v.liveEnabled!==false}; }
+  }catch(e){}
+}
+async function saveFeatureFlags(){ try{ await storeSet('ksa-feature-flags-v1',JSON.stringify(FEATURE_FLAGS)); }catch(e){} }
+function applyFeatureFlags(){
+  const batchCard=document.querySelector('.homeCard[data-go="batch"]');
+  const liveCard=document.querySelector('.homeCard[data-go="live"]');
+  if(batchCard) batchCard.style.display=FEATURE_FLAGS.batchEnabled?'':'none';
+  if(liveCard) liveCard.style.display=FEATURE_FLAGS.liveEnabled?'':'none';
+  if($('tabBatch')) $('tabBatch').style.display=FEATURE_FLAGS.batchEnabled?'':'none';
+  if($('tabLive')) $('tabLive').style.display=FEATURE_FLAGS.liveEnabled?'':'none';
+  if($('featureFlagBatch')) $('featureFlagBatch').checked=FEATURE_FLAGS.batchEnabled;
+  if($('featureFlagLive')) $('featureFlagLive').checked=FEATURE_FLAGS.liveEnabled;
+  if(typeof mode!=='undefined'){
+    if(mode==='batch' && !FEATURE_FLAGS.batchEnabled && FEATURE_FLAGS.liveEnabled && $('tabLive')) $('tabLive').click();
+    else if(mode==='live' && !FEATURE_FLAGS.liveEnabled && FEATURE_FLAGS.batchEnabled && $('tabBatch')) $('tabBatch').click();
+  }
+}
+$('featureFlagBatch')?.addEventListener('change',async(e)=>{
+  if(!e.target.checked && !FEATURE_FLAGS.liveEnabled){ e.target.checked=true; flash('두 모드를 모두 끌 수는 없습니다',true); return; }
+  FEATURE_FLAGS.batchEnabled=e.target.checked; await saveFeatureFlags(); applyFeatureFlags(); flash('저장되었습니다');
+});
+$('featureFlagLive')?.addEventListener('change',async(e)=>{
+  if(!e.target.checked && !FEATURE_FLAGS.batchEnabled){ e.target.checked=true; flash('두 모드를 모두 끌 수는 없습니다',true); return; }
+  FEATURE_FLAGS.liveEnabled=e.target.checked; await saveFeatureFlags(); applyFeatureFlags(); flash('저장되었습니다');
+});
 let EXCEL_FULL_SYNC_MODE=false;
 let ALL_PRODUCTS=[...MASTER_PRODUCTS];
 let PRODUCTS=ALL_PRODUCTS.filter(p=>p.family!=='DONGEUN');
@@ -1998,9 +2043,31 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
     const transparentBg=f.transparentBackground!==false;
     const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`font-family:${fontCss(f.fontFamily,f.mono)} !important`,`text-align:${f.align||'left'}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
     const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : escapeHtml(text).replace(/\n/g,'<br>');
-    return `<div class="${cls} ${fontClass(f.fontFamily||(f.mono?'system-mono':'system-sans'))}" ${dataAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:${zi+1};">${content}${resizeHandles}</div>`;
+    const autoFitAttr=f.autoFit?` data-autofit="1" data-basesize="${f.size}"`:'';
+    return `<div class="${cls} ${fontClass(f.fontFamily||(f.mono?'system-mono':'system-sans'))}" ${dataAttr}${autoFitAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:${zi+1};">${content}${resizeHandles}</div>`;
   }).join('');
   return `<div class="canvasBox ${editable?'editorCanvas':''}" id="${editable?'liveEditorCanvas':''}" style="width:${layout.w}mm;height:${layout.h}mm;">${fields}</div>`;
+}
+// v4.16: '자동맞춤' 텍스트 상자 - 글자크기(pt)는 시작값일 뿐, 실제로는 상자 크기에 맞춰
+// 최대한 꽉 차도록 자동으로 키우거나 줄인다.
+function fitTextToBox(el){
+  if(!el) return;
+  const base=parseFloat(el.dataset.basesize)||parseFloat(el.style.fontSize)||10;
+  let size=base;
+  el.style.fontSize=size+'pt';
+  let guard=0;
+  while(guard++<80 && size>4 && (el.scrollWidth>el.clientWidth+1 || el.scrollHeight>el.clientHeight+1)){
+    size-=0.5; el.style.fontSize=size+'pt';
+  }
+  guard=0;
+  while(guard++<160 && size<300 && el.scrollWidth<=el.clientWidth && el.scrollHeight<=el.clientHeight){
+    size+=0.5; el.style.fontSize=size+'pt';
+    if(el.scrollWidth>el.clientWidth+1 || el.scrollHeight>el.clientHeight+1){ size-=0.5; el.style.fontSize=size+'pt'; break; }
+  }
+}
+function applyAutoFitFields(root){
+  if(!root) return;
+  root.querySelectorAll('[data-autofit="1"]').forEach(fitTextToBox);
 }
 
 function inferLabelVariant(labelName){
@@ -2461,6 +2528,41 @@ if($('orderMachineFilters')) $('orderMachineFilters').addEventListener('click',e
 });
 $('orderFilter').addEventListener('change',renderOrderList);
 
+// v4.16: 작업지시 등록 폼에서 값을 바꿀 때마다 실제 추가 전에 LOT/사용기한을 미리 계산해서 보여준다.
+function updateManualOrderLotPreview(){
+  const el=$('manualOrderLotPreview'); if(!el) return;
+  try{
+    const productEl=$('product');
+    const productIdx=Number(productEl?.value);
+    const selectedProduct=Number.isInteger(productIdx)?ALL_PRODUCTS[productIdx]:null;
+    if(!selectedProduct){ el.textContent='LOT 미리보기: 제품을 먼저 선택하세요'; return; }
+    const variants=availableVariants(selectedProduct);
+    const variant=variants.length>1?selectedVariantBatch:(variants[0]||'');
+    const labelCode=selectedLabelTypeBatch||normalizeSelectedLabelType(selectedProduct,'',variant);
+    const ruleId=labelEffectiveLotRule(selectedProduct,labelCode,variant)||getProductLotRuleId(selectedProduct);
+    const tempOrder={
+      date:$('prodDate')?.value||todayISO(),shift:$('shift')?.value||'주간',
+      machine:$('machine')?.value||'',batchCount:$('batchCount')?.value||'1',
+      batchSeq:Math.max(1,Number($('batchSeq')?.value)||1),
+      manualLotInput:String($('manualLotInput')?.value||'').trim().toUpperCase(),
+      lotSeq:Math.max(1,Number($('lotSeqInput')?.value)||1),
+      productMasterId:selectedProduct.masterId||'',productProfileKey:selectedProduct.importProfileKey||'',
+      productCode:selectedProduct.code||'',productName:selectedProduct.shortName||selectedProduct.name||selectedProduct.scheduleName||''
+    };
+    const info=computeLotInfo(tempOrder,1,ruleId);
+    const expText=info.exp?` · 사용기한 ${info.exp}`:'';
+    el.innerHTML=`LOT 미리보기(드럼 1번 기준): <b>${escapeHtml(info.lot||'-')}</b>${expText?escapeHtml(expText):''}`;
+  }catch(e){
+    el.textContent='LOT 미리보기: 필수 항목을 채워야 계산할 수 있습니다';
+  }
+}
+['prodDate','shift','product','machine','batchCount','batchSeq','manualLotInput','lotSeqInput','productCodeSearch','productFullNameSearch'].forEach(id=>{
+  const el=$(id); if(!el) return;
+  el.addEventListener('input',updateManualOrderLotPreview);
+  el.addEventListener('change',updateManualOrderLotPreview);
+});
+if($('toggleManualOrderBtn')) $('toggleManualOrderBtn').addEventListener('click',()=>setTimeout(updateManualOrderLotPreview,50));
+
 $('addOrder').addEventListener('click',async(e)=>{
   e.preventDefault();
   e.stopPropagation();
@@ -2590,11 +2692,13 @@ $('genReissue').addEventListener('click',()=>{
 
 function renderPreview(){
   const wrap=$('previewWrap'),picker=$('previewPicker');
-  if(!generated.length){wrap.innerHTML='<div class="empty">라벨을 생성하세요.</div>';picker.innerHTML='';return;}
+  if(!generated.length){wrap.innerHTML='<div class="empty">라벨을 생성하세요.</div>';picker.innerHTML='';if($('printAllBtn'))$('printAllBtn').style.display='none';return;}
   const g=generated[selectedIdx],names={basic:'기본 무지라벨',plain:'HBF 무지라벨',full:'HBF 통합 라벨',kr:'동은 국문 라벨',en:'동은 영문 라벨',sample:'동은 샘플라벨'};
   wrap.innerHTML=g.parts.map(part=>`<div><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:6px;">${escapeHtml(part.labelName||names[part.key]||part.key)}${part.labelCode?` · ${escapeHtml(part.labelCode)}`:''}${part.sizeText?` · ${escapeHtml(part.sizeText)}`:''}</div>${renderLabelHtml(part.key,part.ctx)}</div>`).join('');
+  applyAutoFitFields(wrap);
   picker.innerHTML=generated.map((it,i)=>`<button class="btn ${i===selectedIdx?'btn-primary':'btn-ghost'} auto" data-i="${i}">드럼 ${it.drumNo}</button>`).join('');
   picker.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selectedIdx=+b.dataset.i;renderPreview();}));
+  if($('printAllBtn'))$('printAllBtn').style.display=(generated.length>1)?'':'none';
 }
 
 async function savePrintHistory(){ await storeSet('ksa-print-history-v471',JSON.stringify(log.slice(0,5000))); }
@@ -2646,8 +2750,7 @@ $('genBatch').addEventListener('click',async()=>{
   }
   selectedIdx=0;renderPreview();
   const orderText = reverseOrder ? `${drumCount}→1` : `1→${drumCount}`;
-  flash(`${o.date} · 드럼 ${drumCount}장 생성 완료 · 출력 순서 ${orderText} · 자동 출력 시작`);
-  await smartPrint(generated);
+  flash(`${o.date} · 드럼 ${drumCount}장 생성 완료 · 출력 순서 ${orderText} · 드럼 번호를 선택한 뒤 '바로 인쇄'를 눌러 출력하세요`);
 });
 
 $('genLive').addEventListener('click',async()=>{
@@ -3057,6 +3160,7 @@ async function renderPartCanvas(part, dpi) {
   `;
 
   host.innerHTML = renderLabelHtml(part.key, part.ctx, false);
+  applyAutoFitFields(host);
 
   document.body.appendChild(host);
 
@@ -3627,6 +3731,7 @@ function triggerPrint(items){
   try{if(items[0]?.parts?.[0])layoutKey=items[0].parts[0].key;}catch(e){}
   setDynamicPrintPage(layoutKey);
   $('printArea').innerHTML=items.map(it=>`<div class="printPage">${it.parts.map(part=>renderLabelHtml(part.key,part.ctx,false)).join('')}</div>`).join('');
+  applyAutoFitFields($('printArea'));
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     try{window.focus();window.print();}
     catch(e){console.error('print error',e);flash('브라우저가 인쇄 호출을 차단했습니다.',true);}
@@ -3653,7 +3758,15 @@ async function smartPrint(items){
   }
   await recordPrintHistory(items); triggerPrint(items);
 }
-$('printBtn').addEventListener('click',async()=>{const items=mode==='batch'?generated:[generated[selectedIdx]];await smartPrint(items);});
+$('printBtn').addEventListener('click',async()=>{
+  const item=generated[selectedIdx]; if(!item){flash('먼저 라벨을 생성하고 드럼 번호를 선택하세요',true);return;}
+  await smartPrint([item]);
+});
+$('printAllBtn')?.addEventListener('click',async()=>{
+  if(!generated.length){flash('먼저 라벨을 생성하세요',true);return;}
+  if(!confirm(`드럼 ${generated.length}장을 전부 인쇄합니다. 계속할까요?`)) return;
+  await smartPrint(generated);
+});
 $('exportBtn').addEventListener('click',()=>{
   if(!log.length){flash('내보낼 이력이 없습니다',true);return;}
   const rows=[['시각','품목코드','품목명','라벨명','LOT 번호'],...log.map(e=>[e.time,e.code,e.product,e.labelName,e.lot])];
@@ -4110,6 +4223,7 @@ function selectField(fid,additive=false,preserveSet=false){
   $('inspName').textContent=(count>1?`선택 ${count}개 · `:'')+(f.label||f.bind||(f.kind==='image'?'이미지':(f.text||'박스').split('\n')[0]));
   $('inspX').value=f.x; $('inspY').value=f.y; $('inspW').value=f.w; $('inspH').value=f.h;
   $('inspSize').value=f.size||12; $('inspAlign').value=f.align||'left'; $('inspRotate').value=f.rotate||0;
+  if($('inspAutoFit')) $('inspAutoFit').checked=!!f.autoFit;
   if($('inspRotatePreset')){const rv=String(((Number(f.rotate)||0)%360+360)%360);$('inspRotatePreset').value=['0','90','180','270'].includes(rv)?rv:'custom';}
   $('inspWeight').value=String(f.weight||400);
   fillFontSelect($('inspFont'),f.fontFamily||(f.mono?'system-mono':'system-sans'));
@@ -4118,6 +4232,7 @@ function selectField(fid,additive=false,preserveSet=false){
   if($('inspBgWrap')) $('inspBgWrap').style.display=(isTable||isImage)?'none':'block';
   if($('inspTransparentBg')) $('inspTransparentBg').checked=f.transparentBackground!==false;
   if($('inspSizeRow')) $('inspSizeRow').style.display=(isTable||isImage)?'none':'grid';
+  if($('inspAutoFitRow')) $('inspAutoFitRow').style.display=(isTable||isImage)?'none':'flex';
   let dragHint=$('tableDragHint');
   if(!dragHint){dragHint=document.createElement('div');dragHint.id='tableDragHint';dragHint.className='tableDragHint';$('inspName').insertAdjacentElement('afterend',dragHint);}
   dragHint.style.display=isTable?'block':'none';
@@ -4194,6 +4309,12 @@ function resizeTableField(f,rows,cols){const old=f.cells||[];f.cells=Array.from(
   renderCanvasOnly();
   renderFieldList();
 }));
+if($('inspAutoFit')) $('inspAutoFit').addEventListener('change',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId);
+  f.autoFit=$('inspAutoFit').checked;
+  renderCanvasOnly();
+});
 if($('inspRotatePreset')) $('inspRotatePreset').addEventListener('change',()=>{
   if(!selectedFieldId) return;
   const v=$('inspRotatePreset').value;
@@ -4490,6 +4611,7 @@ function renderEditorOutputPreview(){
   try{
     const ctx=sampleContext();
     wrap.innerHTML=renderLabelHtml(editorKey,ctx,false);
+    applyAutoFitFields(wrap);
     const lm=editorLabelCode?labelMasterByCode(editorLabelCode):null;
     const meta=$('editorOutputPreviewMeta');
     if(meta){
@@ -4534,6 +4656,7 @@ function fitEditorCanvas(){
 
 function renderCanvasOnly(){
   $('editorCanvasWrap').innerHTML=renderLabelHtml(editorKey,sampleContext(),true);
+  applyAutoFitFields($('editorCanvasWrap'));
   renderEditorOutputPreview();
   const canvas=$('liveEditorCanvas');
   canvas.querySelectorAll('.fld').forEach(el=>el.addEventListener('mousedown',e=>{
@@ -5065,6 +5188,7 @@ async function selectLabelMasterPreview(code){
     const layout=LAYOUTS[key];
     if(!layout) throw new Error('서식 없음');
     if(wrap)wrap.innerHTML=renderLabelHtml(key,sampleContextForLabel(code,key),false);
+    if(wrap)applyAutoFitFields(wrap);
     requestAnimationFrame(fitLabelMasterPreview);
     if(meta)meta.textContent=`[${lm.labelCode}] ${lm.labelName||''} · ${layout.w}×${layout.h}mm · 테스트 데이터 미리보기${ruleUsesManualInput3(lm.lotRuleId||'')?' (테스트 LOT 124)':''}`;
   }catch(e){
@@ -6074,7 +6198,7 @@ async function initApp(){
   if(browserPrintSdkReady()) setTimeout(()=>discoverZebraPrinters(true),1200);
   else { const diag=browserPrintSdkDiagnostic(); setZebraStatus(diag.text+' · ZPL 직접 인쇄에는 Zebra Browser Print 프로그램도 실행되어 있어야 합니다.','warn'); }
 
-  await loadLayouts();await loadLotRules();await loadExpRules();await loadCustomProducts();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();refreshReissueLabelTypes();updateReissueManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
+  await loadLayouts();await loadLotRules();await loadExpRules();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();refreshReissueLabelTypes();updateReissueManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
   if(HAS_SHARED_STORAGE || window.KSA_DB_READY){
     setInterval(async()=>{
       if(document.body.classList.contains('editing'))return;
