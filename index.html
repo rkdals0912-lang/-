@@ -337,7 +337,7 @@ header{background:var(--dash-dark)!important;min-height:72px;box-shadow:0 2px 14
 #workspaceNav{display:none;}
 body.workspace-open #workspaceNav{display:flex;}
 body.workspace-open #homeView{display:none;}
-.editorQuickBar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0;}
+.editorQuickBar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0;}
 .editorQuickBtn{border:1px solid #dbe1eb;background:#fff;border-radius:12px;padding:12px 6px;cursor:pointer;font-weight:800;font-size:12px;color:#24314a;}
 .editorQuickBtn span{display:block;font-size:22px;margin-bottom:4px;}
 .editorQuickBtn:hover{border-color:#8aa7e8;background:#f7faff;}
@@ -842,7 +842,7 @@ body.workspace-open #homeView{display:none;}
           <div><label>너비 (mm)</label><input type="number" id="inspW" step="0.5"></div>
           <div><label>높이 (mm)</label><input type="number" id="inspH" step="0.5"></div>
         </div>
-        <div class="inspRow">
+        <div class="inspRow" id="inspFontSizeRow">
           <div><label>글자크기 (pt)</label><input type="number" id="inspSize" step="0.5"></div>
           <div><label>정렬</label><select id="inspAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></div>
         </div>
@@ -859,7 +859,7 @@ body.workspace-open #homeView{display:none;}
           </div>
           <div><label>회전 각도 (deg)</label><input type="number" id="inspRotate" step="1" value="0"></div>
         </div>
-        <div class="inspRow">
+        <div class="inspRow" id="inspWeightRow">
           <div><label>굵기</label>
             <select id="inspWeight">
               <option value="400">보통</option>
@@ -870,7 +870,7 @@ body.workspace-open #homeView{display:none;}
           </div>
           <div><label>글꼴</label><select id="inspFont"></select><div id="selectedFontStatus" class="lockednote" style="margin-top:4px;padding:4px 6px">글꼴 확인 중 · 변경 즉시 미리보기에 적용</div></div>
         </div>
-        <div class="lockednote">PC 기본 글꼴은 즉시 적용되고, Noto · Nanum · IBM Plex 등 무료 웹폰트는 로딩 상태를 표시합니다. <span id="fontLoadStatus">글꼴 상태 확인 중…</span></div>
+        <div class="lockednote" id="inspFontNote">PC 기본 글꼴은 즉시 적용되고, Noto · Nanum · IBM Plex 등 무료 웹폰트는 로딩 상태를 표시합니다. <span id="fontLoadStatus">글꼴 상태 확인 중…</span></div>
 
         <div id="inspBgWrap">
           <label class="checkrow"><input type="checkbox" id="inspTransparentBg" checked> 텍스트 배경 투명</label>
@@ -883,6 +883,32 @@ body.workspace-open #homeView{display:none;}
         <div id="inspTextWrap">
           <label>고정 텍스트</label>
           <input type="text" class="field" id="inspText">
+        </div>
+
+        <div id="inspShapeWrap">
+          <label>도형 종류</label>
+          <select id="inspShapeType">
+            <option value="rect">사각형</option>
+            <option value="roundRect">둥근 사각형</option>
+            <option value="ellipse">타원 / 원</option>
+            <option value="line">직선</option>
+          </select>
+          <div class="inspRow" id="inspShapeRadiusRow">
+            <div><label>모서리 둥글기 (mm)</label><input type="number" id="inspShapeRadius" step="0.5" min="0"></div>
+            <div></div>
+          </div>
+          <div id="inspShapeFillWrap">
+            <label class="checkrow"><input type="checkbox" id="inspShapeFillOn" checked> 도형 채우기</label>
+            <div class="inspRow">
+              <div><label>채우기 색상</label><input type="color" id="inspShapeFillColor" value="#ffffff" style="width:100%;height:32px;padding:2px;"></div>
+              <div></div>
+            </div>
+          </div>
+          <label class="checkrow" id="inspShapeStrokeOnRow"><input type="checkbox" id="inspShapeStrokeOn" checked> 윤곽선(선) 사용</label>
+          <div class="inspRow">
+            <div><label id="inspShapeStrokeColorLabel">윤곽선 색상</label><input type="color" id="inspShapeStrokeColor" value="#000000" style="width:100%;height:32px;padding:2px;"></div>
+            <div><label id="inspShapeStrokeWidthLabel">윤곽선 두께 (mm)</label><input type="number" id="inspShapeStrokeWidth" step="0.1" min="0" value="0.5"></div>
+          </div>
         </div>
 
         <div class="inspRow">
@@ -907,6 +933,7 @@ body.workspace-open #homeView{display:none;}
           <button type="button" class="editorQuickBtn" data-quick-field="table"><span>▦</span>표(Table)</button>
           <button type="button" class="editorQuickBtn imageQuick" id="quickImageAdd"><span>🖼</span>이미지</button>
           <button type="button" class="editorQuickBtn" id="quickInfoTable"><span>▤</span>2열 정보표</button>
+          <button type="button" class="editorQuickBtn" data-quick-field="shape"><span>◆</span>도형</button>
           <input type="file" id="imageUploadInput" accept="image/png,image/jpeg,image/webp" style="display:none;">
         </div>
         <div class="addFieldBox">
@@ -915,6 +942,7 @@ body.workspace-open #homeView{display:none;}
             <option value="bind">변수 항목</option>
             <option value="static">고정 텍스트</option>
             <option value="table">표(테이블)</option><option value="image">이미지</option>
+            <option value="shape">도형</option>
           </select>
 
           <div id="newBindWrap">
@@ -933,6 +961,21 @@ body.workspace-open #homeView{display:none;}
               <input type="number" class="field" id="newTableRows" min="1" max="12" value="3">
               <input type="number" class="field" id="newTableCols" min="1" max="8" value="2">
             </div>
+          </div>
+
+          <div id="newShapeWrap" style="display:none;">
+            <label>도형 종류</label>
+            <select id="newShapeType">
+              <option value="rect">사각형</option>
+              <option value="roundRect">둥근 사각형</option>
+              <option value="ellipse">타원 / 원</option>
+              <option value="line">직선</option>
+            </select>
+            <div class="row2" style="margin-top:6px;">
+              <div><label>채우기 색상</label><input type="color" class="field" id="newShapeFillColor" value="#ffffff" style="height:32px;padding:2px;"></div>
+              <div><label>윤곽선 색상</label><input type="color" class="field" id="newShapeStrokeColor" value="#000000" style="height:32px;padding:2px;"></div>
+            </div>
+            <div class="lockednote" style="margin-top:5px;">추가한 뒤 오른쪽 정밀 조정 패널에서 채우기/윤곽선 켜고 끄기, 두께, 모서리 둥글기를 세부 조정할 수 있습니다. (엑셀의 도형 채우기·도형 윤곽선과 동일한 방식)</div>
           </div>
 
           <label>항목 이름</label>
@@ -1998,6 +2041,27 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       const objectFit=f.objectFit||'contain';
       return `<div class="${cls} imageField" ${dataAttr} style="${posStyle};position:absolute;z-index:${zi+1};background:transparent;"><img src="${imageSrc}" alt="${escapeHtml(f.label||'image')}" style="width:100%;height:100%;display:block;object-fit:${objectFit};">${resizeHandles}</div>`;
     }
+    if(f.kind==='shape'){
+      // v4.18: 도형(사각형/둥근사각형/타원/선) + 채우기색/윤곽선색.
+      // 엑셀의 "도형 채우기" / "도형 윤곽선"과 동일한 방식(채우기 on/off, 색상, 윤곽선 on/off, 색상, 두께).
+      // 실제 색/테두리는 내부 자식 div(shapeInner)에만 적용한다 — 바깥 .fld 자체의 border는
+      // 편집기 선택/hover 표시용(border-color)으로 이미 쓰이고 있어, 도형 stroke를 바깥에 직접
+      // 그리면 선택 시 파란/주황 테두리가 도형 윤곽선에 가려 안 보이게 되는 문제가 생기기 때문이다.
+      const shapeType=f.shapeType||'rect';
+      const fillOn=f.fillEnabled!==false;
+      const fill=fillOn?(f.fillColor||'#ffffff'):'transparent';
+      const strokeOn=f.strokeEnabled!==false;
+      const strokeColor=f.strokeColor||'#000000';
+      const strokeWidthMm=Math.max(0,Number(f.strokeWidth)||0);
+      if(shapeType==='line'){
+        const lineColor=strokeOn?strokeColor:(fillOn?fill:'#000000');
+        const lineThickness=Math.max(.1,Number(f.strokeWidth)||.5);
+        return `<div class="${cls} shapeField" ${dataAttr} data-shape="line" style="${posStyle};position:absolute;z-index:${zi+1};background:transparent;display:flex;align-items:center;justify-content:center;"><div style="width:100%;height:${lineThickness}mm;background:${lineColor};flex:none;"></div>${resizeHandles}</div>`;
+      }
+      const radius=shapeType==='ellipse'?'50%':(shapeType==='roundRect'?`${Math.max(0,Number(f.cornerRadius)||0)}mm`:'0');
+      const borderCss=(strokeOn&&strokeWidthMm>0)?`border:${strokeWidthMm}mm solid ${strokeColor};`:'border:none;';
+      return `<div class="${cls} shapeField" ${dataAttr} data-shape="${shapeType}" style="${posStyle};position:absolute;z-index:${zi+1};background:transparent;"><div class="shapeInner" style="width:100%;height:100%;box-sizing:border-box;background:${fill};${borderCss}border-radius:${radius};"></div>${resizeHandles}</div>`;
+    }
     if(f.kind==='table'){
       const cellBorder=f.cellBorder!==false;
       const bw=Math.max(.1,Number(f.borderWidth)||.3);
@@ -2906,11 +2970,18 @@ function setDynamicPrintPage(layoutKey){
          다음 장으로 밀리지 않고 항상 한 페이지 안에서만 그려지도록 고정. */
       #printArea .imageField,
       #printArea .tableField,
-      #printArea .barcodeField{
+      #printArea .barcodeField,
+      #printArea .shapeField{
         overflow:visible !important;
         box-sizing:border-box !important;
         break-inside:avoid !important;
         page-break-inside:avoid !important;
+      }
+
+      #printArea .shapeField,
+      #printArea .shapeField *{
+        -webkit-print-color-adjust:exact !important;
+        print-color-adjust:exact !important;
       }
 
       #printArea .imageField img{
@@ -4218,8 +4289,9 @@ function sampleContext(){
 }
 function renderFieldList(){
   $('fieldList').innerHTML=LAYOUTS[editorKey].fields.map(f=>{
-    const name=f.kind==='table'?`표 (${f.rows}×${f.cols})`:f.kind==='image'?`🖼 ${f.label||'이미지'}`:(f.label||(f.kind==='static'?(f.text||'박스').split('\n')[0].slice(0,14):f.bind));
-    const tag=f.kind==='bind'?'변수':f.kind==='table'?'표':f.kind==='image'?'이미지':'고정텍스트';
+    const shapeNames={rect:'사각형',roundRect:'둥근사각형',ellipse:'타원',line:'선'};
+    const name=f.kind==='table'?`표 (${f.rows}×${f.cols})`:f.kind==='image'?`🖼 ${f.label||'이미지'}`:f.kind==='shape'?`◆ ${f.label||shapeNames[f.shapeType]||'도형'}`:(f.label||(f.kind==='static'?(f.text||'박스').split('\n')[0].slice(0,14):f.bind));
+    const tag=f.kind==='bind'?'변수':f.kind==='table'?'표':f.kind==='image'?'이미지':f.kind==='shape'?'도형':'고정텍스트';
     return `<div class="fieldListItem ${(selectedFieldIds.has(f.id)||f.id===selectedFieldId)?'active':''}" data-fid="${f.id}"><span>${name}${f.rotate?`<span class="rotationBadge">${f.rotate}°</span>`:''}</span><span class="tag">${tag}</span></div>`;
   }).join('');
   $('fieldList').querySelectorAll('.fieldListItem').forEach(el=>el.addEventListener('click',e=>selectField(el.dataset.fid,e.ctrlKey||e.metaKey||e.shiftKey)));
@@ -4242,7 +4314,8 @@ function selectField(fid,additive=false,preserveSet=false){
   const f=fieldById(fid); if(!f)return;
   $('inspectorPanel').style.display='block';
   const count=selectedFieldIds.size;
-  $('inspName').textContent=(count>1?`선택 ${count}개 · `:'')+(f.label||f.bind||(f.kind==='image'?'이미지':(f.text||'박스').split('\n')[0]));
+  const shapeNamesForInsp={rect:'사각형',roundRect:'둥근사각형',ellipse:'타원',line:'선'};
+  $('inspName').textContent=(count>1?`선택 ${count}개 · `:'')+(f.label||f.bind||(f.kind==='image'?'이미지':f.kind==='shape'?(shapeNamesForInsp[f.shapeType]||'도형'):(f.text||'박스').split('\n')[0]));
   $('inspX').value=f.x; $('inspY').value=f.y; $('inspW').value=f.w; $('inspH').value=f.h;
   $('inspSize').value=f.size||12; $('inspAlign').value=f.align||'left'; $('inspRotate').value=f.rotate||0;
   if($('inspAutoFit')) $('inspAutoFit').checked=!!f.autoFit;
@@ -4250,18 +4323,44 @@ function selectField(fid,additive=false,preserveSet=false){
   $('inspWeight').value=String(f.weight||400);
   fillFontSelect($('inspFont'),f.fontFamily||(f.mono?'system-mono':'system-sans'));
   updateSelectedFontStatus(f.fontFamily||(f.mono?'system-mono':'system-sans'));
-  const isBind=f.kind==='bind',isTable=f.kind==='table',isImage=f.kind==='image';
-  if($('inspBgWrap')) $('inspBgWrap').style.display=(isTable||isImage)?'none':'block';
+  const isBind=f.kind==='bind',isTable=f.kind==='table',isImage=f.kind==='image',isShape=f.kind==='shape';
+  if($('inspBgWrap')) $('inspBgWrap').style.display=(isTable||isImage||isShape)?'none':'block';
   if($('inspTransparentBg')) $('inspTransparentBg').checked=f.transparentBackground!==false;
   if($('inspSizeRow')) $('inspSizeRow').style.display=(isTable||isImage)?'none':'grid';
-  if($('inspAutoFitRow')) $('inspAutoFitRow').style.display=(isTable||isImage)?'none':'flex';
+  if($('inspFontSizeRow')) $('inspFontSizeRow').style.display=(isTable||isImage||isShape)?'none':'grid';
+  if($('inspAutoFitRow')) $('inspAutoFitRow').style.display=(isTable||isImage||isShape)?'none':'flex';
+  if($('inspWeightRow')) $('inspWeightRow').style.display=(isTable||isImage||isShape)?'none':'grid';
+  if($('inspFontNote')) $('inspFontNote').style.display=(isTable||isImage||isShape)?'none':'block';
   let dragHint=$('tableDragHint');
   if(!dragHint){dragHint=document.createElement('div');dragHint.id='tableDragHint';dragHint.className='tableDragHint';$('inspName').insertAdjacentElement('afterend',dragHint);}
   dragHint.style.display=isTable?'block':'none';
   if(isTable) dragHint.textContent='표 외곽 손잡이로 전체 크기, 표 안 주황색 점선으로 열 너비·행 높이를 조절하세요. 표 자체를 드래그하면 위치가 이동합니다.';
   $('inspBindWrap').style.display=isBind?'block':'none';
-  $('inspTextWrap').style.display=(!isBind&&!isTable&&!isImage)?'block':'none';
-  if(isBind) fillVariableSelect($('inspBind'),f.bind); else if(!isTable&&!isImage) $('inspText').value=f.text||'';
+  $('inspTextWrap').style.display=(!isBind&&!isTable&&!isImage&&!isShape)?'block':'none';
+  if(isBind) fillVariableSelect($('inspBind'),f.bind); else if(!isTable&&!isImage&&!isShape) $('inspText').value=f.text||'';
+  if($('inspShapeWrap')){
+    $('inspShapeWrap').style.display=isShape?'block':'none';
+    if(isShape){
+      const shapeType=f.shapeType||'rect';
+      $('inspShapeType').value=shapeType;
+      $('inspShapeRadiusRow').style.display=shapeType==='roundRect'?'grid':'none';
+      $('inspShapeRadius').value=f.cornerRadius??2;
+      const isLine=shapeType==='line';
+      $('inspShapeFillWrap').style.display=isLine?'none':'block';
+      $('inspShapeFillOn').checked=f.fillEnabled!==false;
+      $('inspShapeFillColor').value=f.fillColor||'#ffffff';
+      $('inspShapeFillColor').disabled=f.fillEnabled===false;
+      $('inspShapeStrokeOnRow').style.display=isLine?'none':'flex';
+      $('inspShapeStrokeOn').checked=f.strokeEnabled!==false;
+      $('inspShapeStrokeColorLabel').textContent=isLine?'선 색상':'윤곽선 색상';
+      $('inspShapeStrokeWidthLabel').textContent=isLine?'선 두께 (mm)':'윤곽선 두께 (mm)';
+      $('inspShapeStrokeColor').value=f.strokeColor||'#000000';
+      $('inspShapeStrokeWidth').value=f.strokeWidth??0.5;
+      const strokeDisabled=!isLine&&f.strokeEnabled===false;
+      $('inspShapeStrokeColor').disabled=strokeDisabled;
+      $('inspShapeStrokeWidth').disabled=strokeDisabled;
+    }
+  }
   let tableBox=$('inspTableBox');
   if(!tableBox){tableBox=document.createElement('div');tableBox.id='inspTableBox';$('inspectorPanel').insertBefore(tableBox,$('inspTextWrap').nextSibling);}
   tableBox.innerHTML=''; if(isTable) renderTableInspector(f,tableBox);
@@ -4335,6 +4434,51 @@ if($('inspAutoFit')) $('inspAutoFit').addEventListener('change',()=>{
   if(!selectedFieldId)return;
   const f=fieldById(selectedFieldId);
   f.autoFit=$('inspAutoFit').checked;
+  renderCanvasOnly();
+});
+if($('inspShapeType')) $('inspShapeType').addEventListener('change',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId); if(f.kind!=='shape')return;
+  f.shapeType=$('inspShapeType').value;
+  renderCanvasOnly(); renderFieldList(); selectField(selectedFieldId,true,true);
+});
+if($('inspShapeRadius')) $('inspShapeRadius').addEventListener('input',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId); if(f.kind!=='shape')return;
+  f.cornerRadius=Math.max(0,+$('inspShapeRadius').value||0);
+  renderCanvasOnly();
+});
+if($('inspShapeFillOn')) $('inspShapeFillOn').addEventListener('change',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId); if(f.kind!=='shape')return;
+  f.fillEnabled=$('inspShapeFillOn').checked;
+  $('inspShapeFillColor').disabled=!f.fillEnabled;
+  renderCanvasOnly();
+});
+if($('inspShapeFillColor')) $('inspShapeFillColor').addEventListener('input',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId); if(f.kind!=='shape')return;
+  f.fillColor=$('inspShapeFillColor').value;
+  renderCanvasOnly();
+});
+if($('inspShapeStrokeOn')) $('inspShapeStrokeOn').addEventListener('change',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId); if(f.kind!=='shape')return;
+  f.strokeEnabled=$('inspShapeStrokeOn').checked;
+  const disabled=f.shapeType!=='line'&&!f.strokeEnabled;
+  $('inspShapeStrokeColor').disabled=disabled; $('inspShapeStrokeWidth').disabled=disabled;
+  renderCanvasOnly();
+});
+if($('inspShapeStrokeColor')) $('inspShapeStrokeColor').addEventListener('input',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId); if(f.kind!=='shape')return;
+  f.strokeColor=$('inspShapeStrokeColor').value;
+  renderCanvasOnly();
+});
+if($('inspShapeStrokeWidth')) $('inspShapeStrokeWidth').addEventListener('input',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId); if(f.kind!=='shape')return;
+  f.strokeWidth=Math.max(0,+$('inspShapeStrokeWidth').value||0);
   renderCanvasOnly();
 });
 if($('inspRotatePreset')) $('inspRotatePreset').addEventListener('change',()=>{
@@ -4433,6 +4577,7 @@ function syncNewFieldKind(){
   $('newBindWrap').style.display=v==='bind'?'block':'none';
   $('newStaticWrap').style.display=v==='static'?'block':'none';
   $('newTableWrap').style.display=v==='table'?'block':'none';
+  if($('newShapeWrap')) $('newShapeWrap').style.display=v==='shape'?'block':'none';
 }
 $('newFieldKind').addEventListener('change',syncNewFieldKind);
 fillVariableSelect($('newFieldBind'),'lotRaw');
@@ -4445,6 +4590,16 @@ $('addFieldBtn').addEventListener('click',()=>{
   const f={id,kind,label,x:5,y:5,w:60,h:10,size:12,weight:700,align:'left',rotate:0,transparentBackground:true};
   if(kind==='bind') f.bind=$('newFieldBind').value;
   else if(kind==='table'){const rows=Math.max(1,+$('newTableRows').value||3),cols=Math.max(1,+$('newTableCols').value||2);f.rows=rows;f.cols=cols;f.cellBorder=true;f.tableBg='white';f.borderWidth=.3;f.colWidths=Array.from({length:cols},()=>100/cols);f.size=9;f.w=Math.min(90,cols*30);f.h=rows*8;f.cells=Array.from({length:rows},()=>Array.from({length:cols},()=>({kind:'static',text:''})));}
+  else if(kind==='shape'){
+    const shapeType=$('newShapeType').value||'rect';
+    f.shapeType=shapeType;
+    f.fillEnabled=true; f.fillColor=$('newShapeFillColor').value||'#ffffff';
+    f.strokeEnabled=true; f.strokeColor=$('newShapeStrokeColor').value||'#000000'; f.strokeWidth=0.5;
+    f.cornerRadius=2;
+    f.w=shapeType==='line'?40:30; f.h=shapeType==='line'?0.5:20;
+    delete f.transparentBackground;
+    if(!$('newFieldLabel').value.trim()){const shapeNames={rect:'사각형',roundRect:'둥근사각형',ellipse:'타원',line:'선'};f.label=shapeNames[shapeType]||'도형';}
+  }
   else f.text=$('newFieldText').value||label;
   LAYOUTS[editorKey].fields.push(f);$('newFieldLabel').value='';$('newFieldText').value='';selectField(id);flash('새 항목을 추가했습니다. 위치와 내용을 조정한 뒤 저장하세요.');
 });
@@ -4522,7 +4677,7 @@ if($('imageUploadInput')) $('imageUploadInput').addEventListener('change',e=>{
 });
 document.querySelectorAll('[data-quick-field]').forEach(btn=>btn.addEventListener('click',()=>{
   const kind=btn.dataset.quickField; $('newFieldKind').value=kind; syncNewFieldKind();
-  if(kind==='static') $('newFieldLabel').value='텍스트'; else if(kind==='bind') $('newFieldLabel').value='변수'; else $('newFieldLabel').value='표';
+  if(kind==='static') $('newFieldLabel').value='텍스트'; else if(kind==='bind') $('newFieldLabel').value='변수'; else if(kind==='shape') $('newFieldLabel').value=''; else $('newFieldLabel').value='표';
   document.querySelector('.addFieldBox').scrollIntoView({behavior:'smooth',block:'center'});
 }));
 if($('quickInfoTable')) $('quickInfoTable').addEventListener('click',()=>{
