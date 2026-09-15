@@ -870,6 +870,10 @@ body.workspace-open #homeView{display:none;}
           </div>
           <div><label>글꼴</label><select id="inspFont"></select><div id="selectedFontStatus" class="lockednote" style="margin-top:4px;padding:4px 6px">글꼴 확인 중 · 변경 즉시 미리보기에 적용</div></div>
         </div>
+        <div class="inspRow" id="inspFontColorRow">
+          <div><label>글자 색상</label><input type="color" id="inspFontColor" value="#1b232f" style="width:100%;height:32px;padding:2px;"></div>
+          <div style="align-self:end;"><button type="button" class="btn btn-ghost" id="inspFontColorReset" style="margin:0;">기본 색상으로</button></div>
+        </div>
         <div class="lockednote" id="inspFontNote">PC 기본 글꼴은 즉시 적용되고, Noto · Nanum · IBM Plex 등 무료 웹폰트는 로딩 상태를 표시합니다. <span id="fontLoadStatus">글꼴 상태 확인 중…</span></div>
 
         <div id="inspBgWrap">
@@ -2092,7 +2096,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
           }
           const cellFontKey=c.fontFamily||f.fontFamily||(c.mono?'system-mono':'system-sans');
           const cellBg=f.tableBg==='transparent'?'transparent':'#fff';
-          return `<td class="${fontClass(cellFontKey)}" data-font="${escapeHtml(cellFontKey)}" style="${tdBorder}background:${cellBg}!important;font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};font-family:${fontCss(cellFontKey,c.mono)} !important;text-align:${c.align||'left'};padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
+          return `<td class="${fontClass(cellFontKey)}" data-font="${escapeHtml(cellFontKey)}" style="${tdBorder}background:${cellBg}!important;font-size:${c.size||f.size||9}pt;font-weight:${c.weight||400};font-family:${fontCss(cellFontKey,c.mono)} !important;text-align:${c.align||'left'};${c.color?`color:${c.color};`:''}padding:1mm 1.5mm;vertical-align:middle;overflow:hidden;">${escapeHtml(String(val)).replace(/\n/g,'<br>')}</td>`;
         }).join('')+'</tr>';
       }).join('');
       let innerHandles='';
@@ -2108,7 +2112,8 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       ? ((f.bind==='color'||f.bind==='type') ? (ctx[f.bind]??'') : (ctx[f.bind]??`[${f.bind}]`))
       : f.text;
     const transparentBg=f.transparentBackground!==false;
-    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`font-family:${fontCss(f.fontFamily,f.mono)} !important`,`text-align:${f.align||'left'}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
+    const textColorCss=f.fontColor?`color:${f.fontColor}`:(f.color==='sub'?'color:var(--sub)':'color:var(--ink)');
+    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`font-family:${fontCss(f.fontFamily,f.mono)} !important`,`text-align:${f.align||'left'}`,textColorCss,f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
     const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : `<span class="fldTextInner">${escapeHtml(text).replace(/\n/g,'<br>')}</span>`;
     const autoFitAttr=f.autoFit?` data-autofit="1" data-basesize="${f.size}"`:'';
     return `<div class="${cls} ${fontClass(f.fontFamily||(f.mono?'system-mono':'system-sans'))}" ${dataAttr}${autoFitAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:${zi+1};">${content}${resizeHandles}</div>`;
@@ -4330,6 +4335,8 @@ function selectField(fid,additive=false,preserveSet=false){
   if($('inspFontSizeRow')) $('inspFontSizeRow').style.display=(isTable||isImage||isShape)?'none':'grid';
   if($('inspAutoFitRow')) $('inspAutoFitRow').style.display=(isTable||isImage||isShape)?'none':'flex';
   if($('inspWeightRow')) $('inspWeightRow').style.display=(isTable||isImage||isShape)?'none':'grid';
+  if($('inspFontColorRow')) $('inspFontColorRow').style.display=(isTable||isImage||isShape)?'none':'grid';
+  if($('inspFontColor')) $('inspFontColor').value=f.fontColor||(f.color==='sub'?'#5b6672':'#1b232f');
   if($('inspFontNote')) $('inspFontNote').style.display=(isTable||isImage||isShape)?'none':'block';
   let dragHint=$('tableDragHint');
   if(!dragHint){dragHint=document.createElement('div');dragHint.id='tableDragHint';dragHint.className='tableDragHint';$('inspName').insertAdjacentElement('afterend',dragHint);}
@@ -4380,12 +4387,13 @@ function renderTableInspector(f,box){
     const cell=(f.cells[r]&&f.cells[r][c])||{kind:'static',text:'',align:c===0?'left':'left',size:f.size||9,weight:400};
     if(!f.cells[r]) f.cells[r]=[]; f.cells[r][c]=cell;
     const wrap=document.createElement('div');wrap.className='tableCellEditor';
-    wrap.innerHTML=`<div class="cellHead">${r+1}행 ${c+1}열</div><select class="cellVar"><option value="">고정 텍스트</option>${FIELD_VARIABLES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="cellText" type="text" placeholder="셀 텍스트"><div class="tableCellMini"><select class="cellAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><input class="cellSize" type="number" min="5" max="72" step=".5"><select class="cellWeight"><option value="400">보통</option><option value="600">중간</option><option value="700">굵게</option><option value="900">매우 굵게</option></select></div><div style="margin-top:5px"><label style="font-size:10px">셀 글꼴</label><select class="cellFont"></select><div class="cellFontState" style="font-size:9px;color:#64748b;margin-top:2px"></div></div>`;
-    const sel=wrap.querySelector('.cellVar'),txt=wrap.querySelector('.cellText'),al=wrap.querySelector('.cellAlign'),sz=wrap.querySelector('.cellSize'),wt=wrap.querySelector('.cellWeight'),ft=wrap.querySelector('.cellFont'),fs=wrap.querySelector('.cellFontState');
-    sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);fillFontSelect(ft,cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans'));if(fs){const fk=cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans');fs.textContent=`적용값: ${fontOption(fk).label}`;}
+    wrap.innerHTML=`<div class="cellHead">${r+1}행 ${c+1}열</div><select class="cellVar"><option value="">고정 텍스트</option>${FIELD_VARIABLES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="cellText" type="text" placeholder="셀 텍스트"><div class="tableCellMini"><select class="cellAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><input class="cellSize" type="number" min="5" max="72" step=".5"><select class="cellWeight"><option value="400">보통</option><option value="600">중간</option><option value="700">굵게</option><option value="900">매우 굵게</option></select><input class="cellColor" type="color" title="글자 색상" style="width:30px;height:28px;padding:1px;"></div><div style="margin-top:5px"><label style="font-size:10px">셀 글꼴</label><select class="cellFont"></select><div class="cellFontState" style="font-size:9px;color:#64748b;margin-top:2px"></div></div>`;
+    const sel=wrap.querySelector('.cellVar'),txt=wrap.querySelector('.cellText'),al=wrap.querySelector('.cellAlign'),sz=wrap.querySelector('.cellSize'),wt=wrap.querySelector('.cellWeight'),cl=wrap.querySelector('.cellColor'),ft=wrap.querySelector('.cellFont'),fs=wrap.querySelector('.cellFontState');
+    sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);cl.value=cell.color||'#1b232f';fillFontSelect(ft,cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans'));if(fs){const fk=cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans');fs.textContent=`적용값: ${fontOption(fk).label}`;}
     sel.addEventListener('change',()=>{if(sel.value){cell.kind='bind';cell.bind=sel.value;delete cell.text;txt.style.display='none';}else{cell.kind='static';cell.text=txt.value;delete cell.bind;txt.style.display='block';}renderCanvasOnly();});
     txt.addEventListener('input',()=>{cell.kind='static';cell.text=txt.value;renderCanvasOnly();});
-    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});ft.addEventListener('change',async()=>{
+    al.addEventListener('change',()=>{cell.align=al.value;renderCanvasOnly();});sz.addEventListener('input',()=>{cell.size=+sz.value||9;renderCanvasOnly();});wt.addEventListener('change',()=>{cell.weight=+wt.value||400;renderCanvasOnly();});
+    cl.addEventListener('input',()=>{cell.color=cl.value;renderCanvasOnly();});ft.addEventListener('change',async()=>{
       pushEditorUndo('cell-font');
       cell.fontFamily=LABEL_FONTS.some(x=>x.key===ft.value)?ft.value:'system-sans';
       cell.mono=(cell.fontFamily==='system-mono'||cell.fontFamily==='ibm-plex-mono'); if(fs)fs.textContent=`적용값: ${fontOption(cell.fontFamily).label}`;
@@ -4493,6 +4501,19 @@ if($('inspRotatePreset')) $('inspRotatePreset').addEventListener('change',()=>{
 });
 $('inspAlign').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).align=$('inspAlign').value;renderCanvasOnly();}});
 $('inspWeight').addEventListener('change',()=>{if(selectedFieldId){fieldById(selectedFieldId).weight=+$('inspWeight').value;renderCanvasOnly();}});
+if($('inspFontColor')) $('inspFontColor').addEventListener('input',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId);
+  f.fontColor=$('inspFontColor').value;
+  renderCanvasOnly();
+});
+if($('inspFontColorReset')) $('inspFontColorReset').addEventListener('click',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId);
+  delete f.fontColor;
+  $('inspFontColor').value=f.color==='sub'?'#5b6672':'#1b232f';
+  renderCanvasOnly();
+});
 $('inspFont').addEventListener('change',async()=>{if(selectedFieldId){
   pushEditorUndo('field-font');
   const f=fieldById(selectedFieldId);
