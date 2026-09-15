@@ -3208,9 +3208,18 @@ async function renderPartCanvas(part, dpi) {
 
     /* -----------------------------------------------------
        html2canvas 캡처 직전 clipping 관련 스타일 강제
+       v4.16.2: overflow:visible로 두면 라벝 박스 밖으로 살짝이라도
+       벗어난 필드(예: 자동맞춤이 최소 크기에서도 다 안 들어가거나,
+       필드가 라벨 경계를 약간 벗어나게 배치된 경우)가 html2canvas의
+       캡처 창(el 자신의 좌표 0,0 ~ cssWidth,cssHeight) 밖으로
+       빠져나가 버린다. html2canvas는 x:0,y:0,width/height를 el 자신의
+       박스 크기로 고정해서 캡처하기 때문에, 왼쪽/위쪽으로 넘친 내용은
+       캡처 자체가 되지 않고 그대로 사라져 "글자 앞부분이 잘려서 인쇄"
+       되는 현상이 발생한다. 화면 미리보기 및 브라우저 인쇄와 동일하게
+       라벨 경계에서 확실히 클리핑되도록 hidden으로 되돌린다.
        ----------------------------------------------------- */
     el.style.boxSizing = 'border-box';
-    el.style.overflow = 'visible';
+    el.style.overflow = 'hidden';
     el.style.margin = '0';
     el.style.padding = '0';
 
@@ -3430,7 +3439,7 @@ async function renderPartCanvas(part, dpi) {
 
         if (!clonedEl) return;
 
-        clonedEl.style.overflow = 'visible';
+        clonedEl.style.overflow = 'hidden';
         clonedEl.style.boxSizing = 'border-box';
 
         clonedEl.querySelectorAll('.fld').forEach(field => {
