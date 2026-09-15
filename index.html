@@ -535,7 +535,6 @@ body.workspace-open #homeView{display:none;}
     <button class="homeCard adminOnly" data-go="lot"><span class="homeIcon c-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span><b>LOT 규칙</b><small>제품별 채번 규칙</small></button>
     <button class="homeCard adminOnly" data-go="history"><span class="homeIcon c-cyan"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><b>출력 이력</b><small>품목 · 라벨 · LOT</small></button>
     <button class="homeCard adminOnly" data-go="printer"><span class="homeIcon c-indigo"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg></span><b>프린터</b><small>Zebra ZT420 / 421</small></button>
-    <button class="homeCard" data-go="reissue" style="display:none;"><span class="homeIcon c-brown"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></svg></span><b>재발행</b><small>날짜 지정 재출력</small></button>
   </div>
 </section>
 
@@ -603,47 +602,6 @@ body.workspace-open #homeView{display:none;}
           <button type="button" class="btn btn-primary" id="addOrder">+ 작업지시 목록에 추가</button>
           <div class="lockednote">직접 등록이 필요할 때만 이 영역을 열어 사용합니다.</div>
         </div>
-      </div>
-
-      <div class="panel adminOnly">
-        <h2><span class="n">↻</span>라벨 재발행 (날짜 지정)</h2>
-        <div class="lockednote">작업지시를 만들지 않고 원하는 날짜 / 드럼 번호로 바로 재발행합니다.</div>
-        <div class="row2">
-          <div>
-            <label>품목코드 검색</label>
-            <input type="text" class="field" id="reissueCodeSearch" placeholder="품목코드">
-          </div>
-          <div>
-            <label>품목명(ECOUNT 풀네임) 검색</label>
-            <input type="text" class="field" id="reissueFullNameSearch" placeholder="예: O200_백색 / O-200 백색">
-          </div>
-        </div>
-        <label>제품 선택</label><select id="reissueProduct"></select>
-        <div class="row2">
-          <div><label>날짜</label><input type="date" id="reissueDate"></div>
-          <div><label>설비명</label><select id="reissueMachine"><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option><option>M6</option></select></div>
-        </div>
-        <div class="row2">
-          <div><label>Batch 수</label><input type="number" id="reissueBatchCount" value="1" min="1" max="9"></div>
-          <div><label>Batch 순번</label><input type="number" id="reissueBatchSeq" value="1" min="1" max="99"></div>
-        </div>
-        <div id="reissueManualLotWrap" style="display:none;">
-          <label>LOT 직접입력 (마지막 3자리)</label>
-          <input type="text" class="field" id="reissueManualLotInput" maxlength="3" placeholder="예: A01 / 001" autocomplete="off">
-        </div>
-        <div id="reissueLotSeqWrap" style="display:none;">
-          <label>LOT 순번</label>
-          <input type="number" id="reissueLotSeqInput" value="1" min="1" max="99">
-        </div>
-        <div class="row2">
-          <div><label>드럼 번호</label><input type="number" id="reissueDrum" value="1" min="1"></div>
-          <div><label>중량 kg</label><input type="number" id="reissueWeight" min="0"></div>
-        </div>
-        <label>용량 L (HBF)</label><input type="number" id="reissueVolume" min="0">
-        <div id="reissueVariantWrap" style="display:none;"><label>출력 프로파일</label><select id="reissueVariant"></select></div>
-        <label>재발행할 라벨 종류</label>
-        <select id="reissueLabelType"></select>
-        <button class="btn btn-warn" id="genReissue">↻ 선택한 라벨만 재발행</button>
       </div>
 
       <div class="panel">
@@ -1167,7 +1125,7 @@ body.workspace-open #homeView{display:none;}
       </div>
       <div class="panel">
         <h2><span class="n">i</span>제품 적용 방법</h2>
-        <div class="lockednote">제품관리(마스터)에서 각 품목의 <b>LOT 부여 규칙</b>을 선택해 저장하면 됩니다. 이후 작업지시, 재발행, 일괄출력, 실시간출력에서 같은 규칙이 자동 적용됩니다.</div>
+        <div class="lockednote">제품관리(마스터)에서 각 품목의 <b>LOT 부여 규칙</b>을 선택해 저장하면 됩니다. 이후 작업지시, 일괄출력, 실시간출력에서 같은 규칙이 자동 적용됩니다.</div>
       </div>
     </div>
   </div>
@@ -1800,11 +1758,7 @@ function productOptionsHtml(filters={}){
 function currentProductSearchFilters(){
   return {code:$('productCodeSearch')?.value||'',fullName:$('productFullNameSearch')?.value||''};
 }
-function currentReissueSearchFilters(){
-  return {code:$('reissueCodeSearch')?.value||'',fullName:$('reissueFullNameSearch')?.value||''};
-}
 $('product').innerHTML=productOptionsHtml(currentProductSearchFilters());
-$('reissueProduct').innerHTML=productOptionsHtml(currentReissueSearchFilters());
 
 function pad2(n){return String(n).padStart(2,'0');}
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;}
@@ -1885,7 +1839,7 @@ function buildProductBarcode(p,lot,dateValue){
     return part;
   }).join('');
 }
-$('prodDate').value=todayISO(); $('reissueDate').value=todayISO();
+$('prodDate').value=todayISO();
 
 function lotPrefix(order){
   const d=new Date(order.date+'T00:00:00'),f=fmtDate(d);
@@ -2233,7 +2187,7 @@ function renderMasterProductInfo(p){
   const lr=getLotRuleById(getProductLotRuleId(p));
   wrap.innerHTML=`<b>${escapeHtml(p.code||'코드 없음')}</b> · ${escapeHtml(p.shortName||p.name||'')}${p.color?` / ${escapeHtml(p.color)}`:''}${p.type?` · ${escapeHtml(p.type)}`:''}<br><b>LOT:</b> ${escapeHtml(lr?.name||'-')} · <code>${escapeHtml(lr?.pattern||'-')}</code><br>${labels||'연결 라벨 없음'}`;
 }
-let selectedVariantBatch='',selectedVariantLive='',selectedVariantReissue='';
+let selectedVariantBatch='',selectedVariantLive='';
 function renderVariantPicker(wrapId,p,current,onPick){
   const wrap=$(wrapId), box=$(wrapId.replace('Picker','Wrap'));
   if(!wrap) return current;
@@ -2313,34 +2267,6 @@ function refreshProductSearch(){
 ['productCodeSearch','productFullNameSearch'].forEach(id=>$(id)?.addEventListener('input',refreshProductSearch));
 (function(){ if($('product').options.length){ $('product').selectedIndex=0; applyProductDefaults(); } })();
 
-function reissueDefaults(){
-  const p=ALL_PRODUCTS[+$('reissueProduct').value];
-  $('reissueWeight').value=p.kg ?? ''; $('reissueVolume').value=p.volume||''; $('reissueDrum').value=1;
-}
-function refreshReissueLabelTypes(){
-  const p=ALL_PRODUCTS[+$('reissueProduct').value]; if(!p) return;
-  const vs=availableVariants(p); selectedVariantReissue=normalizeVariant(p,selectedVariantReissue);
-  const vw=$('reissueVariantWrap'), vsel=$('reissueVariant');
-  if(vw) vw.style.display=vs.length>1?'block':'none';
-  if(vsel){vsel.innerHTML=vs.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');if(vs.includes(selectedVariantReissue))vsel.value=selectedVariantReissue;}
-  const sel=$('reissueLabelType'),types=availableLabelTypes(p,selectedVariantReissue);
-  sel.innerHTML=types.map(t=>`<option value="${t.key}" ${t.enabled?'':'disabled'}>${escapeHtml(t.label)} · ${escapeHtml(t.code)} · ${escapeHtml(t.sizeText||'')}${t.enabled?'':' · 서식 미등록'}</option>`).join('');
-  const first=types.find(t=>t.enabled); if(first) sel.value=first.key;
-  updateReissueManualLotInputVisibility();
-}
-$('reissueProduct').addEventListener('change',()=>{selectedVariantReissue='';reissueDefaults();refreshReissueLabelTypes();});
-function refreshReissueSearch(){
-  const old=+$('reissueProduct').value;
-  $('reissueProduct').innerHTML=productOptionsHtml(currentReissueSearchFilters());
-  const opt=[...$('reissueProduct').options].find(o=>+o.value===old);
-  if(opt) $('reissueProduct').value=String(old);
-  else if($('reissueProduct').options.length) $('reissueProduct').selectedIndex=0;
-  selectedVariantReissue='';
-  reissueDefaults();
-  refreshReissueLabelTypes();
-}
-['reissueCodeSearch','reissueFullNameSearch'].forEach(id=>$(id)?.addEventListener('input',refreshReissueSearch));
-reissueDefaults(); refreshReissueLabelTypes();
 
 function statusLabel(s){return s==='done'?'완료':s==='in_progress'?'진행중':'대기';}
 let orderMachineFilter='ALL';
@@ -2412,13 +2338,6 @@ function updateManualLotInputVisibility(){
   const show=productUsesManualInput3(p,ruleId),showSeq=productUsesLotSeq(p,ruleId);
   if($('manualLotWrap'))$('manualLotWrap').style.display=show?'block':'none';
   if($('lotSeqWrap'))$('lotSeqWrap').style.display=showSeq?'block':'none';
-}
-function updateReissueManualLotInputVisibility(){
-  const p=ALL_PRODUCTS[+$('reissueProduct').value]; if(!p)return;
-  const ruleId=labelEffectiveLotRule(p,$('reissueLabelType')?.value||'',selectedVariantReissue);
-  const show=productUsesManualInput3(p,ruleId),showSeq=productUsesLotSeq(p,ruleId);
-  if($('reissueManualLotWrap'))$('reissueManualLotWrap').style.display=show?'block':'none';
-  if($('reissueLotSeqWrap'))$('reissueLotSeqWrap').style.display=showSeq?'block':'none';
 }
 function validManualInput3(value){return /^[A-Za-z0-9]{3}$/.test(String(value||'').trim());}
 
@@ -2755,26 +2674,6 @@ function refreshActiveOrderPanel(){
   $('completeOrder').style.display='block';$('batchDrumsOut').textContent=o.batchDrums;$('batchWeightOut').textContent=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;$('nextDrumOut').textContent=liveDrumCounter;
 }
 $('completeOrder').addEventListener('click',async()=>{const o=activeOrder();if(!o)return;o.status='done';await saveWorkOrders();renderOrderList();flash('작업지시를 완료 처리했습니다');});
-
-if($('reissueVariant')) $('reissueVariant').addEventListener('change',()=>{selectedVariantReissue=$('reissueVariant').value;refreshReissueLabelTypes();});
-if($('reissueLabelType')) $('reissueLabelType').addEventListener('change',updateReissueManualLotInputVisibility);
-$('genReissue').addEventListener('click',()=>{
-  const p=ALL_PRODUCTS[+$('reissueProduct').value];
-  const labelCode=$('reissueLabelType').value;
-  const ruleId=labelEffectiveLotRule(p,labelCode,selectedVariantReissue);
-  const manualLotInput=String($('reissueManualLotInput')?.value||'').trim().toUpperCase();
-  if(productUsesManualInput3(p,ruleId) && !validManualInput3(manualLotInput)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력하세요',true);return;}
-  const fakeOrder={date:$('reissueDate').value||todayISO(),machine:$('reissueMachine').value,batchCount:$('reissueBatchCount').value||'1',batchSeq:+$('reissueBatchSeq').value||1,productIdx:+$('reissueProduct').value,volume:$('reissueVolume').value?+$('reissueVolume').value:null,manualLotInput,lotSeq:+($('reissueLotSeqInput')?.value||1)};
-  const drumNo=+$('reissueDrum').value||1; const rwRaw=$('reissueWeight').value; const weight=rwRaw!==''?+rwRaw:(p.kg??0);
-  let info,ctx,parts;
-  info=computeLotInfo(fakeOrder,drumNo,ruleId);
-  ctx=contextForSelectedLabel(p,info,drumNo,weight,fakeOrder.volume,labelCode,selectedVariantReissue);
-  parts=singlePartForType(p,ctx,labelCode,selectedVariantReissue);
-  if(!parts.length){flash(`선택한 라벨(${labelCode})의 저장 서식을 찾지 못했습니다. 라벨 마스터에서 서식을 저장한 뒤 다시 시도하세요.`,true);return;}
-  generated=[{drumNo,ctx,parts}];selectedIdx=0;renderPreview();
-  pushLog({time:new Date().toLocaleString('ko-KR'),worker:$('workerName').value||'',product:p.name,lot:info.lot,drumNo,weight,mode:'재발행'});
-  flash(`${fakeOrder.date} 날짜 기준으로 재발행 라벨을 생성했습니다`);
-});
 
 function renderPreview(){
   const wrap=$('previewWrap'),picker=$('previewPicker');
@@ -3972,7 +3871,6 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
   else if(go==='lot') $('tabLotRules').click();
   else if(go==='history'){ $('tabBatch').click(); setTimeout(()=>{ if($('printHistoryPanel'))$('printHistoryPanel').style.display='block'; $('printHistoryPanel')?.scrollIntoView({behavior:'smooth',block:'start'}); },120); }
   else if(go==='printer'){ $('tabBatch').click(); setTimeout(()=>$('printerSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
-  else if(go==='reissue'){ $('tabBatch').click(); setTimeout(()=>document.querySelector('#reissueProduct')?.scrollIntoView({behavior:'smooth',block:'center'}),120); }
 }));
 function showOp(){$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabExpRules'))$('tabExpRules').classList.remove('active');}
 async function autoSaveLabelWorkBeforeLeaving(){
@@ -5884,7 +5782,6 @@ async function importProductExcel(file){
 
 function refreshAllProductSelects(){
   if($('product')) $('product').innerHTML=productOptionsHtml(currentProductSearchFilters());
-  if($('reissueProduct')) $('reissueProduct').innerHTML=productOptionsHtml(currentReissueSearchFilters());
   if($('pmLabelProduct')) refreshPmLabelProductSelect();
   if($('pmFamilyFilter')){const cur=$('pmFamilyFilter').value||'ALL';const fams=[...new Set(ALL_PRODUCTS.map(p=>p.family).filter(Boolean))].sort();$('pmFamilyFilter').innerHTML='<option value="ALL">전체 제품군</option>'+fams.map(f=>`<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');if([...$('pmFamilyFilter').options].some(o=>o.value===cur))$('pmFamilyFilter').value=cur;}
   refreshPmLotRuleOptions();
@@ -6341,9 +6238,7 @@ if($('pmLabelPickerAll')) $('pmLabelPickerAll').addEventListener('click',()=>{
 if($('pmLabelPickerClear')) $('pmLabelPickerClear').addEventListener('click',()=>{PM_FORM_LABEL_CODES.clear();renderPmLabelChecklist();});
 
 if($('product')) $('product').addEventListener('change',updateManualLotInputVisibility);
-if($('reissueProduct')) $('reissueProduct').addEventListener('change',updateReissueManualLotInputVisibility);
 if($('manualLotInput')) $('manualLotInput').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);});
-if($('reissueManualLotInput')) $('reissueManualLotInput').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);});
 
 
 if($('savePrinterSettingsBtn')) $('savePrinterSettingsBtn').addEventListener('click',savePrinterSettings);
@@ -6383,7 +6278,7 @@ async function initApp(){
   if(browserPrintSdkReady()) setTimeout(()=>discoverZebraPrinters(true),1200);
   else { const diag=browserPrintSdkDiagnostic(); setZebraStatus(diag.text+' · ZPL 직접 인쇄에는 Zebra Browser Print 프로그램도 실행되어 있어야 합니다.','warn'); }
 
-  await loadLayouts();await loadLotRules();await loadExpRules();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();refreshReissueLabelTypes();updateReissueManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
+  await loadLayouts();await loadLotRules();await loadExpRules();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
   if(HAS_SHARED_STORAGE || window.KSA_DB_READY){
     setInterval(async()=>{
       if(document.body.classList.contains('editing'))return;
