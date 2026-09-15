@@ -545,6 +545,7 @@ body.workspace-open #homeView{display:none;}
   <button id="tabProductMaster" class="adminOnly">▦ 제품관리(마스터)</button>
   <button id="tabLotRules" class="adminOnly"># LOT 규칙관리</button>
   <button id="tabExpRules" class="adminOnly"># EXP 규칙관리</button>
+  <button id="tabFreePrint" class="adminOnly">🖨 계획 없이 출력</button>
 </div>
 
 <main>
@@ -1197,6 +1198,29 @@ body.workspace-open #homeView{display:none;}
         <div class="masterTableWrap" style="max-height:620px;overflow:auto;">
           <table class="masterTable"><thead><tr><th>규칙명</th><th>계산 기준</th><th>표시 형식</th><th>예시</th><th>관리</th></tr></thead><tbody id="erTableBody"></tbody></table>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="freePrintView" class="adminOnly" style="display:none;">
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h2><span class="n">🖨</span>계획 없이 출력</h2>
+        <div class="lockednote">작업지시나 제품마스터 연결 없이, 저장된 라벨 서식을 불러와 항목 내용을 자유롭게 입력한 뒤 바로 인쇄합니다.</div>
+        <label>라벨 서식 선택</label>
+        <select id="fpLabelSelect"><option value="">-- 라벨을 선택하세요 --</option></select>
+        <div id="fpFieldsWrap" style="margin-top:14px;"></div>
+        <div class="row2" style="margin-top:14px;">
+          <div><label>매수</label><input type="number" id="fpCopies" value="1" min="1" max="99"></div>
+        </div>
+        <button class="btn btn-primary" id="fpPrintBtn" style="margin-top:10px;" disabled>🖨 지금 인쇄</button>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="toolbar"><h2 style="margin:0;">미리보기</h2></div>
+        <div class="preview-area" id="fpPreviewWrap"><div class="empty">라벨 서식을 선택하세요.</div></div>
       </div>
     </div>
   </div>
@@ -3858,7 +3882,7 @@ $('pinInlineInput').addEventListener('keydown',e=>{
 
 
 function openWorkspace(){document.body.classList.add('workspace-open');}
-function showHome(){document.body.classList.remove('workspace-open');$('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';document.body.classList.remove('editing');}
+function showHome(){document.body.classList.remove('workspace-open');$('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');}
 if($('homeBtn')) $('homeBtn').addEventListener('click',showHome);
 document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventListener('click',()=>{
   const go=card.dataset.go;
@@ -3872,7 +3896,7 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
   else if(go==='history'){ $('tabBatch').click(); setTimeout(()=>{ if($('printHistoryPanel'))$('printHistoryPanel').style.display='block'; $('printHistoryPanel')?.scrollIntoView({behavior:'smooth',block:'start'}); },120); }
   else if(go==='printer'){ $('tabBatch').click(); setTimeout(()=>$('printerSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
 }));
-function showOp(){$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabExpRules'))$('tabExpRules').classList.remove('active');}
+function showOp(){$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabExpRules'))$('tabExpRules').classList.remove('active');if($('tabFreePrint'))$('tabFreePrint').classList.remove('active');}
 async function autoSaveLabelWorkBeforeLeaving(){
   // v4.11.3: 라벨 서식 편집 후 출력/다른 관리 화면으로 이동해도 변경사항이 사라지지 않도록 자동 저장.
   if(document.body.classList.contains('editing')){
@@ -3881,7 +3905,7 @@ async function autoSaveLabelWorkBeforeLeaving(){
 }
 $('tabBatch').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();openWorkspace();mode='batch';$('tabBatch').classList.add('active');$('tabLive').classList.remove('active');$('tabEditor').classList.remove('active');$('panelBatch').style.display='block';$('panelLive').style.display='none';if($('printHistoryPanel'))$('printHistoryPanel').style.display='none';showOp();refreshActiveOrderPanel();});
 $('tabLive').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();openWorkspace();mode='live';$('tabLive').classList.add('active');$('tabBatch').classList.remove('active');$('tabEditor').classList.remove('active');$('panelLive').style.display='block';$('panelBatch').style.display='none';if($('printHistoryPanel'))$('printHistoryPanel').style.display='none';$('nextDrumOut').textContent=liveDrumCounter;showOp();refreshActiveOrderPanel();});
-$('tabEditor').addEventListener('click',()=>{openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');document.body.classList.add('editing');setupSeparatedLabelScreens();showLabelMasterScreen();renderEditorTabs();renderLabelMasterList();renderEditor();});
+$('tabEditor').addEventListener('click',()=>{openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabFreePrint'))$('tabFreePrint').classList.remove('active');document.body.classList.add('editing');setupSeparatedLabelScreens();showLabelMasterScreen();renderEditorTabs();renderLabelMasterList();renderEditor();});
 $('resetLive').addEventListener('click',()=>{liveDrumCounter=1;$('nextDrumOut').textContent='1';flash('드럼 카운트 초기화');});
 
 
@@ -4893,8 +4917,8 @@ async function deleteLotRule(id){
 }
 function showLotRules(){
   openWorkspace(); if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}
-  $('opView').style.display='none'; $('editorView').style.display='none'; $('productMasterView').style.display='none'; $('lotRuleView').style.display='block'; if($('expRuleView'))$('expRuleView').style.display='none'; document.body.classList.remove('editing');
-  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabExpRules'].forEach(id=>$(id).classList.remove('active')); $('tabLotRules').classList.add('active'); renderLotRuleTable(); resetLotRuleForm();
+  $('opView').style.display='none'; $('editorView').style.display='none'; $('productMasterView').style.display='none'; $('lotRuleView').style.display='block'; if($('expRuleView'))$('expRuleView').style.display='none'; if($('freePrintView'))$('freePrintView').style.display='none'; document.body.classList.remove('editing');
+  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabExpRules','tabFreePrint'].forEach(id=>$(id).classList.remove('active')); $('tabLotRules').classList.add('active'); renderLotRuleTable(); resetLotRuleForm();
 }
 
 const EXP_RULES_KEY='ksa-exp-rules-v1';
@@ -4909,7 +4933,94 @@ function renderExpRuleTable(){ if(!$('erTableBody'))return; $('erCount').textCon
 function editExpRule(id){const r=EXP_RULES.find(x=>x.id===id);if(!r)return;$('erEditId').value=r.id;$('erName').value=r.name||'';$('erMode').value=r.mode||'product_days';$('erValue').value=r.value??0;$('erFormat').value=r.format||'YYYY-MM-DD';$('erDescription').value=r.description||'';$('erSaveBtn').textContent='EXP 규칙 수정 저장';updateErPreview();}
 async function saveExpRuleFromForm(){const name=$('erName').value.trim();if(!name){flash('EXP 규칙명을 입력하세요',true);return;}const id=$('erEditId').value,old=EXP_RULES.find(x=>x.id===id);const obj={id:id||`EXP_CUSTOM_${Date.now()}`,name,mode:$('erMode').value,value:+$('erValue').value||0,format:$('erFormat').value,description:$('erDescription').value.trim(),system:!!old?.system};const i=EXP_RULES.findIndex(x=>x.id===obj.id);if(i>=0)EXP_RULES[i]=obj;else EXP_RULES.push(obj);await saveExpRules();refreshPmExpRuleOptions();renderExpRuleTable();renderPmTable();resetExpRuleForm();flash('EXP 규칙을 저장했습니다');}
 async function deleteExpRule(id){const r=EXP_RULES.find(x=>x.id===id);if(!r||r.system)return;const used=allMasterProducts().filter(p=>getProductExpRuleId(p)===id);if(used.length){flash(`이 규칙을 사용하는 품목이 ${used.length}개 있어 삭제할 수 없습니다`,true);return;}if(!confirm(`${r.name} 규칙을 삭제하시겠습니까?`))return;EXP_RULES=EXP_RULES.filter(x=>x.id!==id);await saveExpRules();refreshPmExpRuleOptions();renderExpRuleTable();flash('EXP 규칙을 삭제했습니다');}
-function showExpRules(){openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('opView').style.display='none';$('editorView').style.display='none';$('productMasterView').style.display='none';$('lotRuleView').style.display='none';$('expRuleView').style.display='block';document.body.classList.remove('editing');['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules'].forEach(id=>$(id).classList.remove('active'));$('tabExpRules').classList.add('active');renderExpRuleTable();resetExpRuleForm();}
+function showExpRules(){openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('opView').style.display='none';$('editorView').style.display='none';$('productMasterView').style.display='none';$('lotRuleView').style.display='none';$('expRuleView').style.display='block';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabFreePrint'].forEach(id=>$(id).classList.remove('active'));$('tabExpRules').classList.add('active');renderExpRuleTable();resetExpRuleForm();}
+
+function collectBindKeysForLayout(key){
+  const layout=LAYOUTS[key]; if(!layout) return [];
+  const set=new Set();
+  (layout.fields||[]).forEach(f=>{
+    if(f.kind==='bind' && f.bind) set.add(f.bind);
+    if(f.kind==='table' && Array.isArray(f.cells)){
+      f.cells.forEach(row=>(row||[]).forEach(c=>{ if(c && c.kind==='bind' && c.bind) set.add(c.bind); }));
+    }
+  });
+  return [...set];
+}
+const FP_BIND_LABELS={name:'품명',shortName:'라벨 약어',fullName:'ECOUNT 품목명',code:'품목코드',color:'색상',type:'타입/성상',lot:'LOT',lotRaw:'LOT(원본)',exp:'사용기한(EXP)',expireDate:'사용기한(EXP)',useby:'사용기한(EXP)',weight:'중량 표시',proddate:'생산일자',drumNo:'드럼 번호',barcode:'바코드 값',barcodeText:'바코드 숫자',barcodeType:'바코드 종류'};
+let fpKey='',fpLabelCode='',fpCtx={};
+function populateFreePrintLabelSelect(){
+  const sel=$('fpLabelSelect'); if(!sel) return;
+  const old=sel.value;
+  sel.innerHTML='<option value="">-- 라벨을 선택하세요 --</option>'+allLabelMaster().filter(x=>x.active!==false).map(x=>`<option value="${escapeHtml(x.labelCode)}">[${escapeHtml(x.labelCode)}] ${escapeHtml(x.labelName||'')}</option>`).join('');
+  if([...sel.options].some(o=>o.value===old)) sel.value=old;
+}
+function renderFreePrintFields(){
+  const wrap=$('fpFieldsWrap'); if(!wrap) return;
+  const keys=collectBindKeysForLayout(fpKey);
+  if(!keys.length){ wrap.innerHTML='<div class="lockednote">이 서식에는 직접 입력할 수 있는 변수 항목이 없습니다.</div>'; return; }
+  wrap.innerHTML='<label style="display:block;margin-bottom:6px;">라벨 항목 직접 입력</label>'+keys.map(k=>{
+    const label=FP_BIND_LABELS[k]||k;
+    if(k==='barcodeType'){
+      return `<div style="margin-bottom:8px;"><label style="font-size:11px;font-weight:700;display:block;margin-bottom:3px;">${escapeHtml(label)}</label><select class="field fpFieldInput" data-bind="${escapeHtml(k)}"><option value="CODE128">CODE128</option><option value="EAN-13">EAN-13</option><option value="CODE39">CODE39</option><option value="ITF-14">ITF-14</option><option value="CODABAR">CODABAR</option></select></div>`;
+    }
+    return `<div style="margin-bottom:8px;"><label style="font-size:11px;font-weight:700;display:block;margin-bottom:3px;">${escapeHtml(label)} <span style="opacity:.5;font-weight:400;">(${escapeHtml(k)})</span></label><input type="text" class="field fpFieldInput" data-bind="${escapeHtml(k)}"></div>`;
+  }).join('');
+  wrap.querySelectorAll('.fpFieldInput').forEach(el=>{
+    const k=el.dataset.bind;
+    el.value=fpCtx[k]??'';
+    el.addEventListener('input',()=>{fpCtx[k]=el.value;renderFreePrintPreview();});
+    el.addEventListener('change',()=>{fpCtx[k]=el.value;renderFreePrintPreview();});
+  });
+}
+function renderFreePrintPreview(){
+  const wrap=$('fpPreviewWrap'); if(!wrap) return;
+  if(!fpKey||!LAYOUTS[fpKey]){ wrap.innerHTML='<div class="empty">라벨 서식을 선택하세요.</div>'; return; }
+  wrap.innerHTML=renderLabelHtml(fpKey,fpCtx,false);
+  applyAutoFitFields(wrap);
+}
+async function onFreePrintLabelChange(){
+  const code=$('fpLabelSelect')?.value||'';
+  fpLabelCode=code;
+  if(!code){ fpKey=''; fpCtx={}; renderFreePrintFields(); renderFreePrintPreview(); if($('fpPrintBtn'))$('fpPrintBtn').disabled=true; return; }
+  try{
+    const key=await ensureLabelEditorLayout(code);
+    if(!key||!LAYOUTS[key]) throw new Error('라벨 서식을 찾을 수 없습니다.');
+    fpKey=key;
+    fpCtx=sampleContextForLabel(code,key);
+    renderFreePrintFields();
+    renderFreePrintPreview();
+    if($('fpPrintBtn'))$('fpPrintBtn').disabled=false;
+  }catch(e){
+    flash('라벨 서식을 불러오지 못했습니다: '+(e?.message||e),true);
+    fpKey=''; fpCtx={};
+    if($('fpPrintBtn'))$('fpPrintBtn').disabled=true;
+  }
+}
+$('fpLabelSelect')?.addEventListener('change',onFreePrintLabelChange);
+$('fpPrintBtn')?.addEventListener('click',async()=>{
+  if(!fpKey||!LAYOUTS[fpKey]){flash('먼저 라벨 서식을 선택하세요',true);return;}
+  const copies=Math.max(1,Math.min(99,+$('fpCopies').value||1));
+  const lm=fpLabelCode?labelMasterByCode(fpLabelCode):null;
+  const part={key:fpKey,ctx:fpCtx,labelCode:fpLabelCode||'',labelName:lm?.labelName||fpLabelCode||'계획 없이 출력'};
+  const items=Array.from({length:copies},(_,i)=>({drumNo:i+1,ctx:fpCtx,parts:[part]}));
+  try{
+    await smartPrint(items);
+    flash('계획 없이 출력을 인쇄했습니다');
+  }catch(e){flash('인쇄 실패: '+(e?.message||e),true);}
+});
+function showFreePrint(){
+  openWorkspace(); if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}
+  $('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';$('freePrintView').style.display='block';document.body.classList.remove('editing');
+  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabExpRules'].forEach(id=>$(id).classList.remove('active'));
+  $('tabFreePrint').classList.add('active');
+  populateFreePrintLabelSelect();
+  fpKey='';fpLabelCode='';fpCtx={};
+  if($('fpLabelSelect'))$('fpLabelSelect').value='';
+  renderFreePrintFields();
+  renderFreePrintPreview();
+  if($('fpPrintBtn'))$('fpPrintBtn').disabled=true;
+}
+$('tabFreePrint')?.addEventListener('click',showFreePrint);
 if($('lrSaveBtn')) $('lrSaveBtn').addEventListener('click',saveLotRuleFromForm);
 if($('lrResetBtn')) $('lrResetBtn').addEventListener('click',resetLotRuleForm);
 if($('tabLotRules')) $('tabLotRules').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();showLotRules();});
@@ -6205,9 +6316,9 @@ if($('pmExcelFile')) $('pmExcelFile').addEventListener('change',e=>importProduct
 function showProductMaster(){
   openWorkspace();
   if(!isAdmin){ flash('관리자 모드에서만 사용할 수 있습니다',true); return; }
-  $('opView').style.display='none'; $('editorView').style.display='none'; if($('lotRuleView'))$('lotRuleView').style.display='none'; if($('expRuleView'))$('expRuleView').style.display='none';
+  $('opView').style.display='none'; $('editorView').style.display='none'; if($('lotRuleView'))$('lotRuleView').style.display='none'; if($('expRuleView'))$('expRuleView').style.display='none'; if($('freePrintView'))$('freePrintView').style.display='none';
   $('productMasterView').style.display='block'; document.body.classList.remove('editing');
-  ['tabBatch','tabLive','tabEditor','tabLotRules','tabExpRules'].forEach(id=>$(id).classList.remove('active'));
+  ['tabBatch','tabLive','tabEditor','tabLotRules','tabExpRules','tabFreePrint'].forEach(id=>$(id).classList.remove('active'));
   $('tabProductMaster').classList.add('active');
   refreshAllProductSelects(); refreshBulkLotRules(); refreshPmExpRuleOptions(); renderPmTable(); renderPmLabelChecklist(); renderPmLinks(); renderLabelMasterList(); renderLabelMasterSelect();
 }
