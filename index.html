@@ -76,6 +76,7 @@
   .canvasBox{position:relative;background:#fff;border:2.5px solid var(--ink);border-radius:2px;overflow:hidden;}
   body.hide-canvas-border .canvasBox{border-color:transparent!important;}
   .fld{position:absolute;white-space:pre-line;overflow:hidden;line-height:1.25;}
+  .fldTextInner{display:block;width:100%;}
   /* v4.14.1: explicit class-based label fonts */
   .canvasBox .lf-diag-serif{font-family:Georgia,Batang,serif!important;}
   .canvasBox .lf-diag-mono{font-family:Consolas,"Courier New",monospace!important;}
@@ -2044,7 +2045,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       : f.text;
     const transparentBg=f.transparentBackground!==false;
     const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`font-family:${fontCss(f.fontFamily,f.mono)} !important`,`text-align:${f.align||'left'}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
-    const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : escapeHtml(text).replace(/\n/g,'<br>');
+    const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : `<span class="fldTextInner">${escapeHtml(text).replace(/\n/g,'<br>')}</span>`;
     const autoFitAttr=f.autoFit?` data-autofit="1" data-basesize="${f.size}"`:'';
     return `<div class="${cls} ${fontClass(f.fontFamily||(f.mono?'system-mono':'system-sans'))}" ${dataAttr}${autoFitAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:${zi+1};">${content}${resizeHandles}</div>`;
   }).join('');
@@ -2054,17 +2055,23 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
 // 최대한 꽉 차도록 자동으로 키우거나 줄인다.
 function fitTextToBox(el){
   if(!el) return;
+  // v4.17: 측정 대상은 텍스트 전용 래퍼(.fldTextInner)로 한정한다.
+  // el(.fld) 자체의 scrollWidth/scrollHeight는 크기조절 핸들(resizeHandle)이
+  // 상자 밖으로 살짝 튀어나온 상태로 함께 포함되어, 선택된(=핸들이 보이는) 필드에서는
+  // 텍스트 크기와 무관하게 항상 '넘침'으로 오판되는 문제가 있었다.
+  const measureEl=el.querySelector(':scope > .fldTextInner')||el;
   const base=parseFloat(el.dataset.basesize)||parseFloat(el.style.fontSize)||10;
+  const fits=()=>measureEl.scrollWidth<=el.clientWidth+1 && measureEl.scrollHeight<=el.clientHeight+1;
   let size=base;
   el.style.fontSize=size+'pt';
   let guard=0;
-  while(guard++<80 && size>4 && (el.scrollWidth>el.clientWidth+1 || el.scrollHeight>el.clientHeight+1)){
+  while(guard++<80 && size>4 && !fits()){
     size-=0.5; el.style.fontSize=size+'pt';
   }
   guard=0;
-  while(guard++<160 && size<300 && el.scrollWidth<=el.clientWidth && el.scrollHeight<=el.clientHeight){
+  while(guard++<160 && size<300 && fits()){
     size+=0.5; el.style.fontSize=size+'pt';
-    if(el.scrollWidth>el.clientWidth+1 || el.scrollHeight>el.clientHeight+1){ size-=0.5; el.style.fontSize=size+'pt'; break; }
+    if(!fits()){ size-=0.5; el.style.fontSize=size+'pt'; break; }
   }
 }
 function applyAutoFitFields(root){
