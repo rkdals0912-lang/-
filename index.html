@@ -1350,6 +1350,7 @@ MASTER_PRODUCTS.forEach((p,i)=>{
   p.fullName=p.fullName||'';
 });
 MASTER_PRODUCTS.forEach(p=>{ if(p.useByDays==null) p.useByDays=Math.max(0,(Number(p.months)||12)*30); if(!p.expRuleId) p.expRuleId='EXP_USEBY_DAYS'; delete p.months; });
+const $=id=>document.getElementById(id);
 let CUSTOM_PRODUCTS=[];
 let DELETED_MASTER_PRODUCT_IDS=[];
 let FEATURE_FLAGS={batchEnabled:true,liveEnabled:true};
@@ -1716,7 +1717,6 @@ let selectedLabelTypeBatch='full', selectedLabelTypeLive='full';
 let editorKey='basic', selectedFieldId=null, workOrders=[], activeOrderId=null, dragState=null;
 let selectedFieldIds=new Set();
 let editorClipboard=null, editorUndoStack=[], editorUndoRestoring=false, editorFocusSnapshotActive=false;
-const $=id=>document.getElementById(id);
 const ADMIN_PIN='1384';
 
 function productDisplay(p){
