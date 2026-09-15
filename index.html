@@ -652,7 +652,9 @@ body.workspace-open #homeView{display:none;}
             <option value="all">전체 날짜</option>
             <option value="today">오늘만</option>
             <option value="pending" selected>미완료만</option>
+            <option value="date">날짜 선택...</option>
           </select>
+          <input type="date" id="orderFilterDate" style="display:none;width:auto;padding:6px 8px;font-size:12px;">
         </div>
         <div id="orderMachineFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;">
           <button type="button" class="miniBtn machineFilterBtn active" data-machine="ALL">전체 설비</button>
@@ -2276,6 +2278,10 @@ function filteredOrders(){
   const f=$('orderFilter').value;
   if(f==='today') list=list.filter(o=>o.date===todayISO());
   if(f==='pending') list=list.filter(o=>o.status!=='done');
+  if(f==='date'){
+    const d=$('orderFilterDate')?.value||'';
+    list = d ? list.filter(o=>o.date===d) : [];
+  }
   if(orderMachineFilter!=='ALL') list=list.filter(o=>String(o.machine||'').trim()===orderMachineFilter);
   return list.sort((a,b)=>{
     if(a.date!==b.date) return b.date.localeCompare(a.date);
@@ -2526,7 +2532,16 @@ if($('orderMachineFilters')) $('orderMachineFilters').addEventListener('click',e
   syncOrderMachineFilterButtons();
   renderOrderList();
 });
-$('orderFilter').addEventListener('change',renderOrderList);
+$('orderFilter').addEventListener('change',()=>{
+  if($('orderFilterDate')){
+    $('orderFilterDate').style.display=($('orderFilter').value==='date')?'':'none';
+    if($('orderFilter').value==='date' && !$('orderFilterDate').value){
+      $('orderFilterDate').value=todayISO();
+    }
+  }
+  renderOrderList();
+});
+$('orderFilterDate')?.addEventListener('change',renderOrderList);
 
 // v4.16: 작업지시 등록 폼에서 값을 바꿀 때마다 실제 추가 전에 LOT/사용기한을 미리 계산해서 보여준다.
 function updateManualOrderLotPreview(){
