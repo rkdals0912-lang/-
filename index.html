@@ -1712,11 +1712,24 @@ function normalizeLegacyTableBindings(layout){
 
 function normalizeLegacyRotatedFields(layout){
   if(!layout||!Array.isArray(layout.fields)) return layout;
+  const lw=Number(layout.w)||100, lh=Number(layout.h)||70;
   layout.fields.forEach(f=>{
+    if(!f) return;
     // v4.7.3g 이전 동은 국문 우측 LOT는 회전 전 박스가 세로로 길어
     // 90도 회전 시 캔버스 밖으로 밀려 보이지 않는 문제가 있었습니다.
-    if(f && f.id==='right_lot' && Number(f.rotate)===90 && Number(f.x)>=290 && Number(f.w)<=40 && Number(f.h)>=100){
+    if(f.id==='right_lot' && Number(f.rotate)===90 && Number(f.x)>=290 && Number(f.w)<=40 && Number(f.h)>=100){
       f.x=265; f.y=67; f.w=120; f.h=16;
+    }
+    // 세로형 라벨(폭 150, 높이 340 등)에서 순수 테두리 박스가 가로 규격 그대로 남아 캔버스를 튀어나간 경우 자동 복원
+    const isPureBox = ((f.border && (!f.text || String(f.text).trim()==='')) || (f.kind==='shape' && (f.shapeType==='rect'||f.shapeType==='roundRect')));
+    if(isPureBox && lw < lh && Number(f.w) > lw && Number(f.h) < Number(f.w)){
+      const oldW=Number(f.w), oldH=Number(f.h);
+      const cx=(Number(f.x)||0)+oldW/2, cy=(Number(f.y)||0)+oldH/2;
+      f.w=oldH; f.h=oldW;
+      f.x=+(cx-oldH/2).toFixed(2);
+      f.y=+(cy-oldW/2).toFixed(2);
+      if(f.x < 0) f.x = 2;
+      if(f.x + f.w > lw) f.w = +(lw - f.x - 2).toFixed(2);
     }
   });
   return layout;
@@ -2010,9 +2023,11 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
   // "맨 앞으로 가져오기"/"맨 뒤로 보내기"는 이 배열 순서를 재배치해 동작합니다.
   const orderedFields=layout.fields||[];
   const fields=orderedFields.map((f,zi)=>{
+    const hasRotate = !!(f.rotate && (Number(f.rotate) % 360 !== 0));
     const posStyle=[`left:${f.x}mm`,`top:${f.y}mm`,`width:${f.w}mm`,`height:${f.h}mm`,
-      f.rotate?`transform:rotate(${f.rotate}deg)`:'',f.rotate?'transform-origin:center center':''
+      hasRotate?`transform:rotate(${f.rotate}deg);transform-origin:center center;transform-box:fill-box;`:''
     ].filter(Boolean).join(';');
+    const rotOverflow = hasRotate ? 'overflow:visible;' : '';
     const isBarcodeField=(f.kind!=='image'&&f.kind!=='table'&&f.kind!=='bind' ? false : (f.kind==='bind'&&f.bind==='barcode'));
     const cls=`fld${f.kind==='image'?' imageField':''}${f.kind==='table'?' tableField':''}${isBarcodeField?' barcodeField':''}${editable&&f.id===selectedFieldId?' selected':''}${editable&&selectedFieldIds.has(f.id)&&f.id!==selectedFieldId?' multiSelected':''}`;
     const dataAttr=editable?`data-fid="${f.id}" data-kind="${f.kind||'static'}"`:'';
@@ -2020,7 +2035,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
     if(f.kind==='image'){
       const imageSrc=String(f.imageData||'').replace(/"/g,'&quot;');
       const objectFit=f.objectFit||'contain';
-      return `<div class="${cls} imageField" ${dataAttr} style="${posStyle};position:absolute;z-index:${zi+1};background:transparent;"><img src="${imageSrc}" alt="${escapeHtml(f.label||'image')}" style="width:100%;height:100%;display:block;object-fit:${objectFit};">${resizeHandles}</div>`;
+      return `<div class="${cls} imageField" ${dataAttr} style="${posStyle};${rotOverflow}position:absolute;z-index:${zi+1};background:transparent;"><img src="${imageSrc}" alt="${escapeHtml(f.label||'image')}" style="width:100%;height:100%;display:block;object-fit:${objectFit};">${resizeHandles}</div>`;
     }
     if(f.kind==='shape'){
       // v4.18: 도형(사각형/둥근사각형/타원/선) + 채우기색/윤곽선색.
@@ -2037,11 +2052,11 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       if(shapeType==='line'){
         const lineColor=strokeOn?strokeColor:(fillOn?fill:'#000000');
         const lineThickness=Math.max(.1,Number(f.strokeWidth)||.5);
-        return `<div class="${cls} shapeField" ${dataAttr} data-shape="line" style="${posStyle};position:absolute;z-index:${zi+1};background:transparent;display:flex;align-items:center;justify-content:center;"><div style="width:100%;height:${lineThickness}mm;background:${lineColor};flex:none;"></div>${resizeHandles}</div>`;
+        return `<div class="${cls} shapeField" ${dataAttr} data-shape="line" style="${posStyle};${rotOverflow}position:absolute;z-index:${zi+1};background:transparent;display:flex;align-items:center;justify-content:center;"><div style="width:100%;height:${lineThickness}mm;background:${lineColor};flex:none;"></div>${resizeHandles}</div>`;
       }
       const radius=shapeType==='ellipse'?'50%':(shapeType==='roundRect'?`${Math.max(0,Number(f.cornerRadius)||0)}mm`:'0');
       const borderCss=(strokeOn&&strokeWidthMm>0)?`border:${strokeWidthMm}mm solid ${strokeColor};`:'border:none;';
-      return `<div class="${cls} shapeField" ${dataAttr} data-shape="${shapeType}" style="${posStyle};position:absolute;z-index:${zi+1};background:transparent;"><div class="shapeInner" style="width:100%;height:100%;box-sizing:border-box;background:${fill};${borderCss}border-radius:${radius};"></div>${resizeHandles}</div>`;
+      return `<div class="${cls} shapeField" ${dataAttr} data-shape="${shapeType}" style="${posStyle};${rotOverflow}position:absolute;z-index:${zi+1};background:transparent;"><div class="shapeInner" style="width:100%;height:100%;box-sizing:border-box;background:${fill};${borderCss}border-radius:${radius};"></div>${resizeHandles}</div>`;
     }
     if(f.kind==='table'){
       const cellBorder=f.cellBorder!==false;
@@ -2083,13 +2098,13 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
       }
       const tableBgMode=f.tableBg==='transparent'?'transparent':'white';
       const tableBg=tableBgMode==='transparent'?'transparent':'#fff';
-      return `<div class="${cls} tableField" ${dataAttr} data-table-bg="${tableBgMode}" style="${posStyle};position:absolute;z-index:${zi+1};background:${tableBg}!important;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;background:${tableBg}!important;${cellBorder?`border:${bw}mm solid #000;`:''}">${colgroup}${cells}</table>${innerHandles}${resizeHandles}</div>`;
+      return `<div class="${cls} tableField" ${dataAttr} data-table-bg="${tableBgMode}" style="${posStyle};${rotOverflow}position:absolute;z-index:${zi+1};background:${tableBg}!important;"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed;background:${tableBg}!important;${cellBorder?`border:${bw}mm solid #000;`:''}">${colgroup}${cells}</table>${innerHandles}${resizeHandles}</div>`;
     }
     const text=f.kind==='bind'
       ? ((f.bind==='color'||f.bind==='type') ? (ctx[f.bind]??'') : (ctx[f.bind]??`[${f.bind}]`))
       : f.text;
     const transparentBg=f.transparentBackground!==false;
-    const styles=[posStyle,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`font-family:${fontCss(f.fontFamily,f.mono)} !important`,`text-align:${f.align||'left'}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
+    const styles=[posStyle,rotOverflow,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`font-family:${fontCss(f.fontFamily,f.mono)} !important`,`text-align:${f.align||'left'}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
     const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : `<span class="fldTextInner">${escapeHtml(text).replace(/\n/g,'<br>')}</span>`;
     const autoFitAttr=f.autoFit?` data-autofit="1" data-basesize="${f.size}"`:'';
     return `<div class="${cls} ${fontClass(f.fontFamily||(f.mono?'system-mono':'system-sans'))}" ${dataAttr}${autoFitAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:${zi+1};">${content}${resizeHandles}</div>`;
@@ -2900,13 +2915,26 @@ function setDynamicPrintPage(layoutKey){
         outline:0 !important;
         box-shadow:none !important;
         background:#fff !important;
-        /* v4.16.1: printPage와 동일한 이유로 다시 hidden으로 되돌림 (좌우 짤림 방지) */
-        overflow:hidden !important;
+        /* v4.18.2: 캔버스 자체는 visible로 설정하여 회전(rotate)된 요소 및 경계에 걸친 텍스트가
+           수평/수직 사각형 클립 마스크로 잘리지 않도록 보장합니다.
+           전체 페이지 영역은 부모인 .printPage(overflow:hidden)에서 라벨 용지 크기로 엄격히 고정되므로
+           페이지가 밀리거나 2장으로 분할되지 않습니다. */
+        overflow:visible !important;
         break-inside:avoid !important;
         page-break-inside:avoid !important;
         --ink:#000000 !important;
         --sub:#000000 !important;
         color:#000000 !important;
+      }
+
+      /* v4.18.2: 인쇄 시 모든 필드(fld)의 overflow를 visible로 강제하여,
+         회전(rotate) 각도 적용 시의 바운딩 박스 오차 및 폰트 행간(line-height)/디센더 렌더링으로
+         인해 글자 윗줄이나 아랫줄이 수평으로 싹둑 잘리는 현상을 완벽하게 방지합니다. */
+      #printArea .fld{
+        overflow:visible !important;
+        box-sizing:border-box !important;
+        break-inside:avoid !important;
+        page-break-inside:avoid !important;
       }
 
       /* v4.18.1: 인쇄 시 일반 텍스트, 라벨명(var(--sub)), 표 텍스트는
@@ -2923,6 +2951,10 @@ function setDynamicPrintPage(layoutKey){
       }
       #printArea .fldTextInner{
         color:#000000 !important;
+        overflow:visible !important;
+        line-height:1.28 !important;
+        display:inline-block !important;
+        width:100% !important;
       }
       #printArea table,
       #printArea td,
@@ -2932,10 +2964,7 @@ function setDynamicPrintPage(layoutKey){
         color:#000000 !important;
       }
 
-      /* 이미지/표/바코드/도형만 별도 처리: .fld의 overflow:hidden 때문에
-         양 끝 픽셀이 잘리는 현상을 방지한다.
-         + break-inside:avoid를 추가해 페이지 분할 계산 중 그래픽 요소가
-         다음 장으로 밀리지 않고 항상 한 페이지 안에서만 그려지도록 고정. */
+      /* 이미지/표/바코드/도형 별도 처리 */
       #printArea .imageField,
       #printArea .tableField,
       #printArea .barcodeField,
@@ -3287,14 +3316,15 @@ async function renderPartCanvas(part, dpi) {
       }
 
       /*
-       * 일반 텍스트는 기존 overflow:hidden 유지.
-       * 그래픽 요소만 overflow:visible.
+       * 그래픽 요소 및 회전(rotate)된 필드는 overflow:visible로 처리하여
+       * 회전 변환이나 폰트 렌더링에 의한 가장자리 잘림을 방지.
        */
       if (
         field.classList.contains('imageField') ||
         field.classList.contains('tableField') ||
         field.classList.contains('barcodeField') ||
-        field.classList.contains('shapeField')
+        field.classList.contains('shapeField') ||
+        (field.style.transform && field.style.transform.includes('rotate'))
       ) {
         field.style.overflow = 'visible';
       }
@@ -3302,6 +3332,8 @@ async function renderPartCanvas(part, dpi) {
 
     el.querySelectorAll('.fldTextInner').forEach(inner => {
       inner.style.color = '#000000';
+      inner.style.overflow = 'visible';
+      inner.style.lineHeight = '1.28';
     });
     el.querySelectorAll('table, td, th').forEach(cell => {
       cell.style.setProperty('--ink', '#000000', 'important');
@@ -4561,6 +4593,9 @@ function rotateWholeLayout(direction='cw'){
   const l=LAYOUTS[editorKey]; if(!l||!Array.isArray(l.fields)) return;
   const oldW=Number(l.w)||100, oldH=Number(l.h)||70;
   const normDeg=v=>((Number(v)||0)%360+360)%360;
+  const isQuarter=(direction==='cw'||direction==='ccw');
+  const newW=isQuarter?oldH:oldW, newH=isQuarter?oldW:oldH;
+
   l.fields.forEach(f=>{
     const w=Math.max(.1,Number(f.w)||1), h=Math.max(.1,Number(f.h)||1);
     const cx=(Number(f.x)||0)+w/2, cy=(Number(f.y)||0)+h/2;
@@ -4572,12 +4607,36 @@ function rotateWholeLayout(direction='cw'){
     }else{
       ncx=oldW-cx; ncy=oldH-cy; add=180;
     }
-    f.x=+(ncx-w/2).toFixed(2);
-    f.y=+(ncy-h/2).toFixed(2);
-    f.rotate=normDeg((Number(f.rotate)||0)+add);
+
+    const isPureBox = ((f.border && (!f.text || String(f.text).trim()==='')) || (f.kind==='shape' && (f.shapeType==='rect'||f.shapeType==='roundRect')));
+    if(isQuarter && isPureBox){
+      // 텍스트가 없는 순수 테두리 박스/도형은 w와 h를 직접 맞바꾸어
+      // 회전 전 박스가 캔버스 밖으로 튀어나가 부모 클리핑에 걸리는 현상을 원천 방지
+      f.w=h;
+      f.h=w;
+      f.x=+(ncx-h/2).toFixed(2);
+      f.y=+(ncy-w/2).toFixed(2);
+    }else{
+      f.rotate=normDeg((Number(f.rotate)||0)+add);
+      // 회전된 각도에 따른 시각적 바운딩 박스(Visual AABB) 계산
+      const rad=(f.rotate*Math.PI)/180;
+      const cos=Math.abs(Math.cos(rad)), sin=Math.abs(Math.sin(rad));
+      const visW=w*cos+h*sin;
+      const visH=w*sin+h*cos;
+
+      let clampedCx=ncx, clampedCy=ncy;
+      if(visW<=newW){
+        clampedCx=Math.max(visW/2, Math.min(newW - visW/2, ncx));
+      }
+      if(visH<=newH){
+        clampedCy=Math.max(visH/2, Math.min(newH - visH/2, ncy));
+      }
+      f.x=+(clampedCx-w/2).toFixed(2);
+      f.y=+(clampedCy-h/2).toFixed(2);
+    }
   });
-  if(direction==='cw'||direction==='ccw'){
-    l.w=oldH; l.h=oldW;
+  if(isQuarter){
+    l.w=newW; l.h=newH;
   }
   if($('canvasW')) $('canvasW').value=l.w;
   if($('canvasH')) $('canvasH').value=l.h;
