@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KSA 라벨 출력 시스템 v4.14.2 — ECOUNT 품목명 · 바코드 · 투명 텍스트</title>
+<title>KSA 라벨 출력 시스템</title>
+<meta name="description" content="ECOUNT 품목명, 바코드, 서식 편집 및 ZPL 직접 출력을 지원하는 KSA 라벨 출력 웹 시스템">
+<meta property="og:title" content="KSA 라벨 출력 시스템">
+<meta property="og:description" content="ECOUNT 품목명, 바코드, 서식 편집 및 ZPL 직접 출력을 지원하는 KSA 라벨 출력 웹 시스템">
 <style>
   :root{
     --navy:#0f2540; --navy-2:#16345c; --steel:#3d5a80; --paper:#f6f7f9; --line:#d7dce3;
@@ -2807,6 +2810,11 @@ function setDynamicPrintPage(layoutKey){
     }
 
     @media print{
+      :root{
+        --ink:#000000 !important;
+        --sub:#000000 !important;
+      }
+
       html,body{
         margin:0 !important;
         padding:0 !important;
@@ -2849,6 +2857,9 @@ function setDynamicPrintPage(layoutKey){
            문제(좌우 짤림)가 있었다. 라벨 경계를 넘는 내용은 화면 미리보기와
            동일하게 항상 숨기도록 hidden으로 되돌린다. */
         overflow:hidden !important;
+        --ink:#000000 !important;
+        --sub:#000000 !important;
+        color:#000000 !important;
       }
 
       #printArea .printPage{
@@ -2893,9 +2904,35 @@ function setDynamicPrintPage(layoutKey){
         overflow:hidden !important;
         break-inside:avoid !important;
         page-break-inside:avoid !important;
+        --ink:#000000 !important;
+        --sub:#000000 !important;
+        color:#000000 !important;
       }
 
-      /* 이미지/표/바코드만 별도 처리: .fld의 overflow:hidden 때문에
+      /* v4.18.1: 인쇄 시 일반 텍스트, 라벨명(var(--sub)), 표 텍스트는
+         열전사/모노크롬 라벨 프린터에서 회색 톤에 의한 망점(halftone dithering,
+         얼룩덜룩한 깨짐)을 방지하기 위해 완전한 제트 블랙(#000000)으로 선명하게 강제 출력한다.
+         (사용자가 삽입한 도형 .shapeField의 채우기색/윤곽선색은 아래 exact 규칙으로 보존) */
+      #printArea .fld:not(.shapeField){
+        --ink:#000000 !important;
+        --sub:#000000 !important;
+        color:#000000 !important;
+      }
+      #printArea .fld:not(.shapeField) *{
+        color:#000000 !important;
+      }
+      #printArea .fldTextInner{
+        color:#000000 !important;
+      }
+      #printArea table,
+      #printArea td,
+      #printArea th{
+        --ink:#000000 !important;
+        --sub:#000000 !important;
+        color:#000000 !important;
+      }
+
+      /* 이미지/표/바코드/도형만 별도 처리: .fld의 overflow:hidden 때문에
          양 끝 픽셀이 잘리는 현상을 방지한다.
          + break-inside:avoid를 추가해 페이지 분할 계산 중 그래픽 요소가
          다음 장으로 밀리지 않고 항상 한 페이지 안에서만 그려지도록 고정. */
@@ -3181,6 +3218,10 @@ async function renderPartCanvas(part, dpi) {
     overflow: visible !important;
 
     visibility: visible !important;
+
+    --ink: #000000 !important;
+    --sub: #000000 !important;
+    color: #000000 !important;
   `;
 
   host.innerHTML = renderLabelHtml(part.key, part.ctx, false);
@@ -3208,7 +3249,7 @@ async function renderPartCanvas(part, dpi) {
 
     /* -----------------------------------------------------
        html2canvas 캡처 직전 clipping 관련 스타일 강제
-       v4.16.2: overflow:visible로 두면 라벝 박스 밖으로 살짝이라도
+       v4.16.2: overflow:visible로 두면 라벨 박스 밖으로 살짝이라도
        벗어난 필드(예: 자동맞춤이 최소 크기에서도 다 안 들어가거나,
        필드가 라벨 경계를 약간 벗어나게 배치된 경우)가 html2canvas의
        캡처 창(el 자신의 좌표 0,0 ~ cssWidth,cssHeight) 밖으로
@@ -3217,16 +3258,33 @@ async function renderPartCanvas(part, dpi) {
        캡처 자체가 되지 않고 그대로 사라져 "글자 앞부분이 잘려서 인쇄"
        되는 현상이 발생한다. 화면 미리보기 및 브라우저 인쇄와 동일하게
        라벨 경계에서 확실히 클리핑되도록 hidden으로 되돌린다.
+       v4.18.1: 출력용 캔버스 테두리/그림자 제거 및 텍스트 퓨어 블랙 강제
        ----------------------------------------------------- */
     el.style.boxSizing = 'border-box';
     el.style.overflow = 'hidden';
     el.style.margin = '0';
     el.style.padding = '0';
+    el.style.border = 'none';
+    el.style.outline = 'none';
+    el.style.boxShadow = 'none';
+    el.style.borderRadius = '0';
+    el.style.setProperty('--ink', '#000000', 'important');
+    el.style.setProperty('--sub', '#000000', 'important');
+    el.style.color = '#000000';
 
     /* canvasBox 내부 필드 */
     el.querySelectorAll('.fld').forEach(field => {
 
       field.style.boxSizing = 'border-box';
+
+      if (!field.classList.contains('shapeField')) {
+        field.style.setProperty('--ink', '#000000', 'important');
+        field.style.setProperty('--sub', '#000000', 'important');
+        field.style.color = '#000000';
+        if (field.style.borderColor && field.style.borderColor !== 'transparent') {
+          field.style.borderColor = '#000000';
+        }
+      }
 
       /*
        * 일반 텍스트는 기존 overflow:hidden 유지.
@@ -3235,10 +3293,20 @@ async function renderPartCanvas(part, dpi) {
       if (
         field.classList.contains('imageField') ||
         field.classList.contains('tableField') ||
-        field.classList.contains('barcodeField')
+        field.classList.contains('barcodeField') ||
+        field.classList.contains('shapeField')
       ) {
         field.style.overflow = 'visible';
       }
+    });
+
+    el.querySelectorAll('.fldTextInner').forEach(inner => {
+      inner.style.color = '#000000';
+    });
+    el.querySelectorAll('table, td, th').forEach(cell => {
+      cell.style.setProperty('--ink', '#000000', 'important');
+      cell.style.setProperty('--sub', '#000000', 'important');
+      cell.style.color = '#000000';
     });
 
     /* -----------------------------------------------------
@@ -3441,18 +3509,46 @@ async function renderPartCanvas(part, dpi) {
 
         clonedEl.style.overflow = 'hidden';
         clonedEl.style.boxSizing = 'border-box';
+        clonedEl.style.margin = '0';
+        clonedEl.style.padding = '0';
+        clonedEl.style.border = 'none';
+        clonedEl.style.outline = 'none';
+        clonedEl.style.boxShadow = 'none';
+        clonedEl.style.borderRadius = '0';
+        clonedEl.style.setProperty('--ink', '#000000', 'important');
+        clonedEl.style.setProperty('--sub', '#000000', 'important');
+        clonedEl.style.color = '#000000';
 
         clonedEl.querySelectorAll('.fld').forEach(field => {
 
           field.style.boxSizing = 'border-box';
 
+          if (!field.classList.contains('shapeField')) {
+            field.style.setProperty('--ink', '#000000', 'important');
+            field.style.setProperty('--sub', '#000000', 'important');
+            field.style.color = '#000000';
+            if (field.style.borderColor && field.style.borderColor !== 'transparent') {
+              field.style.borderColor = '#000000';
+            }
+          }
+
           if (
             field.classList.contains('imageField') ||
             field.classList.contains('tableField') ||
-            field.classList.contains('barcodeField')
+            field.classList.contains('barcodeField') ||
+            field.classList.contains('shapeField')
           ) {
             field.style.overflow = 'visible';
           }
+        });
+
+        clonedEl.querySelectorAll('.fldTextInner').forEach(inner => {
+          inner.style.color = '#000000';
+        });
+        clonedEl.querySelectorAll('table, td, th').forEach(cell => {
+          cell.style.setProperty('--ink', '#000000', 'important');
+          cell.style.setProperty('--sub', '#000000', 'important');
+          cell.style.color = '#000000';
         });
 
         clonedEl.querySelectorAll('.imageField img').forEach(img => {
@@ -3582,8 +3678,14 @@ async function canvasToZpl(canvas, threshold) {
         const g = img[i + 1];
         const b = img[i + 2];
         const a = img[i + 3];
-        if (a <= 20) continue;
-        const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+        if (a <= 5) continue;
+        // v4.18.1: 흰색(#FFFFFF) 배경 기준 알파 블렌딩 적용
+        // 안티앨리어싱/반투명 픽셀의 오판정에 의한 얼룩·망점(디더링 노이즈) 원천 방지
+        const alpha = a / 255;
+        const rEff = r * alpha + 255 * (1 - alpha);
+        const gEff = g * alpha + 255 * (1 - alpha);
+        const bEff = b * alpha + 255 * (1 - alpha);
+        const luminance = (rEff * 299 + gEff * 587 + bEff * 114) / 1000;
         if (luminance < limit) byte |= (1 << (7 - bit));
       }
       raw[y * bytesPerRow + byteIndex] = byte;

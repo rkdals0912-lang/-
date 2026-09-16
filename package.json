@@ -1,0 +1,14 @@
+{
+  "name": "ksa-label-system",
+  "version": "4.14.2",
+  "description": "ECOUNT 품목명, 바코드, 서식 편집 및 ZPL 직접 출력을 지원하는 KSA 라벨 출력 웹 시스템",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "mkdir -p dist && cp index.html config.js README_KR.md BrowserPrint*.js style.css script.js dist/ 2>/dev/null || true",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
