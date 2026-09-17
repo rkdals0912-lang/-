@@ -560,10 +560,14 @@ body.workspace-open #homeView{display:none;}
         <div class="workOrderQuickBar">
           <button type="button" class="primary" id="toggleManualOrderBtn">✍ 직접 등록</button>
           <button type="button" class="excel" id="workOrderExcelImportBtn">📥 Excel 작업지시 반영</button>
+          <button type="button" id="workOrderExcelTemplateBtn" style="background:#fff;border:1.5px solid #c4d1e2;color:var(--navy);font-weight:700;">📄 엑셀 양식 다운로드</button>
           <button type="button" id="jumpOrderListBtn">☷ 작업지시 목록 보기</button>
         </div>
         <input type="file" id="workOrderExcelFile" accept=".xlsx,.xls" style="display:none;">
-        <div class="lockednote" style="margin-top:7px;">Excel 열 순서: <b>날짜 · (요일 무시) · 설비명 · 제품명 · Batch 수 · (빈칸 무시) · 공유/메모/공지</b></div>
+        <div class="lockednote" style="margin-top:7px;line-height:1.6;">
+          Excel 권장 열 순서: <b>날짜 · 설비명 · 품목코드 · 품목명 · 배치수 · 드럼수 · (로트번호·선택) · (중량·선택) · 공유/메모</b><br>
+          <span style="color:var(--sub);font-size:11.5px;">* 로트번호가 없어도 정상 반영(Pass)되며, 목록의 <b>[수정]</b> 버튼으로 언제든 입력/수정할 수 있습니다. (기존 캘린더 양식도 자동 인식 지원)</span>
+        </div>
         <div id="workOrderExcelResult" class="masterHint compactResult" style="display:none;"></div>
 
         <div id="manualOrderFormBody" style="display:none;">
@@ -1151,6 +1155,94 @@ body.workspace-open #homeView{display:none;}
       <button class="cancelBtn" id="pinCancel">취소</button>
       <button class="okBtn" id="pinOk">확인</button>
     </div>
+  </div>
+</div>
+
+<!-- 작업지시 수정 모달 (관리자) -->
+<div class="modalBg" id="editOrderModal" style="display:none;">
+  <div class="modalCard" style="max-width:540px;width:95%;max-height:92vh;overflow-y:auto;padding:22px;border-radius:14px;box-sizing:border-box;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid #eef2f7;padding-bottom:10px;">
+      <h3 style="margin:0;font-size:18px;color:var(--navy);font-weight:800;">작업지시 수정</h3>
+      <button type="button" id="closeEditOrderModalX" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--sub);line-height:1;">&times;</button>
+    </div>
+    <form id="editOrderForm" onsubmit="return false;">
+      <input type="hidden" id="editOrderId">
+      <div class="row2" style="margin-bottom:10px;gap:10px;">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">생산일자</label>
+          <input type="date" id="editOrderDate" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;letter-spacing:normal;text-align:left;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">주 / 야</label>
+          <select id="editOrderShift" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;box-sizing:border-box;"><option value="주간">주간</option><option value="야간">야간</option></select>
+        </div>
+      </div>
+      <div class="row2" style="margin-bottom:10px;gap:10px;">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">설비명 (믹서)</label>
+          <input type="text" id="editOrderMachine" list="editMachineOptions" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;letter-spacing:normal;text-align:left;font-family:inherit;box-sizing:border-box;" placeholder="M1 ~ M6">
+          <datalist id="editMachineOptions"><option value="M1"><option value="M2"><option value="M3"><option value="M4"><option value="M5"><option value="M6"></datalist>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">진행 상태</label>
+          <select id="editOrderStatus" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;box-sizing:border-box;"><option value="pending">대기 (미완료)</option><option value="in_progress">진행 중</option><option value="done">완료</option></select>
+        </div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">제품 (품목)</label>
+        <select id="editOrderProduct" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;box-sizing:border-box;"></select>
+      </div>
+      <div class="row2" style="margin-bottom:10px;gap:10px;">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">Batch 순번</label>
+          <input type="number" id="editOrderBatchSeq" min="1" max="99" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;letter-spacing:normal;text-align:center;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">총 Batch 수</label>
+          <input type="number" id="editOrderBatchCount" min="1" max="99" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;letter-spacing:normal;text-align:center;font-family:inherit;box-sizing:border-box;">
+        </div>
+      </div>
+      <div class="row2" style="margin-bottom:12px;gap:10px;">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">총 드럼 수</label>
+          <input type="number" id="editOrderDrums" min="1" max="999" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;letter-spacing:normal;text-align:center;font-family:inherit;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">드럼당 중량 (kg, 비워두면 수기)</label>
+          <input type="number" step="any" id="editOrderWeight" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;letter-spacing:normal;text-align:center;font-family:inherit;box-sizing:border-box;" placeholder="수기">
+        </div>
+      </div>
+
+      <!-- 로트번호 상세 블록 -->
+      <div style="background:#f4f7fb;border:1.5px solid #d5e0ee;border-radius:9px;padding:12px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:13px;font-weight:800;color:var(--navy);margin:0;">로트번호 (LOT NO)</label>
+          <button type="button" id="editOrderResetLotBtn" style="padding:4px 8px;font-size:11px;font-weight:700;background:#fff;border:1px solid #ccd5e0;border-radius:5px;cursor:pointer;color:var(--steel);">규칙 기본값으로 초기화</button>
+        </div>
+        <input type="text" id="editOrderCustomLot" style="width:100%;padding:9px 12px;border:2px solid var(--steel);border-radius:6px;font-size:14px;font-weight:800;letter-spacing:normal;text-align:left;font-family:var(--mono);color:#0f2540;background:#fff;box-sizing:border-box;" placeholder="로트번호 직접 입력 또는 수정">
+        <div style="font-size:11px;color:var(--sub);margin-top:5px;line-height:1.45;">
+          • 여기에 입력한 로트번호가 라벨과 작업지시에 최우선 반영됩니다.<br>
+          • 비워두거나 '초기화'를 누르면 제품별 자동 로트규칙으로 계산됩니다.
+        </div>
+        <div id="editOrderManual3Wrap" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #ccd5e0;">
+          <label style="font-size:11.5px;font-weight:700;color:var(--amber);display:block;margin-bottom:3px;">규칙용 LOT 직접입력 (3자리)</label>
+          <input type="text" id="editOrderManualInput" maxlength="10" style="width:120px;padding:6px 8px;border:1.5px solid var(--amber);border-radius:5px;font-size:13px;font-family:var(--mono);text-align:center;letter-spacing:2px;box-sizing:border-box;" placeholder="예: 001">
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:#16345c;">
+          <b>규칙 계산 LOT:</b> <span id="editOrderLotPreview" style="font-weight:800;font-family:var(--mono);">-</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">공유 / 메모 / 공지</label>
+        <input type="text" id="editOrderMemo" style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;letter-spacing:normal;text-align:left;font-family:inherit;box-sizing:border-box;" placeholder="메모 입력">
+      </div>
+
+      <div class="modalBtns" style="margin-top:14px;display:flex;gap:8px;">
+        <button type="button" class="cancelBtn" id="cancelEditOrderBtn">취소</button>
+        <button type="button" class="okBtn" id="saveEditOrderBtn" style="background:var(--navy);color:#fff;">수정 내용 저장</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -1946,12 +2038,21 @@ function computeExpiryDate(order,p,rule){
 }
 function computeLotInfo(order,drumNo=1,lotRuleIdOverride=''){
   const p=resolveOrderProduct(order)||{};
-  const rule=getLotRuleById(lotRuleIdOverride || getProductLotRuleId(p));
   const d=new Date(order.date+'T00:00:00'),f=fmtDate(d);
-  const lot=renderLotPattern(rule.pattern,order,drumNo,p);
   const expRule=getExpRuleById(getProductExpRuleId(p));
   const expD=computeExpiryDate(order,p,expRule);
   const exp=expD ? formatExpiry(expD,expRule.format||'YYYY-MM-DD') : '';
+
+  // v4.19: 사용자가 엑셀이나 작업지시 수정에서 customLot(로트번호)을 직접 지정한 경우 최우선 반영
+  if(order && order.customLot && String(order.customLot).trim()){
+    const lot=String(order.customLot).trim()
+      .replace(/\{DRUM\}/g, String(drumNo??1))
+      .replace(/\{DRUM2\}/g, pad2(drumNo??1));
+    return {lot,exp,expDateRaw:expD?`${expD.getFullYear()}-${pad2(expD.getMonth()+1)}-${pad2(expD.getDate())}`:'',prodDateDisp:f.disp,prodDateRaw:order.date,...productionDateFormats(order.date),ruleId:'CUSTOM',ruleName:'수기/직접지정',expRuleId:expRule.id,expRuleName:expRule.name};
+  }
+
+  const rule=getLotRuleById(lotRuleIdOverride || getProductLotRuleId(p));
+  const lot=renderLotPattern(rule.pattern,order,drumNo,p);
   return {lot,exp,expDateRaw:expD?`${expD.getFullYear()}-${pad2(expD.getMonth()+1)}-${pad2(expD.getDate())}`:'',prodDateDisp:f.disp,prodDateRaw:order.date,...productionDateFormats(order.date),ruleId:rule.id,ruleName:rule.name,expRuleId:expRule.id,expRuleName:expRule.name};
 }
 function computeLotFor(order,drumNo=1){ return computeLotInfo(order,drumNo); }
@@ -2335,31 +2436,43 @@ function renderOrderList(){
     const p=resolveOrderProduct(o);
     const pname=p ? (p.shortName||p.name||p.scheduleName||o.productName||'품목명 없음') : (o.productName||o.productCode||'삭제/변경된 품목');
     const pcolor=p?.color||'';
-    // v4.11.6: 작업자용 작업지시 카드는 제품명과 LOT 번호만 한다.
-    // 날짜/주야/설비/드럼/중량/출처 등 상세 정보는 관리자 등록 데이터로만 유지한다.
+    // v4.11.6: 작업자용 작업지시 카드는 제품명과 LOT 번호만 표시한다.
     let lotDisplay = `Batch ${o.batchSeq||1}/${o.batchCount||1}`;
-if(p){
-  try{
-    const labelCode = o.labelCode || '';
-    const variant = o.variant || '';
-    const ruleId = o.lotRuleId || labelEffectiveLotRule(p, labelCode, variant);
-    const info = computeLotInfo(o, 1, ruleId);
-    lotDisplay = info.lot;
-  }catch(e){}
-}
-return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.id}">
-  <div class="top"><span class="pname">${escapeHtml(pname)}${pcolor?` ${escapeHtml(pcolor)}`:''}</span></div>
+    if(o.customLot && String(o.customLot).trim()){
+      lotDisplay = String(o.customLot).trim();
+    }else if(p){
+      try{
+        const labelCode = o.labelCode || '';
+        const variant = o.variant || '';
+        const ruleId = o.lotRuleId || labelEffectiveLotRule(p, labelCode, variant);
+        const info = computeLotInfo(o, 1, ruleId);
+        lotDisplay = info.lot || '(로트번호 미입력)';
+      }catch(e){}
+    }
+    return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.id}">
+  <div class="top" style="padding-right:90px;"><span class="pname">${escapeHtml(pname)}${pcolor?` ${escapeHtml(pcolor)}`:''}</span></div>
   <div class="sub" style="font-size:13px;font-weight:800;color:#16345c;">${escapeHtml(lotDisplay)}</div>
-  <button class="del adminOnly" data-del="${o.id}">삭제</button>
+  <div class="cardActions adminOnly" style="position:absolute;top:8px;right:8px;display:flex;gap:4px;align-items:center;z-index:2;">
+    <button type="button" class="editOrderBtn" data-edit="${o.id}" style="font-size:11px;color:var(--navy);background:#eef2f7;border:1px solid #ccd5e0;border-radius:4px;cursor:pointer;padding:2px 7px;font-weight:700;">수정</button>
+    <button type="button" class="del" data-del="${o.id}">삭제</button>
+  </div>
 </div>`;
   }).join('');
-  wrap.querySelectorAll('.orderCard').forEach(el=>el.addEventListener('click',e=>{if(!e.target.dataset.del && !e.target.closest('[data-machine-quick]'))selectOrder(+el.dataset.id);}));
+  wrap.querySelectorAll('.orderCard').forEach(el=>el.addEventListener('click',e=>{
+    if(!e.target.dataset.del && !e.target.dataset.edit && !e.target.closest('[data-del]') && !e.target.closest('[data-edit]') && !e.target.closest('[data-machine-quick]')){
+      selectOrder(+el.dataset.id);
+    }
+  }));
   wrap.querySelectorAll('[data-machine-quick]').forEach(btn=>btn.addEventListener('click',e=>{
     e.stopPropagation();
     const m=btn.dataset.machineQuick||'ALL';
     orderMachineFilter=(orderMachineFilter===m)?'ALL':m;
     syncOrderMachineFilterButtons();
     renderOrderList();
+  }));
+  wrap.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    openEditOrderModal(+btn.dataset.edit);
   }));
   wrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',async e=>{
     e.stopPropagation();
@@ -2368,6 +2481,152 @@ return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.
     renderOrderList();await saveWorkOrders();flash('작업지시를 삭제했습니다');
   }));
 }
+
+function openEditOrderModal(orderId){
+  const order=workOrders.find(o=>o.id===orderId);
+  if(!order){ flash('작업지시를 찾을 수 없습니다.',true); return; }
+  const modal=$('editOrderModal'); if(!modal) return;
+
+  $('editOrderId').value=order.id;
+  $('editOrderDate').value=order.date||todayISO();
+  $('editOrderShift').value=order.shift||'주간';
+  $('editOrderMachine').value=order.machine||'M1';
+  $('editOrderStatus').value=order.status||'pending';
+  $('editOrderBatchSeq').value=order.batchSeq||1;
+  $('editOrderBatchCount').value=order.batchCount||1;
+  $('editOrderDrums').value=order.batchDrums||1;
+  $('editOrderWeight').value=(order.batchWeight!=null&&order.batchWeight!=='')?order.batchWeight:'';
+  $('editOrderCustomLot').value=order.customLot||'';
+  $('editOrderManualInput').value=order.manualLotInput||'';
+  $('editOrderMemo').value=order.memo||'';
+
+  // 제품 select 목록 채우기
+  const prodSelect=$('editOrderProduct');
+  if(prodSelect){
+    prodSelect.innerHTML=ALL_PRODUCTS.map((p,i)=>`<option value="${i}">${escapeHtml(productDisplay(p))}</option>`).join('');
+    // 현재 order에 맞는 index 선택
+    let targetIdx=order.productIdx;
+    if(typeof targetIdx!=='number'||!ALL_PRODUCTS[targetIdx]){
+      const resolved=resolveOrderProduct(order);
+      const foundIdx=resolved?ALL_PRODUCTS.findIndex(p=>p===resolved||(p.code===resolved.code&&p.shortName===resolved.shortName)):0;
+      targetIdx=Math.max(0,foundIdx);
+    }
+    prodSelect.value=targetIdx;
+  }
+
+  updateEditOrderLotPreview();
+  modal.style.display='flex';
+  modal.classList.add('show');
+}
+
+function closeEditOrderModal(){
+  const modal=$('editOrderModal'); if(!modal) return;
+  modal.style.display='none';
+  modal.classList.remove('show');
+}
+
+function updateEditOrderLotPreview(){
+  const prodIdx=+$('editOrderProduct')?.value;
+  const p=ALL_PRODUCTS[prodIdx]||{};
+  const labelCode=normalizeSelectedLabelType(p,'','');
+  const ruleId=labelEffectiveLotRule(p,labelCode,'')||getProductLotRuleId(p);
+  const needsInput3=productUsesManualInput3(p,ruleId);
+  if($('editOrderManual3Wrap')){
+    $('editOrderManual3Wrap').style.display=needsInput3?'block':'none';
+  }
+
+  const customVal=String($('editOrderCustomLot')?.value||'').trim();
+  const previewEl=$('editOrderLotPreview');
+  if(!previewEl) return;
+
+  const tempOrder={
+    date:$('editOrderDate')?.value||todayISO(),
+    shift:$('editOrderShift')?.value||'주간',
+    machine:$('editOrderMachine')?.value||'M1',
+    batchSeq:+$('editOrderBatchSeq')?.value||1,
+    batchCount:+$('editOrderBatchCount')?.value||1,
+    manualLotInput:String($('editOrderManualInput')?.value||'').trim().toUpperCase(),
+    lotSeq:1
+  };
+  try{
+    const rule=getLotRuleById(ruleId);
+    const calculated=renderLotPattern(rule.pattern,tempOrder,1,p);
+    previewEl.textContent=calculated||'-';
+    if(!customVal && $('editOrderCustomLot')){
+      $('editOrderCustomLot').placeholder=calculated||'로트번호 직접 입력 또는 수정';
+    }
+  }catch(e){
+    previewEl.textContent='-';
+  }
+}
+
+async function saveEditOrderChanges(){
+  const orderId=+$('editOrderId')?.value;
+  const order=workOrders.find(o=>o.id===orderId);
+  if(!order){ flash('작업지시를 찾을 수 없습니다.',true); return; }
+
+  const prodIdx=+$('editOrderProduct')?.value;
+  const p=ALL_PRODUCTS[prodIdx];
+  if(!p){ flash('제품을 선택하세요.',true); return; }
+
+  const drums=Number($('editOrderDrums')?.value);
+  if(!Number.isFinite(drums)||drums<1){ flash('총 드럼 수를 1 이상 입력하세요.',true); return; }
+
+  const rawWeight=String($('editOrderWeight')?.value??'').trim();
+  const weight=rawWeight===''?null:Number(rawWeight);
+
+  const customLot=String($('editOrderCustomLot')?.value||'').trim();
+  const manualLotInput=String($('editOrderManualInput')?.value||'').trim().toUpperCase();
+
+  const variants=availableVariants(p);
+  const variant=variants[0]||'';
+  const labelCode=normalizeSelectedLabelType(p,'',variant);
+  const ruleId=labelEffectiveLotRule(p,labelCode,variant)||getProductLotRuleId(p);
+
+  order.date=$('editOrderDate')?.value||todayISO();
+  order.shift=$('editOrderShift')?.value||'주간';
+  order.machine=$('editOrderMachine')?.value||'M1';
+  order.status=$('editOrderStatus')?.value||'pending';
+  order.productIdx=prodIdx;
+  order.productMasterId=p.masterId||'';
+  order.productProfileKey=p.importProfileKey||'';
+  order.productCode=p.code||'';
+  order.productName=p.shortName||p.name||p.scheduleName||'';
+  order.batchSeq=Math.max(1,+$('editOrderBatchSeq')?.value||1);
+  order.batchCount=String(Math.max(1,+$('editOrderBatchCount')?.value||1));
+  order.batchDrums=Math.round(drums);
+  order.batchWeight=weight;
+  order.customLot=customLot;
+  order.manualLotInput=manualLotInput;
+  order.memo=String($('editOrderMemo')?.value||'').trim();
+  order.labelCode=labelCode;
+  order.variant=variant;
+  order.lotRuleId=ruleId;
+
+  await saveWorkOrders();
+  renderOrderList();
+  refreshActiveOrderPanel();
+  if(activeOrderId===order.id){
+    autoPreviewOrder();
+  }
+  closeEditOrderModal();
+  flash('작업지시를 수정 저장했습니다');
+}
+
+if($('closeEditOrderModalX')) $('closeEditOrderModalX').addEventListener('click',closeEditOrderModal);
+if($('cancelEditOrderBtn')) $('cancelEditOrderBtn').addEventListener('click',closeEditOrderModal);
+if($('saveEditOrderBtn')) $('saveEditOrderBtn').addEventListener('click',saveEditOrderChanges);
+if($('editOrderResetLotBtn')) $('editOrderResetLotBtn').addEventListener('click',()=>{
+  if($('editOrderCustomLot')) $('editOrderCustomLot').value='';
+  updateEditOrderLotPreview();
+  flash('로트 규칙 계산값으로 초기화했습니다');
+});
+if($('editOrderProduct')) $('editOrderProduct').addEventListener('change',updateEditOrderLotPreview);
+if($('editOrderDate')) $('editOrderDate').addEventListener('change',updateEditOrderLotPreview);
+if($('editOrderMachine')) $('editOrderMachine').addEventListener('input',updateEditOrderLotPreview);
+if($('editOrderBatchSeq')) $('editOrderBatchSeq').addEventListener('input',updateEditOrderLotPreview);
+if($('editOrderBatchCount')) $('editOrderBatchCount').addEventListener('input',updateEditOrderLotPreview);
+if($('editOrderManualInput')) $('editOrderManualInput').addEventListener('input',updateEditOrderLotPreview);
 function ruleUsesManualInput3(ruleId){const r=getLotRuleById(ruleId);return /\{(?:INPUT3|MANUAL3)\}/.test(String(r?.pattern||''));}
 function ruleUsesLotSeq(ruleId){const r=getLotRuleById(ruleId);return String(r?.pattern||'').includes('{LOTSEQ}');}
 function productUsesManualInput3(product,ruleId=''){if(!product)return false;return ruleUsesManualInput3(ruleId||getProductLotRuleId(product));}
@@ -2428,29 +2687,49 @@ function parseScheduleExcelDate(value, formattedValue=''){
   return '';
 }
 function scheduleHeaderRow(row){
-  const t=(row||[]).slice(0,7).map(v=>normalizeProductSearch(v));
-  return t.some(v=>v.includes('날짜')) && t.some(v=>v.includes('설비')) && t.some(v=>v.includes('제품'));
+  const t=(row||[]).slice(0,9).map(v=>normalizeProductSearch(v));
+  return (t.some(v=>v.includes('날짜')) && t.some(v=>v.includes('설비'))) || (t.some(v=>v.includes('날짜')) && t.some(v=>v.includes('제품')||v.includes('품목')||v.includes('코드')));
 }
-function matchScheduleProduct(rawName){
-  const q=normalizeProductSearch(rawName);
-  if(!q) return {product:null,reason:'제품명 없음'};
+function matchScheduleProduct(rawName, rawCode=''){
+  const qCode=normalizeProductSearch(rawCode);
+  const qName=normalizeProductSearch(rawName);
+  if(!qCode && !qName) return {product:null,reason:'품목코드 또는 품목명이 없습니다'};
+
+  // 1) 품목코드가 제공된 경우 정확 일치를 1순위로 조회
+  if(qCode){
+    const exactCode = ALL_PRODUCTS.map((p,i)=>({p,i})).filter(x=>normalizeProductSearch(x.p.code||'')===qCode);
+    if(exactCode.length === 1) return {product:exactCode[0].p,index:exactCode[0].i,reason:''};
+    if(exactCode.length > 1){
+      if(qName){
+        const byName = exactCode.filter(x=>{
+          const fn = normalizeProductSearch(x.p.fullName||x.p.shortName||x.p.name||'');
+          return fn.includes(qName) || qName.includes(fn);
+        });
+        if(byName.length === 1) return {product:byName[0].p,index:byName[0].i,reason:''};
+      }
+      return {product:exactCode[0].p,index:exactCode[0].i,reason:''};
+    }
+  }
+
+  // 2) 품명 기반 검색
   const candidates=ALL_PRODUCTS.map((p,i)=>{
     const code=normalizeProductSearch(p.code||'');
     const fullName=normalizeProductSearch(p.fullName||'');
-    const exact=(code===q)||(fullName===q);
-    const includes=(code&&code.includes(q))||(fullName&&fullName.includes(q))||(q.includes(code)&&code)||(q.includes(fullName)&&fullName);
+    const shortName=normalizeProductSearch(p.shortName||p.name||p.scheduleName||'');
+    const exact=(code===qName)||(fullName===qName)||(shortName===qName);
+    const includes=(code&&code.includes(qName))||(fullName&&fullName.includes(qName))||(shortName&&shortName.includes(qName))||(qName.includes(code)&&code)||(qName.includes(fullName)&&fullName)||(qName.includes(shortName)&&shortName);
     let score=exact?100:(includes?60:0);
-    if(code===q) score+=30;
-    if(fullName===q) score+=20;
+    if(code===qName) score+=30;
+    if(fullName===qName||shortName===qName) score+=20;
     return {p,i,score};
   }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
-  if(!candidates.length) return {product:null,reason:`제품마스터에서 '${rawName}' 검색 결과 없음`};
+  if(!candidates.length) return {product:null,reason:`제품마스터에서 '${rawCode||rawName}' 검색 결과 없음`};
   const best=candidates[0].score;
   const bestRows=candidates.filter(x=>x.score===best);
   const uniqueMasters=new Map(bestRows.map(x=>[x.p.masterId||x.p.importProfileKey||`${x.p.code}|${x.p.shortName}|${x.p.color}`,x]));
   if(uniqueMasters.size>1){
     const names=[...uniqueMasters.values()].slice(0,4).map(x=>productDisplay(x.p)).join(' / ');
-    return {product:null,reason:`'${rawName}' 후보가 여러 개입니다: ${names}`};
+    return {product:null,reason:`'${rawCode||rawName}' 후보가 여러 개입니다: ${names}`};
   }
   return {product:bestRows[0].p,index:bestRows[0].i,reason:''};
 }
@@ -2460,7 +2739,7 @@ function importedOrderKey(fileName,rowNo,batchSeq){
 async function importWorkOrderExcel(file){
   if(!file) return;
   const resultEl=$('workOrderExcelResult');
-  if(resultEl){resultEl.style.display='block';resultEl.innerHTML='Excel을 읽는 중입니다...';}
+  if(resultEl){resultEl.style.display='block';resultEl.innerHTML='Excel을 분석하는 중입니다...';}
   try{
     if(!window.XLSX) throw new Error('Excel 라이브러리를 불러오지 못했습니다.');
     const buf=await file.arrayBuffer();
@@ -2471,38 +2750,95 @@ async function importWorkOrderExcel(file){
     const displayRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:'',dateNF:'yyyy-mm-dd'});
     if(!rows.length) throw new Error('Excel에 읽을 데이터가 없습니다.');
 
+    // 헤더 행 탐색 및 열 위치 자동 감지
     let start=0;
-    for(let i=0;i<Math.min(rows.length,15);i++) if(scheduleHeaderRow(rows[i])){start=i+1;break;}
+    let colDate=-1, colMachine=-1, colCode=-1, colName=-1, colBatch=-1, colDrums=-1, colLot=-1, colWeight=-1, colMemo=-1, colShift=-1;
+    for(let i=0;i<Math.min(rows.length,15);i++){
+      const r=rows[i]||[];
+      const norm=r.map(v=>normalizeProductSearch(v));
+      const hasDate=norm.some(v=>v.includes('날짜')||v.includes('일자'));
+      const hasMachine=norm.some(v=>v.includes('설비')||v.includes('믹서')||v.includes('호기'));
+      const hasProd=norm.some(v=>v.includes('제품')||v.includes('품목')||v.includes('품명')||v.includes('코드'));
+      if((hasDate && hasMachine) || (hasDate && hasProd) || (hasMachine && hasProd)){
+        start=i+1;
+        r.forEach((cell,ci)=>{
+          const str=normalizeProductSearch(cell);
+          if(!str) return;
+          if(colDate===-1 && (str.includes('날짜')||str.includes('일자')||str==='date')) colDate=ci;
+          else if(colMachine===-1 && (str.includes('설비')||str.includes('믹서')||str.includes('호기')||str==='machine')) colMachine=ci;
+          else if(colCode===-1 && (str.includes('코드')||str.includes('품번')||str==='code')) colCode=ci;
+          else if(colName===-1 && (str.includes('품목명')||str.includes('품명')||str.includes('제품명')||str.includes('제품')||str==='name')) colName=ci;
+          else if(colBatch===-1 && (str.includes('배치수')||str.includes('배치')||str.includes('batch')||str.includes('수량'))) colBatch=ci;
+          else if(colDrums===-1 && (str.includes('드럼수')||str.includes('드럼')||str.includes('포장수')||str==='drums')) colDrums=ci;
+          else if(colLot===-1 && (str.includes('로트')||str.includes('lot')||str.includes('lotno'))) colLot=ci;
+          else if(colWeight===-1 && (str.includes('중량')||str.includes('kg')||str==='weight')) colWeight=ci;
+          else if(colShift===-1 && (str.includes('주야')||str.includes('주/야')||str.includes('구분')||str==='shift')) colShift=ci;
+          else if(colMemo===-1 && (str.includes('공유')||str.includes('메모')||str.includes('공지')||str.includes('비고')||str==='memo')) colMemo=ci;
+        });
+        break;
+      }
+    }
+
+    // 헤더를 못 찾았거나 부분 지정된 경우 스마트 폴백
+    if(colDate===-1) colDate=0;
+    if(colMachine===-1){
+      let mAt1=0, mAt2=0;
+      for(let r=start;r<Math.min(rows.length,start+10);r++){
+        const row=rows[r]||[];
+        if(/^M[1-9]/i.test(String(row[1]||'').trim())) mAt1++;
+        if(/^M[1-9]/i.test(String(row[2]||'').trim())) mAt2++;
+      }
+      if(mAt2>mAt1){
+        colMachine=2; if(colName===-1) colName=3; if(colBatch===-1) colBatch=4; if(colMemo===-1) colMemo=6;
+      }else{
+        colMachine=1; if(colCode===-1) colCode=2; if(colName===-1) colName=3; if(colBatch===-1) colBatch=4; if(colDrums===-1) colDrums=5; if(colLot===-1) colLot=6; if(colWeight===-1) colWeight=7; if(colMemo===-1) colMemo=8;
+      }
+    }
+    if(colName===-1 && colCode===-1) colName=3;
+    if(colBatch===-1) colBatch=4;
+
     let lastDate='',lastMachine='';
     const planned=[],issues=[],notices=[];
     for(let r=start;r<rows.length;r++){
       const row=rows[r]||[];
-      const parsedDate=parseScheduleExcelDate(row[0],displayRows[r]?.[0]);
+      const parsedDate=parseScheduleExcelDate(row[colDate],displayRows[r]?.[colDate]);
       if(parsedDate) lastDate=parsedDate;
-      const machine=String(row[2]??'').trim(); if(machine) lastMachine=machine;
-      const productName=String(row[3]??'').trim();
-      const memo=String(row[6]??'').trim();
-      if(!productName){ if(memo) notices.push({row:r+1,memo}); continue; }
+      const machine=String(row[colMachine]??'').trim(); if(machine) lastMachine=machine;
+
+      const productCode=(colCode>=0 && row[colCode]!=null)?String(row[colCode]).trim():'';
+      const productName=(colName>=0 && row[colName]!=null)?String(row[colName]).trim():'';
+      const memo=(colMemo>=0 && row[colMemo]!=null)?String(row[colMemo]).trim():'';
+      const excelLot=(colLot>=0 && row[colLot]!=null)?String(row[colLot]).trim():'';
+      const excelDrums=(colDrums>=0 && row[colDrums]!=null)?Number(row[colDrums]):NaN;
+      const excelWeight=(colWeight>=0 && row[colWeight]!=null)?Number(row[colWeight]):NaN;
+      const shift=(colShift>=0 && row[colShift]!=null && String(row[colShift]).includes('야'))?'야간':'주간';
+
+      if(!productName && !productCode){ if(memo) notices.push({row:r+1,memo}); continue; }
       if(!lastDate){issues.push(`${r+1}행: 날짜를 확인할 수 없습니다.`);continue;}
       if(!lastMachine){issues.push(`${r+1}행: 설비명이 없습니다.`);continue;}
-      const batchCount=Math.max(0,Math.floor(Number(row[4])||0));
-      if(batchCount<1){issues.push(`${r+1}행 ${productName}: Batch 수가 없습니다.`);continue;}
-      const matched=matchScheduleProduct(productName);
+      const batchCount=Math.max(0,Math.floor(Number(row[colBatch])||0));
+      if(batchCount<1){issues.push(`${r+1}행 ${productName||productCode}: Batch 수가 없습니다.`);continue;}
+
+      const matched=matchScheduleProduct(productName, productCode);
       if(!matched.product){issues.push(`${r+1}행: ${matched.reason}`);continue;}
       const p=matched.product,productIdx=matched.index;
       const variants=availableVariants(p);
       const variant=variants[0]||'';
       const labelCode=normalizeSelectedLabelType(p,'',variant);
       const ruleId=labelEffectiveLotRule(p,labelCode,variant)||getProductLotRuleId(p);
-      if(productUsesManualInput3(p,ruleId)){
-        issues.push(`${r+1}행 ${productName}: LOT 직접입력 3자리가 필요한 제품이라 Excel 자동등록에서 제외했습니다.`);
-        continue;
-      }
+
+      // v4.19: LOT 직접입력 3자리가 필요하거나 로트번호가 없어도 제외하지 않고 Pass 처리한다!
+      // 사용자가 엑셀 업로드 후 작업지시 목록의 [수정] 버튼으로 입력/수정할 수 있도록 지원.
+      const finalDrums = (Number.isFinite(excelDrums) && excelDrums>=1) ? Math.round(excelDrums) : Math.max(1,Math.round(Number(p.drums)||1));
+      const finalWeight = (Number.isFinite(excelWeight) && excelWeight>=0) ? excelWeight : ((p.kg==null||p.kg==='')?null:Number(p.kg));
+
       for(let seq=1;seq<=batchCount;seq++){
         planned.push({
-          date:lastDate,shift:'주간',productIdx,machine:lastMachine,batchCount:String(batchCount),batchSeq:seq,
-          batchDrums:Math.max(1,Math.round(Number(p.drums)||1)),batchWeight:(p.kg==null||p.kg==='')?null:Number(p.kg),
-          volume:(p.volume==null||p.volume==='')?null:Number(p.volume),includeBasic:true,manualLotInput:'',lotSeq:1,status:'pending',
+          date:lastDate,shift,productIdx,machine:lastMachine,batchCount:String(batchCount),batchSeq:seq,
+          batchDrums:finalDrums,batchWeight:finalWeight,
+          volume:(p.volume==null||p.volume==='')?null:Number(p.volume),includeBasic:true,
+          manualLotInput:'',lotSeq:1,status:'pending',
+          customLot:excelLot||'', // 엑셀에 로트번호가 있으면 즉시 반영, 없으면 비워둠 (Pass 후 수정 가능)
           labelCode:labelCode||'',variant:variant||'',lotRuleId:ruleId||'',
           productMasterId:p.masterId||'',productProfileKey:p.importProfileKey||'',productCode:p.code||'',
           productName:p.shortName||p.name||p.scheduleName||productName,memo,
@@ -2534,7 +2870,6 @@ async function importWorkOrderExcel(file){
       resultEl.innerHTML=`<b>작업지시 Excel 반영 완료</b><br>신규 ${addCount}건 · 갱신 ${updateCount}건 · 제외/확인 ${issues.length}건${issues.length?'<br><br>'+issues.slice(0,12).map(escapeHtml).join('<br>'):''}${notices.length?`<br><br>제품명 없는 메모/공지 단독행 ${notices.length}건은 작업지시로 만들지 않았습니다.`:''}`;
     }
     flash(`Excel 작업지시 반영 완료: 신규 ${addCount} / 갱신 ${updateCount}`);
-    // 완료 후 자동 스크롤하지 않음. 상단의 '작업지시 목록 보기' 버튼으로 이동한다.
   }catch(e){
     console.error('작업지시 Excel 반영 실패',e);
     if(resultEl){resultEl.style.display='block';resultEl.innerHTML=`<b>작업지시 Excel 반영 실패</b><br>${escapeHtml(e.message||String(e))}`;}
@@ -2543,6 +2878,36 @@ async function importWorkOrderExcel(file){
     if($('workOrderExcelFile')) $('workOrderExcelFile').value='';
   }
 }
+
+function downloadWorkOrderExcelTemplate(){
+  if(!window.XLSX){ flash('Excel 라이브러리를 불러오지 못했습니다.', true); return; }
+  const data = [
+    ['날짜', '설비명', '품목코드', '품목명', '배치수', '드럼수', '로트번호', '중량(kg)', '공유/메모/비고'],
+    ['2026-09-16', 'M1', 'KR26091502', '바커 9150 반투명', 1, 10, '260915 12-03', 20, '1호기 첫배치'],
+    ['2026-09-16', 'M2', 'KR26091501', 'EL N9150 ULV TRANSLUCENT 20KG HOBBOCK', 1, 8, '', 20, '로트번호 비워두면 Pass 후 [수정]으로 입력 가능'],
+    ['2026-09-16', 'M3', '', 'MR220 NUBERRY', 1, 6, 'YY00Q9FT51', 18, ''],
+    ['2026-09-16', 'M4', '', 'MR212 DARK IVORY', 1, 6, 'YY00Q9FT52', 18, ''],
+    ['2026-09-16', 'M5', '', 'O-200 백색', 1, 12, '260915-228', 20, '']
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [
+    {wch: 12}, // 날짜
+    {wch: 8},  // 설비명
+    {wch: 16}, // 품목코드
+    {wch: 38}, // 품목명
+    {wch: 8},  // 배치수
+    {wch: 8},  // 드럼수
+    {wch: 18}, // 로트번호
+    {wch: 10}, // 중량(kg)
+    {wch: 40}  // 메모
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '작업지시_일괄업로드');
+  XLSX.writeFile(wb, 'KSA_작업지시_일괄업로드_표준양식.xlsx');
+  flash('표준 엑셀 서식을 다운로드했습니다');
+}
+
+if($('workOrderExcelTemplateBtn')) $('workOrderExcelTemplateBtn').addEventListener('click', downloadWorkOrderExcelTemplate);
 if($('toggleManualOrderBtn')) $('toggleManualOrderBtn').addEventListener('click',()=>{
   const body=$('manualOrderFormBody'); if(!body)return;
   const open=body.style.display==='none'||!body.style.display;
@@ -2628,7 +2993,7 @@ $('addOrder').addEventListener('click',async(e)=>{
     const addRuleId=labelEffectiveLotRule(selectedProduct,labelCode,variant)||getProductLotRuleId(selectedProduct);
     const needsInput3=productUsesManualInput3(selectedProduct,addRuleId);
     const manualLotInput=String($('manualLotInput')?.value||'').trim().toUpperCase();
-    if(needsInput3 && !validManualInput3(manualLotInput)) throw new Error('LOT 마지막 3자리를 영문/숫자 3자리로 입력하세요.');
+    if(needsInput3 && manualLotInput && !validManualInput3(manualLotInput)) throw new Error('LOT 마지막 3자리를 영문/숫자 3자리로 입력하세요.');
 
     const drums=Number($('batchDrums')?.value);
     if(!Number.isFinite(drums) || drums<1) throw new Error('총 드럼 수를 1 이상 입력하세요.');
