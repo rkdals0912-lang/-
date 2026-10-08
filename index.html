@@ -3117,18 +3117,95 @@ async function loadPrintHistory(){
   try{ const v=JSON.parse(raw); log=Array.isArray(v)?v:[]; }catch(e){ log=[]; }
 }
 function pushLog(e){ /* 생성 이력은 저장하지 않음. 실제 인쇄 버튼 클릭 시 기록 */ }
+// [v4.14.4] 출력 이력: 인쇄 1회(작업) = 1건으로 기록한다. (예전: 라벨 1장 = 1행)
+// 각 건에는 출력 장수, LOT 시작~종료, LOT 목록과 출력 당시 라벨 이미지(첫 장/마지막 장 HTML 스냅샷)를 남긴다.
+// 스냅샷은 용량 때문에 별도 키(ksa-print-snap-v1-<id>)에 저장하고, 최근 SNAP_KEEP건만 유지한다.
+const PRINT_SNAP_KEEP=300;
+function printSnapKey(id){ return 'ksa-print-snap-v1-'+id; }
 async function recordPrintHistory(items){
-  const now=new Date().toLocaleString('ko-KR');
+  const now=new Date();
+  const timeText=now.toLocaleString('ko-KR');
+  const groups=new Map();
+  (items||[]).forEach(it=>{
+    const ctx0=(it.parts&&it.parts[0]&&it.parts[0].ctx)||it.ctx||{};
+    const gk=(ctx0.code||'')+'|'+(ctx0.name||ctx0.shortName||'');
+    let g=groups.get(gk);
+    if(!g){ g={code:ctx0.code||'',product:ctx0.name||ctx0.shortName||'',labelNames:[],lots:[],items:[]}; groups.set(gk,g); }
+    g.items.push(it);
+    (it.parts||[]).forEach(part=>{
+      const nm=part.labelName||part.labelCode||part.key||'';
+      if(nm && !g.labelNames.includes(nm)) g.labelNames.push(nm);
+    });
+    const c=(it.parts&&it.parts[0]&&it.parts[0].ctx)||it.ctx||{};
+    g.lots.push(String(c.lot||c.lotRaw||''));
+  });
   const rows=[];
-  (items||[]).forEach(it=>(it.parts||[]).forEach(part=>{
-    const ctx=part.ctx||it.ctx||{};
-    rows.push({time:now,code:ctx.code||'',product:ctx.name||ctx.shortName||'',labelName:part.labelName||part.labelCode||part.key||'',lot:ctx.lot||ctx.lotRaw||''});
-  }));
-  if(rows.length){ log.unshift(...rows); await savePrintHistory(); renderLog(); }
+  for(const g of groups.values()){
+    const id='H'+now.getTime().toString(36)+Math.random().toString(36).slice(2,6);
+    const lots=g.lots;
+    const entry={
+      id,time:timeText,ts:now.toISOString(),code:g.code,product:g.product,
+      labelName:g.labelNames.join(' / '),
+      count:g.items.length,
+      lot:lots.length>1?`${lots[0]} ~ ${lots[lots.length-1]}`:(lots[0]||''),
+      lotFirst:lots[0]||'',lotLast:lots[lots.length-1]||'',
+      lots:lots.slice(0,500),
+      snapKey:''
+    };
+    try{
+      const pick=[g.items[0]]; if(g.items.length>1) pick.push(g.items[g.items.length-1]);
+      const shots=[];
+      pick.forEach((it,i)=>{
+        (it.parts||[]).forEach(part=>{
+          try{
+            shots.push({which:(g.items.length>1&&i===1)?'마지막 장':'첫 장',
+              labelName:part.labelName||part.labelCode||part.key||'',
+              lot:String((part.ctx||it.ctx||{}).lot||''),
+              html:renderLabelHtml(part.key,part.ctx||it.ctx||{},false)});
+          }catch(e){}
+        });
+      });
+      if(shots.length){
+        await storeSet(printSnapKey(id),JSON.stringify({id,shots}));
+        entry.snapKey=printSnapKey(id);
+      }
+    }catch(e){ console.warn('print snapshot failed',e); }
+    rows.push(entry);
+  }
+  if(rows.length){
+    log.unshift(...rows);
+    // 오래된 스냅샷 정리(이력 행은 유지, 이미지만 삭제)
+    for(let i=PRINT_SNAP_KEEP;i<log.length;i++){
+      if(log[i].snapKey){ try{ await storeSet(log[i].snapKey,'null'); }catch(e){} log[i].snapKey=''; }
+    }
+    await savePrintHistory(); renderLog();
+  }
 }
+function logLotText(e){ return e.lot||''; }
 function renderLog(){
   if(!log.length){$('logWrap').innerHTML='<div class="empty">아직 출력한 라벨이 없습니다.</div>';return;}
-  $('logWrap').innerHTML=`<table class="log"><tr><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>LOT 번호</th></tr>${log.map(e=>`<tr><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(e.lot||'')}</td></tr>`).join('')}</table>`;
+  $('logWrap').innerHTML=`<table class="log"><tr><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>출력 수량</th><th>LOT 번호</th><th>라벨</th></tr>${log.map((e,i)=>`<tr><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(String(e.count||1))}장</td><td>${escapeHtml(logLotText(e))}</td><td>${e.snapKey?`<button class="btn btn-ghost auto" data-log-snap="${i}" style="padding:3px 8px;font-size:11px;">라벨 보기</button>`:'<span style="color:var(--sub);">-</span>'}</td></tr>`).join('')}</table>`;
+  $('logWrap').querySelectorAll('[data-log-snap]').forEach(b=>b.addEventListener('click',()=>showPrintSnapshot(log[+b.dataset.logSnap])));
+}
+async function showPrintSnapshot(e){
+  if(!e||!e.snapKey) return;
+  let modal=$('logSnapModal');
+  if(!modal){
+    modal=document.createElement('div'); modal.id='logSnapModal'; modal.className='modalBg';
+    modal.innerHTML='<div class="modalCard" style="max-width:min(96vw,760px);max-height:90vh;overflow:auto;"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><h3 id="logSnapTitle" style="margin:0;"></h3><button class="btn btn-ghost auto" id="logSnapClose">닫기</button></div><p id="logSnapSub" style="margin-top:6px;"></p><div id="logSnapBody"></div></div>';
+    document.body.appendChild(modal);
+    modal.addEventListener('click',ev=>{ if(ev.target===modal) modal.classList.remove('show'); });
+    modal.querySelector('#logSnapClose').addEventListener('click',()=>modal.classList.remove('show'));
+  }
+  $('logSnapTitle').textContent=`[${e.code||''}] ${e.product||''}`;
+  $('logSnapSub').textContent=`${e.time||''} · ${e.labelName||''} · ${e.count||1}장 · LOT ${e.lot||''}`;
+  $('logSnapBody').innerHTML='<div class="empty">불러오는 중...</div>';
+  modal.classList.add('show');
+  let data=null;
+  try{ const raw=await storeGet(e.snapKey); data=raw?JSON.parse(raw):null; }catch(err){}
+  if(!data||!Array.isArray(data.shots)||!data.shots.length){ $('logSnapBody').innerHTML='<div class="empty">저장된 라벨 이미지가 없습니다.</div>'; return; }
+  $('logSnapBody').innerHTML=data.shots.map(sh=>`<div style="margin-bottom:14px;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:6px;">${escapeHtml(sh.which||'')} · ${escapeHtml(sh.labelName||'')}${sh.lot?` · ${escapeHtml(sh.lot)}`:''}</div>${sh.html||''}</div>`).join('');
+  applyAutoFitFields($('logSnapBody'));
 }
 
 $('genBatch').addEventListener('click',async()=>{
@@ -4318,7 +4395,7 @@ $('printAllBtn')?.addEventListener('click',async()=>{
 });
 $('exportBtn').addEventListener('click',()=>{
   if(!log.length){flash('내보낼 이력이 없습니다',true);return;}
-  const rows=[['시각','품목코드','품목명','라벨명','LOT 번호'],...log.map(e=>[e.time,e.code,e.product,e.labelName,e.lot])];
+  const rows=[['시각','품목코드','품목명','라벨명','출력 수량','LOT 시작','LOT 종료','LOT 목록'],...log.map(e=>[e.time,e.code,e.product,e.labelName,e.count||1,e.lotFirst||e.lot||'',e.lotLast||e.lot||'',(e.lots&&e.lots.length?e.lots.join(' ; '):(e.lot||''))])];
   const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`label_print_history_${todayISO()}.csv`;a.click();URL.revokeObjectURL(url);
