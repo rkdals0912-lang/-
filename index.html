@@ -1696,11 +1696,22 @@ async function supabaseGet(key){
     return data ? JSON.stringify(data.value_json) : null;
   }catch(e){
     console.warn('Supabase load failed:', e);
-    return null;
+    // [v4.14.3] 읽기 "실패"와 "데이터 없음"을 구분한다.
+    // 예전에는 둘 다 null이라 앱이 '데이터 없음'으로 오인해 초기 데이터를 다시 써서 덮어썼다.
+    throw e;
   }
 }
 
+// [v4.14.3] 읽기에 실패한 키는 쓰기를 막는다(오염/초기화 방지).
+window.KSA_READ_FAILED_KEYS = window.KSA_READ_FAILED_KEYS || new Set();
+
 async function storeSet(key,value){
+  // 읽기에 실패한 키를 덮어쓰면 서버의 실제 데이터가 사라질 수 있으므로 저장하지 않는다.
+  if(window.KSA_DB_READY && window.KSA_READ_FAILED_KEYS.has(key)){
+    console.warn('Save blocked (previous read failed):', key);
+    try{ flash('DB 읽기에 실패한 상태라 저장하지 않았습니다. 새로고침 후 다시 시도하세요',true); }catch(e){}
+    return;
+  }
   // 1) Hosted web app: shared Supabase
   if(window.KSA_DB_READY){
     const ok = await supabaseSet(key,value);
@@ -1708,6 +1719,8 @@ async function storeSet(key,value){
       try{ localStorage.setItem(key,value); }catch(e){}
       return;
     }
+    // [v4.14.3] 공유 DB 저장 실패를 조용히 넘기지 않는다(이 기기에만 저장되어 다른 기기/재접속 시 되돌아가 보임).
+    try{ flash('공유 DB 저장 실패 · 이 기기에만 임시 저장됩니다 (RLS/네트워크 확인)',true); }catch(e){}
   }
 
   // 2) Claude / compatible shared storage
@@ -1725,7 +1738,16 @@ async function storeSet(key,value){
 async function storeGet(key){
   // 1) Shared DB first
   if(window.KSA_DB_READY){
-    const shared = await supabaseGet(key);
+    let shared;
+    try{
+      shared = await supabaseGet(key);
+      window.KSA_READ_FAILED_KEYS.delete(key);
+    }catch(e){
+      // 읽기 실패: 이 키는 쓰기 금지 + 로컬 캐시(읽기 전용)로만 표시
+      window.KSA_READ_FAILED_KEYS.add(key);
+      window.KSA_DATA_LOAD_FAILED = true;
+      try{ return localStorage.getItem(key); }catch(_){ return null; }
+    }
     if(shared !== null){
       try{ localStorage.setItem(key,shared); }catch(e){}
       return shared;
@@ -5607,6 +5629,16 @@ async function applyBundledExcelBaselineV494(){
   const marker=await storeGet('ksa-bundled-excel-baseline-v494');
   if(marker===BUNDLED_EXCEL_VERSION) return false;
 
+  // [v4.14.3] 운영 데이터 보호: 기준 Excel 재주입은 "완전 최초 실행(저장된 제품 데이터가 전혀 없음)"에서만 수행한다.
+  // 예전에는 마커가 없거나 BUNDLED_EXCEL_VERSION이 바뀌면(재배포/읽기 실패) 저장된 제품·라벨 연결을
+  // 초기 개발 데이터로 통째로 덮어써서 '초기화'되었다.
+  if(window.KSA_DATA_LOAD_FAILED || window.KSA_READ_FAILED_KEYS?.size) return false; // DB를 못 읽었으면 절대 쓰지 않는다
+  const hasUserData=(CUSTOM_PRODUCTS&&CUSTOM_PRODUCTS.length>0)||(CUSTOM_LABEL_MASTER&&CUSTOM_LABEL_MASTER.length>0);
+  if(hasUserData){
+    await storeSet('ksa-bundled-excel-baseline-v494',BUNDLED_EXCEL_VERSION); // 마커만 갱신, 데이터는 건드리지 않음
+    return false;
+  }
+
   // 최신 첨부 Excel을 제품마스터 기준본으로 1회 반영한다.
   CUSTOM_PRODUCTS=MASTER_PRODUCTS.map((p,i)=>({
     ...JSON.parse(JSON.stringify(p)),
@@ -6353,20 +6385,34 @@ async function importProductExcel(file){
     // ===== v4.9.4 Excel 전체 동기화 미리보기 =====
     const oldByKey=new Map(CUSTOM_PRODUCTS.map(p=>[p.importProfileKey||profileIdentity(p.code,p.shortName||p.name,p.color,p.type),p]));
     const nextByKey=new Map(parsed.map(r=>[r.profileKey,r]));
+    // [v4.14.3] 식별키(코드|약어|색상|TYPE)가 웹에서 바뀐 제품도 같은 품목코드가 1:1이면 기존 제품(=라벨 연결)에 이어 붙인다.
+    const oldKeyOf=p=>p.importProfileKey||profileIdentity(p.code,p.shortName||p.name,p.color,p.type);
+    const oldByCode=new Map(); CUSTOM_PRODUCTS.forEach(p=>{const c=normalizeProductSearch(p.code||''); if(!c)return; const a=oldByCode.get(c)||[]; a.push(p); oldByCode.set(c,a);});
+    const parsedCodeCount=new Map(); parsed.forEach(r=>{const c=normalizeProductSearch(r.code||''); parsedCodeCount.set(c,(parsedCodeCount.get(c)||0)+1);});
+    const matchedOld=new Set();
+    const findOld=r=>{
+      const o=oldByKey.get(r.profileKey); if(o) return o;
+      const c=normalizeProductSearch(r.code||'');
+      const cand=(oldByCode.get(c)||[]).filter(p=>!nextByKey.has(oldKeyOf(p)));
+      return (cand.length===1&&parsedCodeCount.get(c)===1)?cand[0]:null;
+    };
+    // [v4.14.3] 업로드 파일에 '라벨코드' 열 자체가 없으면 기존 라벨 연결을 지우지 않고 유지한다.
+    const excelHasLabelColumn=rows.some(r=>Object.prototype.hasOwnProperty.call(r,'라벨코드'));
     const labelCodes=x=>[...(x.labels instanceof Map?x.labels.values():(x.labels||[]))].map(v=>String(v.labelCode||'')).filter(Boolean).sort().join('|');
     const comparableOld=p=>JSON.stringify({code:p.code||'',shortName:p.shortName||p.name||'',fullName:p.fullName||'',barcode:p.barcode||'',barcodeRule:p.barcodeRule||'',barcodeType:p.barcodeType||'CODE128',barcodeShowText:p.barcodeShowText!==false,color:p.color||'',type:p.type||'',family:p.family||'',active:p.active!==false,lotRuleId:p.lotRuleId||'',drums:p.drums??1,kg:p.kg??null,volume:p.volume??null,useByDays:p.useByDays??((Number(p.months)||12)*30),expRuleId:p.expRuleId||'EXP_USEBY_DAYS',note:p.note||''});
     const comparableNew=r=>JSON.stringify({code:r.code||'',shortName:r.shortName||'',fullName:r.fullName||'',barcode:r.barcode||'',barcodeRule:r.barcodeRule||'',barcodeType:r.barcodeType||'CODE128',barcodeShowText:r.barcodeShowText!==false,color:r.color||'',type:r.type||'',family:r.family||'',active:r.active!==false,lotRuleId:r.lotRuleId||defaultLotRuleIdForProduct({family:r.family}),drums:r.drums??1,kg:r.kg??null,volume:r.volume??null,useByDays:r.useByDays??365,expRuleId:r.expRuleId||'EXP_USEBY_DAYS',note:r.note||''});
     let added=0,updated=0,deleted=0,labelChanged=0,unchanged=0,labelLinks=0;
     for(const r of parsed){
-      const old=oldByKey.get(r.profileKey);
+      const old=findOld(r);
       labelLinks+=r.labels.size;
       if(!old){added++;continue;}
+      matchedOld.add(old);
       const dataDiff=comparableOld(old)!==comparableNew(r);
       const labelsDiff=labelCodes(old)!==labelCodes(r);
       if(labelsDiff) labelChanged++;
       if(dataDiff||labelsDiff) updated++; else unchanged++;
     }
-    for(const [k] of oldByKey) if(!nextByKey.has(k)) deleted++;
+    for(const [k,op] of oldByKey) if(!nextByKey.has(k)&&!matchedOld.has(op)) deleted++;
 
     const sameCodeProfiles=new Map();
     parsed.forEach(g=>{if(!g.code)return;const a=sameCodeProfiles.get(g.code)||[];a.push(g);sameCodeProfiles.set(g.code,a);});
@@ -6382,12 +6428,12 @@ async function importProductExcel(file){
     // Excel을 제품마스터의 단일 기준본(Source of Truth)으로 교체한다.
     const nextProducts=[];
     for(const r of parsed){
-      const exactCustom=oldByKey.get(r.profileKey);
+      const exactCustom=findOld(r);
       const exactBase=MASTER_PRODUCTS.find(p=>profileIdentity(p.code,p.shortName||p.name||p.scheduleName,p.color,p.type)===r.profileKey);
       const original=exactCustom||exactBase;
       const manualAdds=new Set(exactCustom?.manualLabelCodes||[]);
       const manualRemoves=new Set(exactCustom?.manualUnlinkedLabelCodes||[]);
-      const syncedLabels=[...r.labels.values()].filter(l=>!manualRemoves.has(String(l.labelCode||'')));
+      const syncedLabels=(excelHasLabelColumn?[...r.labels.values()]:JSON.parse(JSON.stringify(original?.labels||[]))).filter(l=>!manualRemoves.has(String(l.labelCode||'')));
       manualAdds.forEach(code=>{
         if(syncedLabels.some(l=>String(l.labelCode||'')===String(code)))return;
         const oldLink=(exactCustom?.labels||[]).find(l=>String(l.labelCode||'')===String(code));
@@ -6684,6 +6730,20 @@ async function savePm(){
     useByDays:Math.max(0,+$('pmUseByDays').value||0), note:$('pmNote').value.trim(),
     labels:selectedLabelLinks
   };
+  // [v4.14.3] 수정 저장 시 Excel 동기화 식별키와 수동 라벨 연결 이력을 보존한다.
+  // (예전에는 이 값들이 사라져, 이후 Excel 동기화/제품 추가 때 웹에서 연결한 라벨이 끊겼다.)
+  {
+    const selCodes=new Set(selectedLabelLinks.map(l=>String(l.labelCode||'')));
+    const prevCodes=new Set((original?.labels||[]).map(l=>String(l.labelCode||'')));
+    const adds=new Set((original?.manualLabelCodes||[]).map(String));
+    const removes=new Set((original?.manualUnlinkedLabelCodes||[]).map(String));
+    selCodes.forEach(c=>{ if(!prevCodes.has(c)) adds.add(c); removes.delete(c); });
+    prevCodes.forEach(c=>{ if(!selCodes.has(c)){ removes.add(c); adds.delete(c); } });
+    obj.manualLabelCodes=[...adds].filter(c=>selCodes.has(c));
+    obj.manualUnlinkedLabelCodes=[...removes];
+    if(original?.importProfileKey) obj.importProfileKey=original.importProfileKey;
+    if(original?.profileName) obj.profileName=original.profileName;
+  }
 
   if(original && original.source==='custom'){
     const i=CUSTOM_PRODUCTS.findIndex(p=>p.masterId===original.masterId);
