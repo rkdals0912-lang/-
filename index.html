@@ -690,6 +690,14 @@ body.workspace-open #homeView{display:none;}
         <label>출력할 라벨 종류</label>
         <div id="labelTypePickerBatch" class="labelTypePicker"></div>
         <label class="checkrow"><input type="checkbox" id="batchReverseOrder"> 역순 출력 (N → 1)</label>
+        <div class="checkrow" style="gap:6px;flex-wrap:wrap;align-items:center;">
+          <span>출력 범위</span>
+          <input type="number" id="batchRangeStart" min="1" step="1" class="field" style="width:70px;" title="시작 번호">
+          <span>→</span>
+          <input type="number" id="batchRangeEnd" min="1" step="1" class="field" style="width:70px;" title="끝 번호">
+          <span style="font-size:11px;color:var(--sub);">시작 &gt; 끝이면 역순 (예: 6→1, 3→2). 역순 체크 시 N→1이 기본값</span>
+          <button type="button" class="btn btn-ghost auto" id="batchRangeReset" style="padding:3px 8px;font-size:11px;">기본값</button>
+        </div>
         <div class="lockednote">체크 해제: 1 → N 순서 / 체크: N → 1 순서로 드럼 번호를 생성하고 출력합니다.</div>
         <button class="btn btn-primary" id="genBatch">선택한 라벨만 전체 드럼 생성</button>
       </div>
@@ -3078,8 +3086,23 @@ function autoPreviewOrder(){
   }catch(e){generated=[];}
   renderPreview();
 }
+// [v4.14.6] 출력 범위 기본값 관리: 작업지시/드럼 수/역순 체크가 바뀌면 기본값으로 되돌리고,
+// 그 외에는 사용자가 직접 입력한 시작·끝 번호를 유지한다.
+let batchRangeKey='';
+function syncBatchRange(o,force){
+  const sEl=$('batchRangeStart'), eEl=$('batchRangeEnd'); if(!sEl||!eEl) return;
+  if(!o){ sEl.value=''; eEl.value=''; batchRangeKey=''; return; }
+  const n=Math.max(1,Math.round(Number(o.batchDrums)||1));
+  const rev=!!$('batchReverseOrder')?.checked;
+  const key=`${o.id}|${n}|${rev?1:0}`;
+  if(force || key!==batchRangeKey || sEl.value===''||eEl.value===''){
+    sEl.value=rev?n:1; eEl.value=rev?1:n; batchRangeKey=key;
+  }
+  sEl.max=n; eEl.max=n;
+}
 function refreshActiveOrderPanel(){
   const o=activeOrder();
+  try{ syncBatchRange(o,false); }catch(e){}
   if(!o){
     $('prodNameOut').textContent='작업지시를 선택하세요';$('lotOut').textContent='—';$('dateExpOut').textContent='—';
     $('completeOrder').style.display='none';$('batchDrumsOut').textContent='-';$('batchWeightOut').textContent='-';$('nextDrumOut').textContent='1';return;
@@ -3097,6 +3120,8 @@ function refreshActiveOrderPanel(){
   $('dateExpOut').textContent=`${info.prodDateDisp} → ${info.exp}`;
   $('completeOrder').style.display='block';$('batchDrumsOut').textContent=o.batchDrums;$('batchWeightOut').textContent=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;$('nextDrumOut').textContent=liveDrumCounter;
 }
+$('batchReverseOrder')?.addEventListener('change',()=>syncBatchRange(activeOrder(),true));
+$('batchRangeReset')?.addEventListener('click',()=>syncBatchRange(activeOrder(),true));
 $('completeOrder').addEventListener('click',async()=>{const o=activeOrder();if(!o)return;o.status='done';await saveWorkOrders();renderOrderList();flash('작업지시를 완료 처리했습니다');});
 
 function renderPreview(){
@@ -3241,10 +3266,16 @@ $('genBatch').addEventListener('click',async()=>{
   generated=[];
   // v4.15.1: 일괄 출력 순서를 체크박스로 선택.
   // 기본값은 1 → N, 역순 체크 시 N → 1.
-  const reverseOrder = !!$('batchReverseOrder')?.checked;
+  // [v4.14.6] 시작/끝 번호를 직접 지정할 수 있다. 기본값: 순서대로 1→N, 역순 체크 시 N→1.
   const drumCount = Math.max(1, Math.round(Number(o.batchDrums)||1));
-  const start = reverseOrder ? drumCount : 1;
-  const end = reverseOrder ? 1 : drumCount;
+  syncBatchRange(o,false);
+  const startIn=Number($('batchRangeStart')?.value), endIn=Number($('batchRangeEnd')?.value);
+  if(!Number.isInteger(startIn)||!Number.isInteger(endIn)||startIn<1||endIn<1||startIn>drumCount||endIn>drumCount){
+    flash(`출력 범위는 1~${drumCount} 사이의 정수로 입력하세요`,true);return;
+  }
+  const start = startIn;
+  const end = endIn;
+  const reverseOrder = start>end;
   const step = reverseOrder ? -1 : 1;
 
   for(let n=start; reverseOrder ? n>=end : n<=end; n+=step){
@@ -3256,8 +3287,8 @@ $('genBatch').addEventListener('click',async()=>{
     pushLog({time:new Date().toLocaleString('ko-KR'),worker,product:p.name,lot:info.lot,drumNo:n,weight:o.batchWeight,mode:'일괄'});
   }
   selectedIdx=0;renderPreview();
-  const orderText = reverseOrder ? `${drumCount}→1` : `1→${drumCount}`;
-  flash(`${o.date} · 드럼 ${drumCount}장 생성 완료 · 출력 순서 ${orderText} · 드럼 번호를 선택한 뒤 '바로 인쇄'를 눌러 출력하세요`);
+  const orderText = `${start}→${end}`;
+  flash(`${o.date} · 드럼 ${generated.length}장 생성 완료 · 출력 순서 ${orderText} · 드럼 번호를 선택한 뒤 '바로 인쇄'를 눌러 출력하세요`);
 });
 
 $('genLive').addEventListener('click',async()=>{

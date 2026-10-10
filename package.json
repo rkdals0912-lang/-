@@ -1,6 +1,6 @@
 {
   "name": "ksa-label-system",
-  "version": "4.14.5",
+  "version": "4.14.6",
   "description": "ECOUNT 품목명, 바코드, 서식 편집 및 ZPL 직접 출력을 지원하는 KSA 라벨 출력 웹 시스템",
   "type": "module",
   "scripts": {
