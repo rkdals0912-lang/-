@@ -1335,6 +1335,14 @@ body.workspace-open #homeView{display:none;}
           <table class="masterTable"><thead><tr><th>변수명</th><th>표시명</th><th>값 규칙</th><th>예시(샘플)</th><th>관리</th></tr></thead><tbody id="vrTableBody"></tbody></table>
         </div>
       </div>
+      <div class="panel" style="margin-top:14px;">
+        <div class="toolbar"><h2 style="margin:0;">기본 제공 변수 (라벨 서식 연결 변수 전체)</h2><span class="masterBadge" id="vbCount">0개</span></div>
+        <input type="text" class="field" id="vbSearch" placeholder="변수명 / 표시명 검색" style="margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--sub);margin-bottom:6px;">라벨 서식 편집기의 변수 목록과 동일한 항목입니다. 표시명은 변경할 수 있고, [사용자 변수로 복사]를 누르면 조건·문구를 붙여 새 변수로 만들 수 있습니다.</div>
+        <div class="masterTableWrap" style="max-height:560px;overflow:auto;">
+          <table class="masterTable"><thead><tr><th>변수 키</th><th>표시명</th><th>예시(샘플)</th><th>관리</th></tr></thead><tbody id="vbTableBody"></tbody></table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -5763,7 +5771,14 @@ let CUSTOM_VARS=[];
 const VR_COND_FIELDS=[['volumeL','용량 L'],['productVolumeL','용량 L(제품마스터)'],['family','제품군'],['code','품목코드'],['name','약어(라벨용)'],['fullName','품목명(ECOUNT)'],['color','색상'],['type','TYPE']];
 const VR_COND_OPS=[['eq','같음'],['gte','이상(숫자)'],['lte','이하(숫자)'],['between','범위(예: 10-20)'],['contains','포함'],['starts','시작'],['in','목록 중 하나(,로 구분)']];
 function customVarKeyName(v){ return 'cv_'+v.key; }
+const FIELD_VARIABLES_BUILTIN=FIELD_VARIABLES.filter(([k])=>!String(k).startsWith('cv_')).map(x=>[x[0],x[1]]);
+const VAR_LABELS_KEY='ksa-var-labels-v1';
+let VAR_LABEL_OVERRIDES={};
+async function saveVarLabelOverrides(){ await storeSet(VAR_LABELS_KEY,JSON.stringify(VAR_LABEL_OVERRIDES)); refreshCustomVariableOptions(); }
+async function loadVarLabelOverrides(){ const raw=await storeGet(VAR_LABELS_KEY); VAR_LABEL_OVERRIDES={}; if(raw){ try{ const v=JSON.parse(raw); if(v&&typeof v==='object'&&!Array.isArray(v)) VAR_LABEL_OVERRIDES=v; }catch(e){} } }
+function builtinVarLabel(key,orig){ return (VAR_LABEL_OVERRIDES&&VAR_LABEL_OVERRIDES[key])||orig; }
 function refreshCustomVariableOptions(){
+  FIELD_VARIABLES_BUILTIN.forEach(([k,l])=>{ const e=FIELD_VARIABLES.find(x=>x[0]===k); if(e) e[1]=builtinVarLabel(k,l); });
   for(let i=FIELD_VARIABLES.length-1;i>=0;i--) if(String(FIELD_VARIABLES[i][0]).startsWith('cv_')) FIELD_VARIABLES.splice(i,1);
   CUSTOM_VARS.filter(v=>v.active!==false).forEach(v=>FIELD_VARIABLES.push([customVarKeyName(v),`[사용자] ${v.label||v.key}`]));
   if(typeof FP_BIND_LABELS!=='undefined') CUSTOM_VARS.forEach(v=>{FP_BIND_LABELS[customVarKeyName(v)]=`[사용자] ${v.label||v.key}`;});
@@ -5842,7 +5857,7 @@ function updateVrPreview(){
 }
 function renderVrTokenChips(){
   const wrap=$('vrTokenChips'); if(!wrap) return;
-  const keys=Object.keys(vrSampleCtx()).filter(k=>!k.startsWith('cv_')&&!['barcode','barcodeText','barcodeRuleResult','barcodeType'].includes(k));
+  const keys=[...new Set([...FIELD_VARIABLES_BUILTIN.map(x=>x[0]),...Object.keys(vbSampleCtx())])].filter(k=>!k.startsWith('cv_')&&!['barcode','barcodeText','barcodeRuleResult','barcodeType'].includes(k));
   wrap.innerHTML=keys.map(k=>`<button type="button" class="btn btn-ghost auto" data-vr-token="${escapeHtml(k)}" style="padding:2px 7px;font-size:11px;">{${escapeHtml(k)}}</button>`).join('');
   wrap.querySelectorAll('[data-vr-token]').forEach(b=>b.addEventListener('click',()=>{
     const el=$('vrTemplate'); const t=`{${b.dataset.vrToken}}`;
@@ -5897,13 +5912,52 @@ async function saveVrFromForm(){
   else CUSTOM_VARS.push(v);
   await saveCustomVars(); renderVrTable(); resetVrForm(); flash('변수를 저장했습니다. 라벨 서식 편집기의 변수 목록에서 선택할 수 있습니다');
 }
+function vbSampleCtx(){
+  let a={},b={};
+  try{ a=sampleContextForLabel('','basic'); }catch(e){}
+  try{ b=sampleContextForLabel('','kr'); }catch(e){}
+  return {...b,...a};
+}
+function renderVbTable(){
+  const body=$('vbTableBody'); if(!body) return;
+  const q=normalizeProductSearch($('vbSearch')?.value||'');
+  const ctx=applyCustomVariables(vbSampleCtx());
+  const rows=FIELD_VARIABLES_BUILTIN.filter(([k,l])=>!q||normalizeProductSearch(k+' '+builtinVarLabel(k,l)).includes(q));
+  $('vbCount').textContent=`${rows.length}/${FIELD_VARIABLES_BUILTIN.length}개`;
+  body.innerHTML=rows.map(([k,l])=>{
+    const v=ctx[k]; const sample=(v===undefined||v===null||v==='')?'—':String(v);
+    const shown=sample.length>40?sample.slice(0,40)+'…':sample;
+    const ov=VAR_LABEL_OVERRIDES[k]?` <span style="font-size:10px;color:var(--sub);">(원래: ${escapeHtml(l)})</span>`:'';
+    return `<tr><td class="code">${escapeHtml(k)}</td><td style="white-space:normal;">${escapeHtml(builtinVarLabel(k,l))}${ov}</td><td style="white-space:normal;">${escapeHtml(shown)}</td><td><button class="btn btn-ghost auto" data-vb-rename="${escapeHtml(k)}">이름 변경</button> <button class="btn btn-ghost auto" data-vb-copy="${escapeHtml(k)}">사용자 변수로 복사</button></td></tr>`;
+  }).join('')||'<tr><td colspan="4"><div class="empty">검색 결과가 없습니다.</div></td></tr>';
+  body.querySelectorAll('[data-vb-rename]').forEach(b=>b.addEventListener('click',()=>renameBuiltinVar(b.dataset.vbRename)));
+  body.querySelectorAll('[data-vb-copy]').forEach(b=>b.addEventListener('click',()=>copyBuiltinToCustom(b.dataset.vbCopy)));
+}
+async function renameBuiltinVar(key){
+  const orig=(FIELD_VARIABLES_BUILTIN.find(x=>x[0]===key)||[])[1]||key;
+  const cur=builtinVarLabel(key,orig);
+  const v=prompt(`'${key}' 변수의 표시명을 입력하세요.\n(비우면 원래 이름으로 복원)\n원래 이름: ${orig}`,cur);
+  if(v===null) return;
+  const t=v.trim();
+  if(!t||t===orig) delete VAR_LABEL_OVERRIDES[key]; else VAR_LABEL_OVERRIDES[key]=t;
+  await saveVarLabelOverrides(); renderVbTable(); renderVrTokenChips();
+  flash('표시명을 저장했습니다');
+}
+function copyBuiltinToCustom(key){
+  const orig=(FIELD_VARIABLES_BUILTIN.find(x=>x[0]===key)||[])[1]||key;
+  resetVrForm();
+  let nk='my_'+key, i=2; while(CUSTOM_VARS.some(x=>x.key.toLowerCase()===nk.toLowerCase())) nk='my_'+key+'_'+(i++);
+  $('vrKey').value=nk; $('vrLabel').value=`${builtinVarLabel(key,orig)} (사용자)`; $('vrTemplate').value=`{${key}}`;
+  updateVrPreview(); $('vrKey').focus();
+  flash(`'${key}' 값을 기본 값으로 복사했습니다. 조건을 추가하고 [변수 등록]을 누르세요`);
+}
 function showVarRules(){
   openWorkspace(); if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}
   ['opView','editorView','productMasterView','lotRuleView','expRuleView','freePrintView'].forEach(id=>{ if($(id)) $(id).style.display='none'; });
   $('varRuleView').style.display='block'; document.body.classList.remove('editing');
   ['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabExpRules','tabFreePrint'].forEach(id=>{ if($(id)) $(id).classList.remove('active'); });
   $('tabVarRules').classList.add('active');
-  renderVrTokenChips(); renderVrTable(); updateVrPreview();
+  renderVrTokenChips(); renderVrTable(); renderVbTable(); updateVrPreview();
 }
 if($('tabVarRules')){
   $('tabVarRules').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();showVarRules();});
@@ -5912,6 +5966,7 @@ if($('tabVarRules')){
   $('vrSaveBtn').addEventListener('click',saveVrFromForm);
   $('vrResetBtn').addEventListener('click',resetVrForm);
   $('vrAddCond').addEventListener('click',()=>vrAddCondRow());
+  $('vbSearch')?.addEventListener('input',renderVbTable);
   ['vrKey','vrLabel','vrTemplate'].forEach(id=>$(id).addEventListener('input',updateVrPreview));
 }
 
@@ -7313,7 +7368,7 @@ async function initApp(){
   if(browserPrintSdkReady()) setTimeout(()=>discoverZebraPrinters(true),1200);
   else { const diag=browserPrintSdkDiagnostic(); setZebraStatus(diag.text+' · ZPL 직접 인쇄에는 Zebra Browser Print 프로그램도 실행되어 있어야 합니다.','warn'); }
 
-  await loadLayouts();await loadLotRules();await loadExpRules();await loadCustomVars();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
+  await loadLayouts();await loadLotRules();await loadExpRules();await loadCustomVars();await loadVarLabelOverrides();refreshCustomVariableOptions();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
   if(HAS_SHARED_STORAGE || window.KSA_DB_READY){
     setInterval(async()=>{
       if(document.body.classList.contains('editing'))return;
