@@ -2127,6 +2127,8 @@ function buildContext(p,info,drumNo,weightKg,volume){
   const barcodeValue=buildProductBarcode(bp,info.lot,info.prodDateRaw||info.prodDateDisp);
   return {
     code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:barcodeValue,barcodeText:(bp.barcodeShowText===false)?'':barcodeValue,barcodeRuleResult:barcodeValue,barcodeType:(bp.barcodeType||'CODE128'),lot:info.lot,lotRaw:info.lot,lotDateYYYYdotMMdotDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YYYY.MM.DD'),lotDateYYYYdashMMdashDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YYYY-MM-DD'),lotDateYYMMDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YYMMDD'),lotDateYYYYMMDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YYYYMMDD'),lotDateYYdotMMdotDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YY.MM.DD'),lotDateMMMYYYY:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'MMM. YYYY'),...productionDateFormats(info.prodDateRaw||info.prodDateDisp),weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,drumNo:String(drumNo),
+    // [v4.14.8] 제품관리(마스터)의 '용량 L'을 변수로 노출. volumeL=작업지시 용량(있으면) 우선, 없으면 제품마스터 값
+    volumeL:(volume!=null&&volume!=='')?volume:(p.volume??''), productVolumeL:(p.volume??''),
     productLine:`Product Name : ${p.name} ${p.color||''}`.trim(),
     weightLine:`Net Weight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,volumeLine:`Volume : Approxi ${volume||'?'}L`,
     expireLine:`Expire date : ${info.exp}`,lotLine:`LOT NO : ${info.lot}`,
@@ -2151,6 +2153,7 @@ function buildDongeunContext(p,info,drumNo,weightKg){
   const barcodeValue=buildProductBarcode(bp,info.lot,info.prodDateRaw||info.prodDateDisp);
   return {
     code:p.code,fullName:(p.fullName||''),name:alias,shortName:alias,color:(p.color||''),type:(p.type||''),barcode:barcodeValue,barcodeText:(bp.barcodeShowText===false)?'':barcodeValue,barcodeRuleResult:barcodeValue,barcodeType:(bp.barcodeType||'CODE128'),...productionDateFormats(info.prodDateRaw||info.prodDateDisp),drumNo:String(drumNo),lot:info.lot,lotRaw:info.lot,lotDateYYYYdotMMdotDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YYYY.MM.DD'),lotDateYYYYdashMMdashDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YYYY-MM-DD'),lotDateYYMMDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YYMMDD'),lotDateYYYYMMDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YYYYMMDD'),lotDateYYdotMMdotDD:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'YY.MM.DD'),lotDateMMMYYYY:formatExpiry(new Date(info.prodDateRaw+'T00:00:00'),'MMM. YYYY'),weight:(weightKg!=null&&weightKg!=='')?`${weightKg} KG`:'          KG',proddate:info.prodDateDisp,
+    volumeL:(p.volume??''), productVolumeL:(p.volume??''),
     lotLine:`LOT : ${info.lot}`,titleKr:alias,titleEn:alias,
     weightLineKr:`중     량 : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,weightLineEn:`ㆍWeight : ${(weightKg!=null&&weightKg!=='')?weightKg:'          '}kg`,
     dateLineKr:`생산일자 : ${info.prodDateDisp}`,mfdLineEn:`ㆍM.F.D : ${info.prodDateDisp}`,
@@ -4881,6 +4884,8 @@ const FIELD_VARIABLES = [
   ['productLine','Product Name 문구'],
   ['weightLine','Net Weight 문구'],
   ['volumeLine','Volume 문구'],
+  ['volumeL','용량 L (작업지시 용량 우선, 없으면 제품마스터)'],
+  ['productVolumeL','용량 L (제품마스터 값)'],
   ['expireLine','Expire date 문구']
 ];
 
@@ -5755,8 +5760,8 @@ if($('erMode')) ['erMode','erValue','erFormat'].forEach(id=>$(id).addEventListen
 // 서식에서는 'cv_<key>' 로 사용. template/result 안의 {변수}는 컨텍스트 값으로 치환된다.
 const CUSTOM_VARS_KEY='ksa-custom-vars-v1';
 let CUSTOM_VARS=[];
-const VR_COND_FIELDS=[['family','제품군'],['code','품목코드'],['name','약어(라벨용)'],['fullName','품목명(ECOUNT)'],['color','색상'],['type','TYPE']];
-const VR_COND_OPS=[['eq','같음'],['contains','포함'],['starts','시작'],['in','목록 중 하나(,로 구분)']];
+const VR_COND_FIELDS=[['volumeL','용량 L'],['productVolumeL','용량 L(제품마스터)'],['family','제품군'],['code','품목코드'],['name','약어(라벨용)'],['fullName','품목명(ECOUNT)'],['color','색상'],['type','TYPE']];
+const VR_COND_OPS=[['eq','같음'],['gte','이상(숫자)'],['lte','이하(숫자)'],['between','범위(예: 10-20)'],['contains','포함'],['starts','시작'],['in','목록 중 하나(,로 구분)']];
 function customVarKeyName(v){ return 'cv_'+v.key; }
 function refreshCustomVariableOptions(){
   for(let i=FIELD_VARIABLES.length-1;i>=0;i--) if(String(FIELD_VARIABLES[i][0]).startsWith('cv_')) FIELD_VARIABLES.splice(i,1);
@@ -5777,14 +5782,20 @@ function vrFieldValue(field,ctx){
     const hit=list.find(p=>(p.color||'')===(ctx.color||'')&&(p.type||'')===(ctx.type||''))||list[0];
     return hit?String(hit.family||''):'';
   }
+  if(field==='volumeL') return String(ctx.volumeL??ctx.productVolumeL??'');
   return String(ctx[field]??'');
 }
 function vrMatch(c,ctx){
-  const a=vrFieldValue(c.field,ctx).trim().toLowerCase(), b=String(c.value??'').trim().toLowerCase();
+  const raw=vrFieldValue(c.field,ctx).trim(), a=raw.toLowerCase(), b=String(c.value??'').trim().toLowerCase();
   if(!b) return false;
+  const num=x=>{ const n=Number(String(x).replace(/,/g,'')); return (String(x).trim()!==''&&Number.isFinite(n))?n:null; };
+  if(c.op==='gte'){ const x=num(a),y=num(b); return x!==null&&y!==null&&x>=y; }
+  if(c.op==='lte'){ const x=num(a),y=num(b); return x!==null&&y!==null&&x<=y; }
+  if(c.op==='between'){ const m=b.match(/^\s*(-?[\d.]+)\s*[-~]\s*(-?[\d.]+)\s*$/); const x=num(a); return !!m&&x!==null&&x>=Number(m[1])&&x<=Number(m[2]); }
   if(c.op==='contains') return a.includes(b);
   if(c.op==='starts') return a.startsWith(b);
-  if(c.op==='in') return b.split(',').map(x=>x.trim()).filter(Boolean).includes(a);
+  if(c.op==='in') return b.split(',').map(x=>x.trim()).filter(Boolean).some(t=>t===a||(num(t)!==null&&num(a)!==null&&num(t)===num(a)));
+  const x=num(a),y=num(b); if(x!==null&&y!==null) return x===y; // 숫자는 18 = 18.0
   return a===b;
 }
 function evalCustomVar(v,ctx){
