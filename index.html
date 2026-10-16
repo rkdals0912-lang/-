@@ -734,13 +734,13 @@ body.workspace-open #homeView{display:none;}
       <div class="panel" id="printHistoryPanel" style="display:none;">
         <div class="toolbar">
           <h2 style="margin:0;">라벨 출력 이력</h2>
-          <span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--sub);">CSV 기간
+          <span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--sub);">기간(작업지시일)
             <input type="date" id="exportFrom" style="width:auto;padding:5px 8px;" title="시작일 (비우면 처음부터)"> ~
             <input type="date" id="exportTo" style="width:auto;padding:5px 8px;" title="종료일 (비우면 마지막까지)">
             <button type="button" class="btn btn-ghost auto" id="exportToday" style="padding:5px 8px;font-size:11px;">오늘</button>
             <button type="button" class="btn btn-ghost auto" id="exportAll" style="padding:5px 8px;font-size:11px;">전체</button>
           </span>
-          <button class="btn btn-ghost auto" id="exportBtn">CSV 내보내기</button>
+          <button class="btn btn-primary auto" id="exportXlsxBtn">엑셀(xlsx) 내보내기</button>
         </div>
         <div id="logWrap"><div class="empty">아직 출력한 라벨이 없습니다.</div></div>
       </div>
@@ -1258,6 +1258,7 @@ body.workspace-open #homeView{display:none;}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
@@ -3351,7 +3352,11 @@ async function recordPrintHistory(items){
 function logLotText(e){ return e.lot||''; }
 function renderLog(){
   if(!log.length){$('logWrap').innerHTML='<div class="empty">아직 출력한 라벨이 없습니다.</div>';return;}
-  $('logWrap').innerHTML=`<table class="log"><tr><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>출력 수량</th><th>LOT 번호</th><th>라벨</th></tr>${log.map((e,i)=>`<tr><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(String(e.count||1))}장</td><td>${escapeHtml(logLotText(e))}</td><td>${e.snapKey?`<button class="btn btn-ghost auto" data-log-snap="${i}" style="padding:3px 8px;font-size:11px;">라벨 보기</button>`:'<span style="color:var(--sub);">-</span>'}</td></tr>`).join('')}</table>`;
+  // 작업지시일 → 주간/야간 → 설비(M1부터) 순으로 정렬해서 보여준다. (저장 순서는 바꾸지 않음)
+  const index=buildLotOrderIndex();
+  const rows=log.map((e,i)=>({e,i,m:entryOrderMeta(e,index)}));
+  rows.sort((x,y)=>(x.m.d<y.m.d?-1:x.m.d>y.m.d?1:0)||(lotShiftRank(x.m.s)-lotShiftRank(y.m.s))||(x.m.mn-y.m.mn)||(x.i-y.i));
+  $('logWrap').innerHTML=`<table class="log"><tr><th>작업지시일</th><th>주/야</th><th>설비</th><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>출력 수량</th><th>LOT 번호</th><th>라벨</th></tr>${rows.map(({e,i,m})=>`<tr${m.s==='야간'?' style="background:#f3f5fa;"':''}><td>${escapeHtml(m.d||'-')}</td><td>${escapeHtml(m.s)}</td><td>${escapeHtml(m.m||'-')}</td><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(String(e.count||1))}장</td><td>${escapeHtml(logLotText(e))}</td><td>${e.snapKey?`<button class="btn btn-ghost auto" data-log-snap="${i}" style="padding:3px 8px;font-size:11px;">라벨 보기</button>`:'<span style="color:var(--sub);">-</span>'}</td></tr>`).join('')}</table>`;
   $('logWrap').querySelectorAll('[data-log-snap]').forEach(b=>b.addEventListener('click',()=>showPrintSnapshot(log[+b.dataset.logSnap])));
 }
 async function showPrintSnapshot(e){
@@ -4587,19 +4592,20 @@ function logDateKey(e){
 }
 $('exportToday')?.addEventListener('click',()=>{ $('exportFrom').value=$('exportTo').value=todayISO(); });
 $('exportAll')?.addEventListener('click',()=>{ $('exportFrom').value=''; $('exportTo').value=''; });
-$('exportBtn').addEventListener('click',()=>{
-  if(!log.length){flash('내보낼 이력이 없습니다',true);return;}
-  let from=$('exportFrom')?.value||'', to=$('exportTo')?.value||'';
-  if(from&&to&&from>to){ [from,to]=[to,from]; $('exportFrom').value=from; $('exportTo').value=to; }
-  const inRange=log.filter(e=>{ if(!from&&!to) return true; const k=logDateKey(e); return k&&(!from||k>=from)&&(!to||k<=to); });
-  // 프레스일지 양식: 작업지시일 → 주간/야간 → 설비(M1→M5) 순으로 블록을 나눠 나열하고,
-  // 각 블록 첫 줄에 "YYYY-MM-DD 프레스일지 (주간|야간)" 제목을 C~H열에 넣는다(작업자가 C~H열에 수기 기록).
-  // LOT번호(예: 1-2)는 엑셀이 날짜로 바꾸지 않도록 ="값" 형태로 써서 보이는 그대로 텍스트로 인식시킨다.
-  const csvText=v=>`"${String(v??'').replace(/"/g,'""')}"`;
-  const csvLotText=v=>`"=""${String(v??'').replace(/"/g,'')}"""`;
+/* ===== 프레스일지(작업지시일 기준) 데이터 생성 · 엑셀/CSV 내보내기 ===== */
+function lotShiftRank(s){ return s==='야간'?1:0; }
+function entryOrderMeta(e,index){
+  // 이력 1건의 작업지시일/주야/설비. 저장된 lotMeta → 작업지시 매칭 → 출력일 순으로 사용.
+  const lots=(e.lots&&e.lots.length)?e.lots:[e.lot||''];
+  const l=lots[0]||'';
+  const m=(e.lotMeta&&e.lotMeta[l])||resolveLotMeta(e.code,l,index,null)||{};
+  const mn=parseInt(String(m.m||'').replace(/\D/g,''),10);
+  return {d:m.d||logDateKey(e)||'',s:m.s==='야간'?'야간':'주간',m:m.m||'',mn:isNaN(mn)?99:mn};
+}
+function buildPressLogRecords(from,to){
   const index=buildLotOrderIndex();
   const seen=new Map(), recs=[];
-  inRange.forEach(e=>{
+  log.forEach(e=>{
     const lots=(e.lots&&e.lots.length)?e.lots:[e.lot||''];
     lots.forEach(l=>{
       const key=(e.code||'')+'\u0001'+l;
@@ -4611,27 +4617,103 @@ $('exportBtn').addEventListener('click',()=>{
       seen.set(key,rec); recs.push(rec);
     });
   });
-  recs.sort((x,y)=>(x.d<y.d?-1:x.d>y.d?1:0)||((x.s==='주간'?0:1)-(y.s==='주간'?0:1))||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0));
-  const rows=[]; let lastBlock='';
+  const ranged=recs.filter(r=>{ if(!from&&!to) return true; return r.d&&(!from||r.d>=from)&&(!to||r.d<=to); });
+  ranged.sort((x,y)=>(x.d<y.d?-1:x.d>y.d?1:0)||(lotShiftRank(x.s)-lotShiftRank(y.s))||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0));
+  // 드럼(출력 장수) 1장 = 수기 입력 1칸. 한 줄에 C~H 6칸 → 6장=1줄, 12장=2줄, 40장=7줄.
+  // 페일(Hobbock/pail) 제품은 '24kg x 개수'를 한 칸에 적으므로 장수와 관계없이 1줄.
+  ranged.forEach(r=>{ r.lines=r.pail?1:Math.max(1,Math.ceil(r.n/6)); });
+  return ranged;
+}
+function pressLogBlocks(recs){
+  const blocks=[]; let cur=null;
   recs.forEach(r=>{
-    const block=r.d+'|'+r.s;
-    if(block!==lastBlock){
-      lastBlock=block;
-      const title=`${r.d||'날짜미상'} 프레스일지 (${r.s})`;
-      rows.push([csvText('코드명'),csvText('LOT번호'),...Array(6).fill(csvText(title))].join(','));
-    }
-    rows.push([csvText(r.code),csvLotText(r.lot),...Array(6).fill('')].join(','));
-    // 드럼(출력 장수) 1장 = 수기 입력 1칸. 한 줄에 C~H 6칸이므로 6장=1줄, 12장=2줄, 40장=7줄(42칸).
-    // 페일(Hobbock/pail) 제품은 작업자가 '24kg x 개수'를 한 칸에 적으므로 장수와 관계없이 1줄.
-    const lineCount=r.pail?1:Math.max(1,Math.ceil(r.n/6));
-    for(let i=1;i<lineCount;i++) rows.push(Array(7).fill('').join(','));
+    const k=r.d+'|'+r.s;
+    if(!cur||cur.k!==k){ cur={k,d:r.d,s:r.s,title:`${r.d||'날짜미상'} 프레스일지(${r.s})`,items:[]}; blocks.push(cur); }
+    cur.items.push(r);
   });
-  if(!rows.length){flash('선택한 기간에 출력 이력이 없습니다',true);return;}
-  const csv=rows.join('\r\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-  const range=(from||to)?`_${from||'start'}~${to||'end'}`:`_${todayISO()}`;
-  a.href=url;a.download=`label_print_history${range}.csv`;a.click();URL.revokeObjectURL(url);
-  flash(`CSV LOT ${recs.length}건 내보내기 완료${(from||to)?` (${from||'처음'} ~ ${to||'마지막'})`:''}`);
+  return blocks;
+}
+function readExportRange(){
+  let from=$('exportFrom')?.value||'', to=$('exportTo')?.value||'';
+  if(from&&to&&from>to){ [from,to]=[to,from]; $('exportFrom').value=from; $('exportTo').value=to; }
+  return {from,to};
+}
+function downloadBlob(blob,name){
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportFileSuffix(from,to){ return (from||to)?`_${from||'start'}~${to||'end'}`:`_${todayISO()}`; }
+
+/* 프레스일지 엑셀 레이아웃(목업 기준)
+   블록(작업지시일+주/야)마다:
+   ① 남색 제목줄  : 코드명 | LOT번호 | C~H 병합 "YYYY-MM-DD 프레스일지(주간|야간)"
+   ② 하늘색 보조줄: 코드명 | LOT번호 | C~H 병합 "주간|야간 작업지시"
+   ③ LOT마다 회색 정보줄 : 코드 | LOT | C~H 병합 "작업지시일: YYYY-MM-DD"
+      + 그 아래 수기 입력줄(C~H 6칸): 6장=1줄, 12장=2줄 …(페일 제품은 1줄) */
+function buildPressLogSheetRows(blocks){
+  const rows=[];
+  blocks.forEach(bl=>{
+    rows.push({t:'h1',title:bl.title});
+    rows.push({t:'h2',label:`${bl.s} 작업지시`});
+    bl.items.forEach(it=>{
+      rows.push({t:'info',code:it.code,lot:String(it.lot),date:bl.d||'날짜미상'});
+      for(let i=0;i<it.lines;i++) rows.push({t:'write'});
+    });
+  });
+  return rows;
+}
+$('exportXlsxBtn')?.addEventListener('click',async()=>{
+  if(!log.length){flash('내보낼 이력이 없습니다',true);return;}
+  const {from,to}=readExportRange();
+  const recs=buildPressLogRecords(from,to);
+  if(!recs.length){flash('선택한 기간(작업지시일)에 출력 이력이 없습니다',true);return;}
+  const rowsModel=buildPressLogSheetRows(pressLogBlocks(recs)), name=`프레스일지${exportFileSuffix(from,to)}.xlsx`;
+  try{
+    if(window.ExcelJS){
+      const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('프레스일지',{pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+      ws.columns=[{width:26},{width:22},...Array(6).fill({width:15})];
+      const line={style:'thin',color:{argb:'FF8A94A3'}}, box={top:line,left:line,bottom:line,right:line};
+      const fill=argb=>({type:'pattern',pattern:'solid',fgColor:{argb}});
+      const NAVY='FF2C4E75', BLUE='FFDCE9F7', GRAY='FFEDF2F7';
+      rowsModel.forEach((m,i)=>{
+        const r=i+1, row=ws.getRow(r);
+        for(let c=1;c<=8;c++) row.getCell(c).border=box;
+        if(m.t==='write'){ row.height=28; return; }
+        ws.mergeCells(r,3,r,8);
+        const cfg={
+          h1:{h:30,bg:NAVY,fg:'FFFFFFFF',bold:true,size:13,v:['코드명','LOT번호',m.title]},
+          h2:{h:22,bg:BLUE,fg:'FF2C4E75',bold:true,size:11,v:['코드명','LOT번호',m.label]},
+          info:{h:24,bg:GRAY,fg:'FF1F2933',bold:true,size:11,v:[m.code,m.lot,`작업지시일: ${m.date}`]}
+        }[m.t];
+        row.height=cfg.h;
+        cfg.v.forEach((val,k)=>{
+          const cell=row.getCell(k===2?3:k+1);
+          cell.value=String(val); cell.numFmt='@';   // LOT(1-2 등)가 날짜로 바뀌지 않게 텍스트 지정
+          cell.font={bold:cfg.bold,size:cfg.size,color:{argb:cfg.fg}};
+          cell.fill=fill(cfg.bg);
+          cell.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+        });
+        for(let c=4;c<=8;c++) row.getCell(c).fill=fill(cfg.bg);
+      });
+      const buf=await wb.xlsx.writeBuffer();
+      downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
+    }else{
+      // ExcelJS를 불러오지 못한 경우: 서식(색상) 없이 같은 배치로 저장(SheetJS)
+      const aoa=[], merges=[];
+      rowsModel.forEach(m=>{
+        const r=aoa.length;
+        if(m.t==='write'){ aoa.push(Array(8).fill('')); return; }
+        merges.push({s:{r,c:2},e:{r,c:7}});
+        const v=m.t==='h1'?['코드명','LOT번호',m.title]:m.t==='h2'?['코드명','LOT번호',m.label]:[m.code,m.lot,`작업지시일: ${m.date}`];
+        aoa.push([v[0],v[1],v[2],'','','','','']);
+      });
+      const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:false});
+      Object.keys(ws).forEach(k=>{ if(k[0]!=='!' && ws[k].t==='n'){ ws[k].t='s'; ws[k].v=String(ws[k].v); } });
+      ws['!merges']=merges; ws['!cols']=[{wch:26},{wch:22},...Array(6).fill({wch:15})];
+      const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'프레스일지'); XLSX.writeFile(wb,name);
+    }
+    flash(`엑셀 LOT ${recs.length}건 내보내기 완료${(from||to)?` (${from||'처음'} ~ ${to||'마지막'})`:''}`);
+  }catch(err){ console.error(err); flash('엑셀 내보내기 실패: '+(err?.message||err),true); }
 });
 
 function openPinInline(){
