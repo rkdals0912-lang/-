@@ -735,6 +735,12 @@ body.workspace-open #homeView{display:none;}
       <div class="panel" id="printHistoryPanel" style="display:none;">
         <div class="toolbar">
           <h2 style="margin:0;">라벨 출력 이력</h2>
+          <span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--sub);">CSV 기간
+            <input type="date" id="exportFrom" style="width:auto;padding:5px 8px;" title="시작일 (비우면 처음부터)"> ~
+            <input type="date" id="exportTo" style="width:auto;padding:5px 8px;" title="종료일 (비우면 마지막까지)">
+            <button type="button" class="btn btn-ghost auto" id="exportToday" style="padding:5px 8px;font-size:11px;">오늘</button>
+            <button type="button" class="btn btn-ghost auto" id="exportAll" style="padding:5px 8px;font-size:11px;">전체</button>
+          </span>
           <button class="btn btn-ghost auto" id="exportBtn">CSV 내보내기</button>
         </div>
         <div id="logWrap"><div class="empty">아직 출력한 라벨이 없습니다.</div></div>
@@ -3182,6 +3188,8 @@ function setPreviewRotation(deg){
   previewRotation=((deg%360)+360)%360;
   try{ localStorage.setItem('ksa-preview-rotation',String(previewRotation)); }catch(e){}
   if(typeof renderPreview==='function') renderPreview();
+  if($('editorOutputPreviewWrap') && typeof renderEditorOutputPreview==='function') renderEditorOutputPreview();
+  if($('logSnapBody') && $('logSnapModal')?.classList.contains('show') && window._snapEntry) showPrintSnapshot(window._snapEntry);
   if($('labelMasterPreviewWrap') && typeof selectedLabelMasterPreviewCode!=='undefined' && selectedLabelMasterPreviewCode) selectLabelMasterPreview(selectedLabelMasterPreviewCode);
   document.querySelectorAll('[data-preview-rot-badge]').forEach(el=>el.textContent=previewRotation+'°');
 }
@@ -3330,14 +3338,16 @@ function renderLog(){
 }
 async function showPrintSnapshot(e){
   if(!e||!e.snapKey) return;
+  window._snapEntry=e;
   let modal=$('logSnapModal');
   if(!modal){
     modal=document.createElement('div'); modal.id='logSnapModal'; modal.className='modalBg';
-    modal.innerHTML='<div class="modalCard" style="max-width:min(96vw,760px);max-height:90vh;overflow:auto;"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><h3 id="logSnapTitle" style="margin:0;"></h3><button class="btn btn-ghost auto" id="logSnapClose">닫기</button></div><p id="logSnapSub" style="margin-top:6px;"></p><div id="logSnapBody"></div></div>';
+    modal.innerHTML='<div class="modalCard" style="max-width:min(96vw,760px);max-height:90vh;overflow:auto;"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><h3 id="logSnapTitle" style="margin:0;"></h3><span class="snapRotHost"></span><button class="btn btn-ghost auto" id="logSnapClose">닫기</button></div><p id="logSnapSub" style="margin-top:6px;"></p><div id="logSnapBody"></div></div>';
     document.body.appendChild(modal);
     modal.addEventListener('click',ev=>{ if(ev.target===modal) modal.classList.remove('show'); });
     modal.querySelector('#logSnapClose').addEventListener('click',()=>modal.classList.remove('show'));
   }
+  const snapRot=modal.querySelector('.snapRotHost'); if(snapRot) snapRot.innerHTML=previewRotateControlsHtml();
   $('logSnapTitle').textContent=`[${e.code||''}] ${e.product||''}`;
   $('logSnapSub').textContent=`${e.time||''} · ${e.labelName||''} · ${e.count||1}장 · LOT ${e.lot||''}`;
   $('logSnapBody').innerHTML='<div class="empty">불러오는 중...</div>';
@@ -3347,6 +3357,7 @@ async function showPrintSnapshot(e){
   if(!data||!Array.isArray(data.shots)||!data.shots.length){ $('logSnapBody').innerHTML='<div class="empty">저장된 라벨 이미지가 없습니다.</div>'; return; }
   $('logSnapBody').innerHTML=data.shots.map(sh=>`<div style="margin-bottom:14px;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:6px;">${escapeHtml(sh.which||'')} · ${escapeHtml(sh.labelName||'')}${sh.lot?` · ${escapeHtml(sh.lot)}`:''}</div>${sh.html||''}</div>`).join('');
   applyAutoFitFields($('logSnapBody'));
+  applyPreviewRotation($('logSnapBody'));
 }
 
 $('genBatch').addEventListener('click',async()=>{
@@ -4540,20 +4551,38 @@ $('printAllBtn')?.addEventListener('click',async()=>{
   if(!confirm(`드럼 ${generated.length}장을 전부 인쇄합니다. 계속할까요?`)) return;
   await smartPrint(generated);
 });
+function logDateKey(e){
+  // 이력 한 건의 출력 날짜를 YYYY-MM-DD(로컬)로 반환. 실패하면 ''.
+  const pad=n=>String(n).padStart(2,'0');
+  if(e.ts){ const d=new Date(e.ts); if(!isNaN(d)) return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+  const m=String(e.time||'').match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  return m?`${m[1]}-${pad(m[2])}-${pad(m[3])}`:'';
+}
+$('exportToday')?.addEventListener('click',()=>{ $('exportFrom').value=$('exportTo').value=todayISO(); });
+$('exportAll')?.addEventListener('click',()=>{ $('exportFrom').value=''; $('exportTo').value=''; });
 $('exportBtn').addEventListener('click',()=>{
   if(!log.length){flash('내보낼 이력이 없습니다',true);return;}
-  // CSV는 품목코드·LOT번호 2개 컬럼만 출력한다(화면의 이력 목록은 그대로).
+  let from=$('exportFrom')?.value||'', to=$('exportTo')?.value||'';
+  if(from&&to&&from>to){ [from,to]=[to,from]; $('exportFrom').value=from; $('exportTo').value=to; }
+  const inRange=log.filter(e=>{ if(!from&&!to) return true; const k=logDateKey(e); return k&&(!from||k>=from)&&(!to||k<=to); });
+  // CSV는 품목코드·LOT번호 2개 컬럼만. 같은 LOT를 여러 장 출력했어도 LOT는 한 번만 표시한다.
   // LOT번호(예: 1-2)는 엑셀이 날짜로 바꾸지 않도록 ="값" 형태로 써서 보이는 그대로 텍스트로 인식시킨다.
   const csvText=v=>`"${String(v??'').replace(/"/g,'""')}"`;
   const csvLotText=v=>`"=""${String(v??'').replace(/"/g,'')}"""`;
-  const rows=[];
-  log.forEach(e=>{
+  const seen=new Set(), rows=[];
+  inRange.forEach(e=>{
     const lots=(e.lots&&e.lots.length)?e.lots:[e.lot||''];
-    lots.forEach(l=>rows.push(csvText(e.code||'')+','+csvLotText(l)));
+    lots.forEach(l=>{
+      const key=(e.code||'')+'\u0001'+l; if(seen.has(key)) return; seen.add(key);
+      rows.push(csvText(e.code||'')+','+csvLotText(l));
+    });
   });
+  if(!rows.length){flash('선택한 기간에 출력 이력이 없습니다',true);return;}
   const csv=[csvText('품목코드')+','+csvText('LOT번호'),...rows].join('\r\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download=`label_print_history_${todayISO()}.csv`;a.click();URL.revokeObjectURL(url);
+  const range=(from||to)?`_${from||'start'}~${to||'end'}`:`_${todayISO()}`;
+  a.href=url;a.download=`label_print_history${range}.csv`;a.click();URL.revokeObjectURL(url);
+  flash(`CSV ${rows.length}행 내보내기 완료${(from||to)?` (${from||'처음'} ~ ${to||'마지막'})`:''}`);
 });
 
 function openPinInline(){
@@ -5505,6 +5534,7 @@ function renderEditorOutputPreview(){
     const ctx=sampleContext();
     wrap.innerHTML=renderLabelHtml(editorKey,ctx,false);
     applyAutoFitFields(wrap);
+    applyPreviewRotation(wrap);
     const lm=editorLabelCode?labelMasterByCode(editorLabelCode):null;
     const meta=$('editorOutputPreviewMeta');
     if(meta){
@@ -6256,7 +6286,7 @@ function setupSeparatedLabelScreens(){
   top.innerHTML='<div class="left"><button type="button" class="btn btn-ghost auto" id="backToLabelMaster">← 라벨 마스터</button><div class="editorTitle" id="labelEditorCurrentTitle">라벨 서식 편집</div></div><button type="button" class="btn btn-ok auto" id="labelEditorTopSave">☁ 저장</button>';
   const outputPreview=document.createElement('div');
   outputPreview.className='panel editorOutputPreviewPanel';
-  outputPreview.innerHTML=`<div class="editorOutputPreviewHead"><div><h2 style="margin:0;"><span class="n">▣</span> 실제 출력 미리보기</h2><div class="meta" id="editorOutputPreviewMeta">저장 전 실제 출력 형태를 확인할 수 있습니다.</div></div><button type="button" class="btn btn-primary auto" id="editorDirectPrintBtn">🖨 현재 서식 바로 인쇄</button></div><div class="editorOutputPreviewViewport"><div class="editorOutputPreviewInner" id="editorOutputPreviewWrap"></div></div><div class="editorOutputPreviewNote">아래 편집 캔버스에서 항목을 이동·수정하면 이 미리보기도 즉시 갱신됩니다. <b>단축키: Ctrl+C 복사 · Ctrl+V 붙여넣기 · Ctrl+Z 이전</b> · 입력칸에서는 기본 단축키가 유지됩니다.</div>`;
+  outputPreview.innerHTML=`<div class="editorOutputPreviewHead"><div><h2 style="margin:0;"><span class="n">▣</span> 실제 출력 미리보기</h2><div class="meta" id="editorOutputPreviewMeta">저장 전 실제 출력 형태를 확인할 수 있습니다.</div></div>${previewRotateControlsHtml()}<button type="button" class="btn btn-primary auto" id="editorDirectPrintBtn">🖨 현재 서식 바로 인쇄</button></div><div class="editorOutputPreviewViewport"><div class="editorOutputPreviewInner" id="editorOutputPreviewWrap"></div></div><div class="editorOutputPreviewNote">아래 편집 캔버스에서 항목을 이동·수정하면 이 미리보기도 즉시 갱신됩니다. <b>단축키: Ctrl+C 복사 · Ctrl+V 붙여넣기 · Ctrl+Z 이전</b> · 입력칸에서는 기본 단축키가 유지됩니다.</div>`;
   const workspace=document.createElement('div');
   workspace.className='labelEditorWorkspace';
   const setupCol=document.createElement('div');
