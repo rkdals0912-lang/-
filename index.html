@@ -4617,15 +4617,17 @@ $('exportBtn').addEventListener('click',()=>{
   const csvText=v=>`"${String(v??'').replace(/"/g,'""')}"`;
   const csvLotText=v=>`"=""${String(v??'').replace(/"/g,'')}"""`;
   const index=buildLotOrderIndex();
-  const seen=new Set(), recs=[];
+  const seen=new Map(), recs=[];
   inRange.forEach(e=>{
     const lots=(e.lots&&e.lots.length)?e.lots:[e.lot||''];
     lots.forEach(l=>{
-      const key=(e.code||'')+'\u0001'+l; if(seen.has(key)) return; seen.add(key);
+      const key=(e.code||'')+'\u0001'+l;
+      if(seen.has(key)){ seen.get(key).n++; return; }  // 같은 LOT를 또 출력한 장수는 칸 수(드럼 수)로 센다
       const m=(e.lotMeta&&e.lotMeta[l])||resolveLotMeta(e.code,l,index,null)||{};
       const d=m.d||logDateKey(e)||'';
       const mn=parseInt(String(m.m||'').replace(/\D/g,''),10);
-      recs.push({code:e.code||'',lot:l,d,s:m.s==='야간'?'야간':'주간',mn:isNaN(mn)?99:mn});
+      const rec={code:e.code||'',lot:l,d,s:m.s==='야간'?'야간':'주간',mn:isNaN(mn)?99:mn,n:1};
+      seen.set(key,rec); recs.push(rec);
     });
   });
   recs.sort((x,y)=>(x.d<y.d?-1:x.d>y.d?1:0)||((x.s==='주간'?0:1)-(y.s==='주간'?0:1))||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0));
@@ -4638,13 +4640,15 @@ $('exportBtn').addEventListener('click',()=>{
       rows.push([csvText('품목코드'),csvText('LOT번호'),...Array(6).fill(csvText(title))].join(','));
     }
     rows.push([csvText(r.code),csvLotText(r.lot),...Array(6).fill('')].join(','));
+    // 드럼(출력 장수)별로 1칸씩 쓰므로, 출력 장수만큼 첫 줄 포함 칸이 되도록 아래로 빈 줄을 추가한다.
+    for(let i=1;i<r.n;i++) rows.push(Array(7).fill('').join(','));
   });
   if(!rows.length){flash('선택한 기간에 출력 이력이 없습니다',true);return;}
   const csv=rows.join('\r\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   const range=(from||to)?`_${from||'start'}~${to||'end'}`:`_${todayISO()}`;
   a.href=url;a.download=`label_print_history${range}.csv`;a.click();URL.revokeObjectURL(url);
-  flash(`CSV ${recs.length}행 내보내기 완료${(from||to)?` (${from||'처음'} ~ ${to||'마지막'})`:''}`);
+  flash(`CSV LOT ${recs.length}건 내보내기 완료${(from||to)?` (${from||'처음'} ~ ${to||'마지막'})`:''}`);
 });
 
 function openPinInline(){
