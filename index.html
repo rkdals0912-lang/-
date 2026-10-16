@@ -77,7 +77,6 @@
 
   .previewWrap{display:flex;gap:16px;flex-wrap:wrap;}
   .canvasBox{position:relative;background:#fff;border:2.5px solid var(--ink);border-radius:2px;overflow:hidden;}
-  body.hide-canvas-border .canvasBox{border-color:transparent!important;}
   .fld{position:absolute;white-space:pre-line;overflow:hidden;line-height:1.25;}
   .fldTextInner{display:block;width:100%;}
   /* v4.14.1: explicit class-based label fonts */
@@ -1377,33 +1376,6 @@ body.workspace-open #homeView{display:none;}
   </div>
 </div>
 <script>
-  // 라벨 테두리 표시 토글
-  // - 캔버스는 편집/전환 때마다 innerHTML로 새로 그려지므로(예: renderCanvasOnly, renderPreview),
-  //   특정 .canvasBox 엘리먼트를 한 번만 querySelector로 잡아두면 재렌더링 후 그 참조가
-  //   화면에서 떨어져나가 토글이 더 이상 아무 효과가 없어 보이는 문제가 있었다.
-  //   -> body에 클래스를 붙이고 CSS로 모든(현재+이후 새로 그려지는) .canvasBox에 일괄 적용한다.
-  // - 값은 localStorage에 저장해 새로고침/재접속 후에도 유지되도록 한다.
-  // - 인쇄 시에는 기존 @media print 규칙이 항상 테두리를 제거하므로 출력물에는 영향 없음.
-  const SHOW_BORDER_KEY='ksa-show-canvas-border-v1';
-  function applyShowBorderPref(show){
-    document.body.classList.toggle('hide-canvas-border', !show);
-  }
-  (function initShowBorderToggle(){
-    const el=document.getElementById('showBorderToggle');
-    let show=true;
-    try{
-      const saved=localStorage.getItem(SHOW_BORDER_KEY);
-      if(saved!==null) show=saved==='1';
-    }catch(e){}
-    if(el) el.checked=show;
-    applyShowBorderPref(show);
-    if(el){
-      el.addEventListener('change',function(){
-        applyShowBorderPref(this.checked);
-        try{localStorage.setItem(SHOW_BORDER_KEY,this.checked?'1':'0');}catch(e){}
-      });
-    }
-  })();
 window.KSA_BP_BASE_LOADED=false; window.KSA_BP_BASE_ERROR=false;
 window.KSA_BP_ZEBRA_LOADED=false; window.KSA_BP_ZEBRA_ERROR=false;
 </script>
@@ -4597,6 +4569,15 @@ $('printAllBtn')?.addEventListener('click',async()=>{
   if(!confirm(`드럼 ${generated.length}장을 전부 인쇄합니다. 계속할까요?`)) return;
   await smartPrint(generated);
 });
+// 코드에 연결된 제품명에 Hobbock/페일/pail이 들어가면 '24kg x N개'처럼 한 칸에 적는 제품으로 본다.
+const PAIL_NAME_RE=/hobbo?c?k|페일|pail/i;
+function isPailProduct(code,entryName){
+  if(PAIL_NAME_RE.test(String(entryName||''))) return true;
+  try{
+    return (ALL_PRODUCTS||[]).some(x=>String(x.code||'')===String(code||'') &&
+      [x.fullName,x.name,x.shortName,x.scheduleName].some(n=>PAIL_NAME_RE.test(String(n||''))));
+  }catch(e){ return false; }
+}
 function logDateKey(e){
   // 이력 한 건의 출력 날짜를 YYYY-MM-DD(로컬)로 반환. 실패하면 ''.
   const pad=n=>String(n).padStart(2,'0');
@@ -4611,8 +4592,8 @@ $('exportBtn').addEventListener('click',()=>{
   let from=$('exportFrom')?.value||'', to=$('exportTo')?.value||'';
   if(from&&to&&from>to){ [from,to]=[to,from]; $('exportFrom').value=from; $('exportTo').value=to; }
   const inRange=log.filter(e=>{ if(!from&&!to) return true; const k=logDateKey(e); return k&&(!from||k>=from)&&(!to||k<=to); });
-  // 프레스일지 양식: 생산일 → 주간/야간 → 설비(M1→M5) 순으로 블록을 나눠 나열하고,
-  // 각 블록 첫 줄에 "YYYYMMDD 프레스일지(주간|야간)" 제목을 C~H열에 넣는다(작업자가 C~H열에 수기 기록).
+  // 프레스일지 양식: 작업지시일 → 주간/야간 → 설비(M1→M5) 순으로 블록을 나눠 나열하고,
+  // 각 블록 첫 줄에 "YYYY-MM-DD 프레스일지 (주간|야간)" 제목을 C~H열에 넣는다(작업자가 C~H열에 수기 기록).
   // LOT번호(예: 1-2)는 엑셀이 날짜로 바꾸지 않도록 ="값" 형태로 써서 보이는 그대로 텍스트로 인식시킨다.
   const csvText=v=>`"${String(v??'').replace(/"/g,'""')}"`;
   const csvLotText=v=>`"=""${String(v??'').replace(/"/g,'')}"""`;
@@ -4626,7 +4607,7 @@ $('exportBtn').addEventListener('click',()=>{
       const m=(e.lotMeta&&e.lotMeta[l])||resolveLotMeta(e.code,l,index,null)||{};
       const d=m.d||logDateKey(e)||'';
       const mn=parseInt(String(m.m||'').replace(/\D/g,''),10);
-      const rec={code:e.code||'',lot:l,d,s:m.s==='야간'?'야간':'주간',mn:isNaN(mn)?99:mn,n:1};
+      const rec={code:e.code||'',lot:l,d,s:m.s==='야간'?'야간':'주간',mn:isNaN(mn)?99:mn,n:1,pail:isPailProduct(e.code,e.product)};
       seen.set(key,rec); recs.push(rec);
     });
   });
@@ -4636,12 +4617,14 @@ $('exportBtn').addEventListener('click',()=>{
     const block=r.d+'|'+r.s;
     if(block!==lastBlock){
       lastBlock=block;
-      const title=`${(r.d||'날짜미상').replace(/-/g,'')} 프레스일지(${r.s})`;
-      rows.push([csvText('품목코드'),csvText('LOT번호'),...Array(6).fill(csvText(title))].join(','));
+      const title=`${r.d||'날짜미상'} 프레스일지 (${r.s})`;
+      rows.push([csvText('코드명'),csvText('LOT번호'),...Array(6).fill(csvText(title))].join(','));
     }
     rows.push([csvText(r.code),csvLotText(r.lot),...Array(6).fill('')].join(','));
-    // 드럼(출력 장수)별로 1칸씩 쓰므로, 출력 장수만큼 첫 줄 포함 칸이 되도록 아래로 빈 줄을 추가한다.
-    for(let i=1;i<r.n;i++) rows.push(Array(7).fill('').join(','));
+    // 드럼(출력 장수) 1장 = 수기 입력 1칸. 한 줄에 C~H 6칸이므로 6장=1줄, 12장=2줄, 40장=7줄(42칸).
+    // 페일(Hobbock/pail) 제품은 작업자가 '24kg x 개수'를 한 칸에 적으므로 장수와 관계없이 1줄.
+    const lineCount=r.pail?1:Math.max(1,Math.ceil(r.n/6));
+    for(let i=1;i<lineCount;i++) rows.push(Array(7).fill('').join(','));
   });
   if(!rows.length){flash('선택한 기간에 출력 이력이 없습니다',true);return;}
   const csv=rows.join('\r\n');
@@ -7532,12 +7515,6 @@ initApp();
 setTimeout(showHome,0);
 </script>
   <!-- 기존 설정들이 끝나는 위치 혹은 </body> 바로 위 -->
-    <div class="option-group" style="margin-top: 10px;">
-        <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;">
-            <input type="checkbox" id="showBorderToggle" checked style="width: 16px; height: 16px;">
-            <span>라벨 테두리 표시 (인쇄 시 제외)</span>
-        </label>
-    </div>
 </div> <!-- 또는 적절한 패널 닫기 태그 위 -->
 </body>
 </html>
