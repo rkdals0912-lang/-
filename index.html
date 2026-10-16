@@ -3271,6 +3271,47 @@ function pushLog(e){ /* 생성 이력은 저장하지 않음. 실제 인쇄 버�
 // 스냅샷은 용량 때문에 별도 키(ksa-print-snap-v1-<id>)에 저장하고, 최근 SNAP_KEEP건만 유지한다.
 const PRINT_SNAP_KEEP=300;
 function printSnapKey(id){ return 'ksa-print-snap-v1-'+id; }
+/* ===== 프레스일지용: LOT → 생산일/주야/설비 매칭 ===== */
+function buildLotOrderIndex(){
+  const idx=new Map(), byCode=new Map();
+  (workOrders||[]).forEach(o=>{
+    let p=null; try{ p=resolveOrderProduct(o); }catch(e){}
+    const code=String((p&&p.code)||o.productCode||''); if(!code) return;
+    if(!byCode.has(code)) byCode.set(code,[]); byCode.get(code).push(o);
+    const N=Math.min(300,Math.max(1,Math.round(Number(o.batchDrums)||1)));
+    for(let n=1;n<=N;n++){
+      try{ const k=code+'\u0001'+computeLotInfo(o,n).lot; if(!idx.has(k)) idx.set(k,o); }catch(e){}
+    }
+  });
+  return {idx,byCode};
+}
+function lotMetaFromOrder(o){ return {d:o.date||'',s:(String(o.shift||'').includes('야')?'야간':'주간'),m:String(o.machine||'')}; }
+function lotYmdFromText(lot){
+  const m=String(lot||'').match(/^(\d{2})(\d{2})(\d{2})/); if(!m) return '';
+  return `20${m[1]}-${m[2]}-${m[3]}`;
+}
+function resolveLotMeta(code,lot,index,hintOrder){
+  code=String(code||''); lot=String(lot||'');
+  try{
+    if(hintOrder){
+      let hp=null; try{ hp=resolveOrderProduct(hintOrder); }catch(e){}
+      if(hp && String(hp.code||'')===code) return lotMetaFromOrder(hintOrder);
+    }
+    if(index){
+      const hit=index.idx.get(code+'\u0001'+lot); if(hit) return lotMetaFromOrder(hit);
+      const ymd=lotYmdFromText(lot);
+      let cands=(index.byCode.get(code)||[]).filter(o=>!ymd||o.date===ymd);
+      if(cands.length>1){
+        const suf=cands.filter(o=>o.manualLotInput && lot.toUpperCase().endsWith(String(o.manualLotInput).toUpperCase()));
+        if(suf.length) cands=suf;
+      }
+      if(cands.length) return lotMetaFromOrder(cands[0]);
+      if(ymd) return {d:ymd,s:'주간',m:''};
+    }
+  }catch(e){}
+  return null;
+}
+
 async function recordPrintHistory(items){
   const now=new Date();
   const timeText=now.toLocaleString('ko-KR');
@@ -3301,6 +3342,11 @@ async function recordPrintHistory(items){
       lots:lots.slice(0,500),
       snapKey:''
     };
+    try{
+      const index=buildLotOrderIndex(), hint=(typeof activeOrder==='function')?activeOrder():null, meta={};
+      entry.lots.forEach(l=>{ if(l && !meta[l]){ const m=resolveLotMeta(g.code,l,index,hint); if(m) meta[l]=m; } });
+      entry.lotMeta=meta;
+    }catch(e){ console.warn('lot meta failed',e); }
     try{
       const pick=[g.items[0]]; if(g.items.length>1) pick.push(g.items[g.items.length-1]);
       const shots=[];
@@ -4565,24 +4611,40 @@ $('exportBtn').addEventListener('click',()=>{
   let from=$('exportFrom')?.value||'', to=$('exportTo')?.value||'';
   if(from&&to&&from>to){ [from,to]=[to,from]; $('exportFrom').value=from; $('exportTo').value=to; }
   const inRange=log.filter(e=>{ if(!from&&!to) return true; const k=logDateKey(e); return k&&(!from||k>=from)&&(!to||k<=to); });
-  // CSV는 품목코드·LOT번호 2개 컬럼만. 같은 LOT를 여러 장 출력했어도 LOT는 한 번만 표시한다.
+  // 프레스일지 양식: 생산일 → 주간/야간 → 설비(M1→M5) 순으로 블록을 나눠 나열하고,
+  // 각 블록 첫 줄에 "YYYYMMDD 프레스일지(주간|야간)" 제목을 C~H열에 넣는다(작업자가 C~H열에 수기 기록).
   // LOT번호(예: 1-2)는 엑셀이 날짜로 바꾸지 않도록 ="값" 형태로 써서 보이는 그대로 텍스트로 인식시킨다.
   const csvText=v=>`"${String(v??'').replace(/"/g,'""')}"`;
   const csvLotText=v=>`"=""${String(v??'').replace(/"/g,'')}"""`;
-  const seen=new Set(), rows=[];
+  const index=buildLotOrderIndex();
+  const seen=new Set(), recs=[];
   inRange.forEach(e=>{
     const lots=(e.lots&&e.lots.length)?e.lots:[e.lot||''];
     lots.forEach(l=>{
       const key=(e.code||'')+'\u0001'+l; if(seen.has(key)) return; seen.add(key);
-      rows.push(csvText(e.code||'')+','+csvLotText(l));
+      const m=(e.lotMeta&&e.lotMeta[l])||resolveLotMeta(e.code,l,index,null)||{};
+      const d=m.d||logDateKey(e)||'';
+      const mn=parseInt(String(m.m||'').replace(/\D/g,''),10);
+      recs.push({code:e.code||'',lot:l,d,s:m.s==='야간'?'야간':'주간',mn:isNaN(mn)?99:mn});
     });
   });
+  recs.sort((x,y)=>(x.d<y.d?-1:x.d>y.d?1:0)||((x.s==='주간'?0:1)-(y.s==='주간'?0:1))||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0));
+  const rows=[]; let lastBlock='';
+  recs.forEach(r=>{
+    const block=r.d+'|'+r.s;
+    if(block!==lastBlock){
+      lastBlock=block;
+      const title=`${(r.d||'날짜미상').replace(/-/g,'')} 프레스일지(${r.s})`;
+      rows.push([csvText('품목코드'),csvText('LOT번호'),...Array(6).fill(csvText(title))].join(','));
+    }
+    rows.push([csvText(r.code),csvLotText(r.lot),...Array(6).fill('')].join(','));
+  });
   if(!rows.length){flash('선택한 기간에 출력 이력이 없습니다',true);return;}
-  const csv=[csvText('품목코드')+','+csvText('LOT번호'),...rows].join('\r\n');
+  const csv=rows.join('\r\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   const range=(from||to)?`_${from||'start'}~${to||'end'}`:`_${todayISO()}`;
   a.href=url;a.download=`label_print_history${range}.csv`;a.click();URL.revokeObjectURL(url);
-  flash(`CSV ${rows.length}행 내보내기 완료${(from||to)?` (${from||'처음'} ~ ${to||'마지막'})`:''}`);
+  flash(`CSV ${recs.length}행 내보내기 완료${(from||to)?` (${from||'처음'} ~ ${to||'마지막'})`:''}`);
 });
 
 function openPinInline(){
