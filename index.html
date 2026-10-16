@@ -724,6 +724,7 @@ body.workspace-open #homeView{display:none;}
       <div class="panel">
         <div class="toolbar">
           <h2 style="margin:0;">라벨 미리보기</h2>
+          <span id="previewRotateHost"></span>
           <button class="btn btn-primary auto" id="printBtn">🖨 바로 인쇄 (선택한 드럼만)</button>
           <button class="btn btn-ghost auto" id="printAllBtn" style="display:none;">🖨 전체 드럼 인쇄</button>
           <span id="printModeBadge" class="printModeBadge">인쇄 방식 확인중</span>
@@ -3174,12 +3175,56 @@ $('batchReverseOrder')?.addEventListener('change',()=>syncBatchRange(activeOrder
 $('batchRangeReset')?.addEventListener('click',()=>syncBatchRange(activeOrder(),true));
 $('completeOrder').addEventListener('click',async()=>{const o=activeOrder();if(!o)return;o.status='done';await saveWorkOrders();renderOrderList();flash('작업지시를 완료 처리했습니다');});
 
+/* 라벨 미리보기 회전(화면 전용 · 인쇄/ZPL 출력에는 영향 없음) */
+let previewRotation=0;
+try{ previewRotation=((parseInt(localStorage.getItem('ksa-preview-rotation'),10)||0)%360+360)%360; }catch(e){}
+function setPreviewRotation(deg){
+  previewRotation=((deg%360)+360)%360;
+  try{ localStorage.setItem('ksa-preview-rotation',String(previewRotation)); }catch(e){}
+  if(typeof renderPreview==='function') renderPreview();
+  if($('labelMasterPreviewWrap') && typeof selectedLabelMasterPreviewCode!=='undefined' && selectedLabelMasterPreviewCode) selectLabelMasterPreview(selectedLabelMasterPreviewCode);
+  document.querySelectorAll('[data-preview-rot-badge]').forEach(el=>el.textContent=previewRotation+'°');
+}
+function previewRotateControlsHtml(){
+  return `<span class="previewRotateCtl" style="display:inline-flex;gap:4px;align-items:center;"><button type="button" class="btn btn-ghost auto" data-preview-rot="-90" title="왼쪽으로 90° 회전">↺ 90°</button><button type="button" class="btn btn-ghost auto" data-preview-rot="90" title="오른쪽으로 90° 회전">↻ 90°</button><button type="button" class="btn btn-ghost auto" data-preview-rot="180" title="180° 회전">180°</button><button type="button" class="btn btn-ghost auto" data-preview-rot="0" title="회전 초기화">원래대로</button><span class="rotationBadge" data-preview-rot-badge>${previewRotation}°</span></span>`;
+}
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest&&ev.target.closest('[data-preview-rot]'); if(!b) return;
+  const v=parseInt(b.dataset.previewRot,10)||0;
+  setPreviewRotation(v===0?0:previewRotation+v);
+});
+function applyPreviewRotation(container){
+  if(!container) return;
+  container.querySelectorAll('.canvasBox').forEach(cb=>{
+    const old=cb.parentElement&&cb.parentElement.classList.contains('rotBox')?cb.parentElement:null;
+    if(old){ old.replaceWith(cb); cb.style.cssText=cb.dataset.origStyle||''; }
+  });
+  if(!previewRotation) return;
+  container.querySelectorAll('.canvasBox').forEach(cb=>{
+    const W=cb.offsetWidth,H=cb.offsetHeight;
+    if(!W||!H){ // 숨겨진 화면에서 그려진 경우: 화면에 나타나면 다시 적용
+      if(window.IntersectionObserver){ const io=new IntersectionObserver(es=>{ if(es.some(e=>e.isIntersecting)){ io.disconnect(); applyPreviewRotation(container); } }); io.observe(container); }
+      return;
+    }
+    const swap=previewRotation===90||previewRotation===270;
+    const box=document.createElement('div'); box.className='rotBox';
+    box.style.cssText=`position:relative;flex:none;width:${swap?H:W}px;height:${swap?W:H}px;`;
+    cb.dataset.origStyle=cb.style.cssText;
+    cb.parentNode.insertBefore(box,cb); box.appendChild(cb);
+    const t={90:`translate(${H}px,0) rotate(90deg)`,180:`translate(${W}px,${H}px) rotate(180deg)`,270:`translate(0,${W}px) rotate(270deg)`}[previewRotation];
+    cb.style.position='absolute'; cb.style.left='0'; cb.style.top='0'; cb.style.transformOrigin='0 0'; cb.style.transform=t;
+  });
+}
+
+try{ const _h=document.getElementById('previewRotateHost'); if(_h) _h.innerHTML=previewRotateControlsHtml(); }catch(e){}
 function renderPreview(){
+  const rotHost=$('previewRotateHost'); if(rotHost&&!rotHost.firstChild) rotHost.innerHTML=previewRotateControlsHtml();
   const wrap=$('previewWrap'),picker=$('previewPicker');
   if(!generated.length){wrap.innerHTML='<div class="empty">라벨을 생성하세요.</div>';picker.innerHTML='';if($('printAllBtn'))$('printAllBtn').style.display='none';return;}
   const g=generated[selectedIdx],names={basic:'기본 무지라벨',plain:'HBF 무지라벨',full:'HBF 통합 라벨',kr:'동은 국문 라벨',en:'동은 영문 라벨',sample:'동은 샘플라벨'};
   wrap.innerHTML=g.parts.map(part=>`<div><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:6px;">${escapeHtml(part.labelName||names[part.key]||part.key)}${part.labelCode?` · ${escapeHtml(part.labelCode)}`:''}${part.sizeText?` · ${escapeHtml(part.sizeText)}`:''}</div>${renderLabelHtml(part.key,part.ctx)}</div>`).join('');
   applyAutoFitFields(wrap);
+  applyPreviewRotation(wrap);
   picker.innerHTML=generated.map((it,i)=>`<button class="btn ${i===selectedIdx?'btn-primary':'btn-ghost'} auto" data-i="${i}">드럼 ${it.drumNo}</button>`).join('');
   picker.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selectedIdx=+b.dataset.i;renderPreview();}));
   if($('printAllBtn'))$('printAllBtn').style.display=(generated.length>1)?'':'none';
@@ -4497,8 +4542,16 @@ $('printAllBtn')?.addEventListener('click',async()=>{
 });
 $('exportBtn').addEventListener('click',()=>{
   if(!log.length){flash('내보낼 이력이 없습니다',true);return;}
-  const rows=[['시각','품목코드','품목명','라벨명','출력 수량','LOT 시작','LOT 종료','LOT 목록'],...log.map(e=>[e.time,e.code,e.product,e.labelName,e.count||1,e.lotFirst||e.lot||'',e.lotLast||e.lot||'',(e.lots&&e.lots.length?e.lots.join(' ; '):(e.lot||''))])];
-  const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  // CSV는 품목코드·LOT번호 2개 컬럼만 출력한다(화면의 이력 목록은 그대로).
+  // LOT번호(예: 1-2)는 엑셀이 날짜로 바꾸지 않도록 ="값" 형태로 써서 보이는 그대로 텍스트로 인식시킨다.
+  const csvText=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csvLotText=v=>`"=""${String(v??'').replace(/"/g,'')}"""`;
+  const rows=[];
+  log.forEach(e=>{
+    const lots=(e.lots&&e.lots.length)?e.lots:[e.lot||''];
+    lots.forEach(l=>rows.push(csvText(e.code||'')+','+csvLotText(l)));
+  });
+  const csv=[csvText('품목코드')+','+csvText('LOT번호'),...rows].join('\r\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`label_print_history_${todayISO()}.csv`;a.click();URL.revokeObjectURL(url);
 });
@@ -6192,7 +6245,7 @@ function setupSeparatedLabelScreens(){
   masterGrid.append(masterPanel,listPanel,linkPanel);
   const masterPreview=document.createElement('div');
   masterPreview.className='panel labelMasterPreviewPanel';
-  masterPreview.innerHTML=`<div class="labelMasterPreviewHead"><div><h2 style="margin:0;"><span class="n">▣</span> 라벨 미리보기</h2><div class="meta" id="labelMasterPreviewMeta">등록 라벨을 선택하면 저장된 실제 서식을 확인할 수 있습니다.</div></div><div class="labelMasterPreviewActions" style="align-items:end;flex-wrap:wrap;"><div style="min-width:280px;text-align:left;"><label style="display:block;margin-bottom:4px;font-size:11px;font-weight:800;">선택 라벨 LOT 체계</label><select id="labelMasterPreviewLotRule" class="field" disabled></select></div><button type="button" class="btn btn-ok auto" id="labelMasterPreviewLotSaveBtn" disabled>LOT 체계 저장</button><button type="button" class="btn btn-ghost auto" id="labelMasterPreviewEditBtn" disabled>🎨 서식 편집</button><button type="button" class="btn btn-primary auto" id="labelMasterPreviewPrintBtn" disabled>🖨 바로 인쇄</button></div></div><div class="labelMasterPreviewViewport"><div class="labelMasterPreviewInner" id="labelMasterPreviewWrap"><div class="empty">라벨을 선택하세요.</div></div></div>`;
+  masterPreview.innerHTML=`<div class="labelMasterPreviewHead"><div><h2 style="margin:0;"><span class="n">▣</span> 라벨 미리보기</h2><div class="meta" id="labelMasterPreviewMeta">등록 라벨을 선택하면 저장된 실제 서식을 확인할 수 있습니다.</div></div><div class="labelMasterPreviewActions" style="align-items:end;flex-wrap:wrap;"><div style="min-width:280px;text-align:left;"><label style="display:block;margin-bottom:4px;font-size:11px;font-weight:800;">선택 라벨 LOT 체계</label><select id="labelMasterPreviewLotRule" class="field" disabled></select></div>${previewRotateControlsHtml()}<button type="button" class="btn btn-ok auto" id="labelMasterPreviewLotSaveBtn" disabled>LOT 체계 저장</button><button type="button" class="btn btn-ghost auto" id="labelMasterPreviewEditBtn" disabled>🎨 서식 편집</button><button type="button" class="btn btn-primary auto" id="labelMasterPreviewPrintBtn" disabled>🖨 바로 인쇄</button></div></div><div class="labelMasterPreviewViewport"><div class="labelMasterPreviewInner" id="labelMasterPreviewWrap"><div class="empty">라벨을 선택하세요.</div></div></div>`;
   masterScreen.append(hero,masterPreview,masterGrid);
 
   const editorScreen=document.createElement('div');
@@ -6301,7 +6354,7 @@ async function openLabelEditorScreen(code){
 let selectedLabelMasterPreviewCode='';
 async function fitLabelMasterPreview(){
   const wrap=$('labelMasterPreviewWrap'); if(!wrap) return;
-  const canvas=wrap.querySelector('.canvasBox'); if(!canvas) return;
+  const canvas=wrap.querySelector('.rotBox')||wrap.querySelector('.canvasBox'); if(!canvas) return;
   canvas.style.transform=''; canvas.style.transformOrigin='top center';
   const available=Math.max(80,wrap.clientWidth-20);
   const naturalW=canvas.getBoundingClientRect().width, naturalH=canvas.getBoundingClientRect().height;
@@ -6333,7 +6386,7 @@ async function selectLabelMasterPreview(code){
     const layout=LAYOUTS[key];
     if(!layout) throw new Error('서식 없음');
     if(wrap)wrap.innerHTML=renderLabelHtml(key,sampleContextForLabel(code,key),false);
-    if(wrap)applyAutoFitFields(wrap);
+    if(wrap){applyAutoFitFields(wrap);applyPreviewRotation(wrap);}
     requestAnimationFrame(fitLabelMasterPreview);
     if(meta)meta.textContent=`[${lm.labelCode}] ${lm.labelName||''} · ${layout.w}×${layout.h}mm · 테스트 데이터 미리보기${ruleUsesManualInput3(lm.lotRuleId||'')?' (테스트 LOT 124)':''}`;
   }catch(e){
