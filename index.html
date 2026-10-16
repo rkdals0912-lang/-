@@ -73,6 +73,26 @@
 
   .lockednote{font-size:11.5px;color:var(--sub);background:#f4f6f8;border-radius:6px;padding:7px 9px;margin-top:6px;line-height:1.5;}
   body:not(.admin-mode) .adminOnly{display:none !important;}
+  .popView{display:none;max-width:1180px;margin:0 auto;padding:16px 24px 80px;}
+  body.view-presslog #pressLogView, body.view-perm #permView{display:block;}
+  .plNav{display:inline-flex;gap:6px;align-items:center;}
+  .plDates{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  .plDates button{border:1px solid #cbd5e3;background:#fff;border-radius:999px;padding:4px 11px;font-size:12px;font-weight:700;color:#2c4e75;cursor:pointer;}
+  .plDates button.on{background:#2c4e75;color:#fff;border-color:#2c4e75;}
+  table.plTable{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:18px;font-size:12.5px;}
+  table.plTable td,table.plTable th{border:1px solid #8a94a3;padding:6px 6px;text-align:center;word-break:break-all;}
+  table.plTable .h1{background:#2c4e75;color:#fff;font-weight:800;font-size:14px;}
+  table.plTable .h2{background:#dce9f7;color:#2c4e75;font-weight:800;}
+  table.plTable .it{background:#edf2f7;font-weight:700;}
+  table.plTable .wr{height:30px;background:#fff;}
+  table.permTable{width:100%;border-collapse:collapse;font-size:13.5px;}
+  table.permTable th,table.permTable td{border:1px solid var(--line);padding:9px 12px;text-align:center;}
+  table.permTable th{background:#f3f6fa;}
+  table.permTable td:first-child,table.permTable th:first-child{text-align:left;}
+  table.permTable input[type=checkbox]{width:18px;height:18px;}
+  table.permTable .lockTag{font-size:11px;color:var(--sub);margin-left:6px;}
+  .homeCard.permHidden,#workspaceNav button.permHidden{display:none !important;}
+
   body.admin-mode .workerOnly{display:none !important;}
 
   .previewWrap{display:flex;gap:16px;flex-wrap:wrap;}
@@ -535,8 +555,10 @@ body.workspace-open #homeView{display:none;}
     <button class="homeCard adminOnly" data-go="editor"><span class="homeIcon c-orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1-2.8 2.8-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.6V21H10v-.1A1.8 1.8 0 0 0 8.9 19a1.8 1.8 0 0 0-2 .4l-.1.1L4 16.7l.1-.1a1.8 1.8 0 0 0 .4-2A1.8 1.8 0 0 0 3 13.5H3v-4h.1A1.8 1.8 0 0 0 4.5 8a1.8 1.8 0 0 0-.4-2L4 5.9 6.8 3l.1.1a1.8 1.8 0 0 0 2 .4A1.8 1.8 0 0 0 10 2h4a1.8 1.8 0 0 0 1.1 1.5 1.8 1.8 0 0 0 2-.4l.1-.1L20 5.9l-.1.1a1.8 1.8 0 0 0-.4 2A1.8 1.8 0 0 0 21 9.5V13.5a1.8 1.8 0 0 0-1.6 1.5z"/></svg></span><b>라벨 편집</b><small>텍스트 · 표 · 회전</small></button>
     <button class="homeCard adminOnly" data-go="products"><span class="homeIcon c-red"><svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v16H4V5h4l1-2z"/><path d="M8 10h8M8 14h8M8 18h5"/></svg></span><b>제품 관리</b><small>품목 · 라벨 연결</small></button>
     <button class="homeCard adminOnly" data-go="lot"><span class="homeIcon c-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span><b>LOT 규칙</b><small>제품별 채번 규칙</small></button>
-    <button class="homeCard adminOnly" data-go="history"><span class="homeIcon c-cyan"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><b>출력 이력</b><small>품목 · 라벨 · LOT</small></button>
+    <button class="homeCard" data-go="presslog"><span class="homeIcon c-brown"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/><path d="M15 15l2 2 3-4"/></svg></span><b>프레스일지</b><small>날짜별 · 주야간 LOT</small></button>
+    <button class="homeCard" data-go="history"><span class="homeIcon c-cyan"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><b>출력 이력</b><small>품목 · 라벨 · LOT</small></button>
     <button class="homeCard adminOnly" data-go="printer"><span class="homeIcon c-indigo"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg></span><b>프린터</b><small>Zebra ZT420 / 421</small></button>
+    <button class="homeCard adminOnly" data-go="perm"><span class="homeIcon c-indigo"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><b>권한 마스터</b><small>버튼별 접속 권한</small></button>
   </div>
 </section>
 
@@ -549,9 +571,39 @@ body.workspace-open #homeView{display:none;}
   <button id="tabExpRules" class="adminOnly"># EXP 규칙관리</button>
   <button id="tabVarRules" class="adminOnly"># 변수 관리</button>
   <button id="tabFreePrint" class="adminOnly">🖨 계획 없이 출력</button>
+  <button id="tabPressLog">▤ 프레스일지</button>
+  <button id="tabPerm" class="adminOnly">🔐 권한 마스터</button>
 </div>
 
 <main>
+<div id="pressLogView" class="popView">
+  <div class="panel">
+    <div class="toolbar">
+      <h2 style="margin:0;">▤ 프레스일지</h2>
+      <span class="plNav">
+        <button type="button" class="btn btn-ghost auto" id="plPrev" title="전날">◀</button>
+        <input type="date" id="plDate" style="width:auto;padding:6px 10px;" title="작업지시일 선택">
+        <button type="button" class="btn btn-ghost auto" id="plNext" title="다음날">▶</button>
+        <button type="button" class="btn btn-ghost auto" id="plToday">오늘</button>
+      </span>
+      <button type="button" class="btn btn-primary auto" id="plExport">📥 프레스일지 엑셀(xlsx) 내보내기</button>
+    </div>
+    <div class="lockednote" style="margin:0 0 10px;">출력 이력의 <b>작업지시일</b> 기준으로 날짜별 주간 → 야간, 설비 M1 → M5 순서로 표시합니다. 한 LOT에서 6장 출력 = 1줄(6칸), 12장 = 2줄(12칸)이며, 페일(Hobbock/pail) 제품은 1줄입니다.</div>
+    <div class="plDates" id="plDates"></div>
+    <div id="plBody"><div class="empty">날짜를 선택하세요.</div></div>
+  </div>
+</div>
+<div id="permView" class="popView adminOnly">
+  <div class="panel">
+    <div class="toolbar">
+      <h2 style="margin:0;">🔐 권한 마스터</h2>
+      <button type="button" class="btn btn-ghost auto" id="permReset">기본값 복원</button>
+      <button type="button" class="btn btn-primary auto" id="permSave">저장</button>
+    </div>
+    <div class="lockednote" style="margin:0 0 10px;">홈 화면의 각 버튼을 어떤 모드에서 쓸 수 있는지 정합니다. <b>관리자 모드는 항상 모든 버튼</b>을 쓸 수 있습니다. 라벨 마스터·제품 관리·LOT 규칙·프린터 설정·권한 마스터는 편집 화면이 관리자 전용이라 작업자 권한을 줄 수 없습니다(잠금 표시).</div>
+    <div id="permBody"></div>
+  </div>
+</div>
 <div id="opView">
   <div class="grid opGrid">
     <div class="opCol">
@@ -734,14 +786,16 @@ body.workspace-open #homeView{display:none;}
       <div class="panel" id="printHistoryPanel" style="display:none;">
         <div class="toolbar">
           <h2 style="margin:0;">라벨 출력 이력</h2>
-          <span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--sub);">기간(작업지시일)
+          <input type="search" id="logSearch" placeholder="품목명 · 품목코드 검색" style="flex:1;min-width:160px;max-width:280px;padding:6px 10px;">
+          <span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--sub);">기간(출력일)
             <input type="date" id="exportFrom" style="width:auto;padding:5px 8px;" title="시작일 (비우면 처음부터)"> ~
             <input type="date" id="exportTo" style="width:auto;padding:5px 8px;" title="종료일 (비우면 마지막까지)">
             <button type="button" class="btn btn-ghost auto" id="exportToday" style="padding:5px 8px;font-size:11px;">오늘</button>
             <button type="button" class="btn btn-ghost auto" id="exportAll" style="padding:5px 8px;font-size:11px;">전체</button>
           </span>
-          <button class="btn btn-primary auto" id="exportXlsxBtn">엑셀(xlsx) 내보내기</button>
+          <button class="btn btn-primary auto" id="exportBtn">출력이력 CSV 내보내기</button>
         </div>
+        <div id="logCount" style="font-size:11.5px;color:var(--sub);margin:-4px 0 8px;"></div>
         <div id="logWrap"><div class="empty">아직 출력한 라벨이 없습니다.</div></div>
       </div>
     </div>
@@ -3245,7 +3299,13 @@ function pushLog(e){ /* 생성 이력은 저장하지 않음. 실제 인쇄 버�
 const PRINT_SNAP_KEEP=300;
 function printSnapKey(id){ return 'ksa-print-snap-v1-'+id; }
 /* ===== 프레스일지용: LOT → 생산일/주야/설비 매칭 ===== */
+let _lotIdxCache={k:'',v:null};
 function buildLotOrderIndex(){
+  const key=(workOrders||[]).map(o=>[o.id,o.date,o.shift,o.machine,o.manualLotInput,o.batchDrums,o.batchSeq,o.batchCount,o.customLot,o.productMasterId,o.productCode].join('~')).join('|');
+  if(_lotIdxCache.v && _lotIdxCache.k===key) return _lotIdxCache.v;
+  const v=_buildLotOrderIndex(); _lotIdxCache={k:key,v}; return v;
+}
+function _buildLotOrderIndex(){
   const idx=new Map(), byCode=new Map();
   (workOrders||[]).forEach(o=>{
     let p=null; try{ p=resolveOrderProduct(o); }catch(e){}
@@ -3346,19 +3406,32 @@ async function recordPrintHistory(items){
     for(let i=PRINT_SNAP_KEEP;i<log.length;i++){
       if(log[i].snapKey){ try{ await storeSet(log[i].snapKey,'null'); }catch(e){} log[i].snapKey=''; }
     }
-    await savePrintHistory(); renderLog();
+    await savePrintHistory(); renderLog(); if(document.body.classList.contains('view-presslog')&&typeof renderPressLogView==='function') renderPressLogView();
   }
 }
 function logLotText(e){ return e.lot||''; }
+function logFiltered(){
+  // 검색어(품목명·품목코드) + 기간(출력일)로 걸러진 이력. 원래 인덱스를 함께 반환한다.
+  const q=String($('logSearch')?.value||'').trim().toLowerCase();
+  let from=$('exportFrom')?.value||'', to=$('exportTo')?.value||'';
+  if(from&&to&&from>to){ const t=from; from=to; to=t; }
+  const out=[];
+  log.forEach((e,i)=>{
+    if(q && !(String(e.product||'').toLowerCase().includes(q)||String(e.code||'').toLowerCase().includes(q))) return;
+    if(from||to){ const k=logDateKey(e); if(!k||(from&&k<from)||(to&&k>to)) return; }
+    out.push({e,i});
+  });
+  return out;
+}
 function renderLog(){
-  if(!log.length){$('logWrap').innerHTML='<div class="empty">아직 출력한 라벨이 없습니다.</div>';return;}
-  // 작업지시일 → 주간/야간 → 설비(M1부터) 순으로 정렬해서 보여준다. (저장 순서는 바꾸지 않음)
-  const index=buildLotOrderIndex();
-  const rows=log.map((e,i)=>({e,i,m:entryOrderMeta(e,index)}));
-  rows.sort((x,y)=>(x.m.d<y.m.d?-1:x.m.d>y.m.d?1:0)||(lotShiftRank(x.m.s)-lotShiftRank(y.m.s))||(x.m.mn-y.m.mn)||(x.i-y.i));
-  $('logWrap').innerHTML=`<table class="log"><tr><th>작업지시일</th><th>주/야</th><th>설비</th><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>출력 수량</th><th>LOT 번호</th><th>라벨</th></tr>${rows.map(({e,i,m})=>`<tr${m.s==='야간'?' style="background:#f3f5fa;"':''}><td>${escapeHtml(m.d||'-')}</td><td>${escapeHtml(m.s)}</td><td>${escapeHtml(m.m||'-')}</td><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(String(e.count||1))}장</td><td>${escapeHtml(logLotText(e))}</td><td>${e.snapKey?`<button class="btn btn-ghost auto" data-log-snap="${i}" style="padding:3px 8px;font-size:11px;">라벨 보기</button>`:'<span style="color:var(--sub);">-</span>'}</td></tr>`).join('')}</table>`;
+  if(!log.length){$('logWrap').innerHTML='<div class="empty">아직 출력한 라벨이 없습니다.</div>'; if($('logCount'))$('logCount').textContent=''; return;}
+  const rows=logFiltered();
+  if($('logCount')) $('logCount').textContent=(rows.length===log.length)?`전체 ${log.length}건`:`검색 결과 ${rows.length}건 / 전체 ${log.length}건`;
+  if(!rows.length){$('logWrap').innerHTML='<div class="empty">조건에 맞는 출력 이력이 없습니다.</div>';return;}
+  $('logWrap').innerHTML=`<table class="log"><tr><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>출력 수량</th><th>LOT 번호</th><th>라벨</th></tr>${rows.map(({e,i})=>`<tr><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(String(e.count||1))}장</td><td>${escapeHtml(logLotText(e))}</td><td>${e.snapKey?`<button class="btn btn-ghost auto" data-log-snap="${i}" style="padding:3px 8px;font-size:11px;">라벨 보기</button>`:'<span style="color:var(--sub);">-</span>'}</td></tr>`).join('')}</table>`;
   $('logWrap').querySelectorAll('[data-log-snap]').forEach(b=>b.addEventListener('click',()=>showPrintSnapshot(log[+b.dataset.logSnap])));
 }
+['logSearch','exportFrom','exportTo'].forEach(id=>{ $(id)?.addEventListener('input',renderLog); $(id)?.addEventListener('change',renderLog); });
 async function showPrintSnapshot(e){
   if(!e||!e.snapKey) return;
   window._snapEntry=e;
@@ -4590,8 +4663,8 @@ function logDateKey(e){
   const m=String(e.time||'').match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
   return m?`${m[1]}-${pad(m[2])}-${pad(m[3])}`:'';
 }
-$('exportToday')?.addEventListener('click',()=>{ $('exportFrom').value=$('exportTo').value=todayISO(); });
-$('exportAll')?.addEventListener('click',()=>{ $('exportFrom').value=''; $('exportTo').value=''; });
+$('exportToday')?.addEventListener('click',()=>{ $('exportFrom').value=$('exportTo').value=todayISO(); renderLog(); });
+$('exportAll')?.addEventListener('click',()=>{ $('exportFrom').value=''; $('exportTo').value=''; renderLog(); });
 /* ===== 프레스일지(작업지시일 기준) 데이터 생성 · 엑셀/CSV 내보내기 ===== */
 function lotShiftRank(s){ return s==='야간'?1:0; }
 function entryOrderMeta(e,index){
@@ -4642,79 +4715,93 @@ function downloadBlob(blob,name){
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-function exportFileSuffix(from,to){ return (from||to)?`_${from||'start'}~${to||'end'}`:`_${todayISO()}`; }
+function exportFileSuffix(from,to){ if(from&&from===to) return `_${from}`; return (from||to)?`_${from||'start'}~${to||'end'}`:`_${todayISO()}`; }
 
-/* 프레스일지 엑셀 레이아웃(목업 기준)
+/* ===== 출력이력 CSV (웹앱 화면 그대로: 검색·기간 필터 반영) ===== */
+$('exportBtn')?.addEventListener('click',()=>{
+  if(!log.length){flash('내보낼 이력이 없습니다',true);return;}
+  const rows=logFiltered();
+  if(!rows.length){flash('조건에 맞는 출력 이력이 없습니다',true);return;}
+  const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const qLot=v=>`"=""${String(v??'').replace(/"/g,'')}"""`;   // 1-2 같은 LOT가 날짜로 바뀌지 않게 텍스트 지정
+  const lines=[['시각','품목코드','품목명','라벨명','출력 수량','LOT 번호'].map(q).join(',')];
+  rows.forEach(({e})=>lines.push([q(e.time||''),q(e.code||''),q(e.product||''),q(e.labelName||''),q(`${e.count||1}장`),qLot(logLotText(e))].join(',')));
+  const from=$('exportFrom')?.value||'', to=$('exportTo')?.value||'';
+  downloadBlob(new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'}),`label_print_history${exportFileSuffix(from,to)}.csv`);
+  flash(`출력이력 CSV ${rows.length}건 내보내기 완료`);
+});
+
+/* ===== 프레스일지 엑셀 레이아웃 =====
    블록(작업지시일+주/야)마다:
-   ① 남색 제목줄  : 코드명 | LOT번호 | C~H 병합 "YYYY-MM-DD 프레스일지(주간|야간)"
-   ② 하늘색 보조줄: 코드명 | LOT번호 | C~H 병합 "주간|야간 작업지시"
-   ③ LOT마다 회색 정보줄 : 코드 | LOT | C~H 병합 "작업지시일: YYYY-MM-DD"
-      + 그 아래 수기 입력줄(C~H 6칸): 6장=1줄, 12장=2줄 …(페일 제품은 1줄) */
+   ① 남색 제목줄  : 코드명 | 품목명 | LOT번호 | D~I 병합 "YYYY-MM-DD 프레스일지(주간|야간)"
+   ② 하늘색 보조줄: 코드명 | 품목명 | LOT번호 | D~I 병합 "주간|야간 작업지시"
+   ③ LOT마다: 코드 | (품목명 빈칸) | LOT | D~I 수기 입력 6칸. 6장=1줄, 12장=2줄 …(페일 제품은 1줄)
+      2줄 이상이면 코드·품목명·LOT 칸을 세로로 병합. */
+const PRESS_COLS=['코드명','품목명','LOT번호'];
 function buildPressLogSheetRows(blocks){
   const rows=[];
   blocks.forEach(bl=>{
     rows.push({t:'h1',title:bl.title});
     rows.push({t:'h2',label:`${bl.s} 작업지시`});
     bl.items.forEach(it=>{
-      rows.push({t:'info',code:it.code,lot:String(it.lot),date:bl.d||'날짜미상'});
-      for(let i=0;i<it.lines;i++) rows.push({t:'write'});
+      rows.push({t:'item',code:it.code,lot:String(it.lot),span:it.lines});
+      for(let i=1;i<it.lines;i++) rows.push({t:'cont'});
     });
   });
   return rows;
 }
-$('exportXlsxBtn')?.addEventListener('click',async()=>{
-  if(!log.length){flash('내보낼 이력이 없습니다',true);return;}
-  const {from,to}=readExportRange();
+async function exportPressLogXlsx(from,to){
   const recs=buildPressLogRecords(from,to);
-  if(!recs.length){flash('선택한 기간(작업지시일)에 출력 이력이 없습니다',true);return;}
+  if(!recs.length){flash('선택한 작업지시일에 해당하는 프레스일지 데이터가 없습니다',true);return false;}
   const rowsModel=buildPressLogSheetRows(pressLogBlocks(recs)), name=`프레스일지${exportFileSuffix(from,to)}.xlsx`;
   try{
     if(window.ExcelJS){
       const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('프레스일지',{pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
-      ws.columns=[{width:26},{width:22},...Array(6).fill({width:15})];
+      ws.columns=[{width:24},{width:26},{width:22},...Array(6).fill({width:14})];
       const line={style:'thin',color:{argb:'FF8A94A3'}}, box={top:line,left:line,bottom:line,right:line};
       const fill=argb=>({type:'pattern',pattern:'solid',fgColor:{argb}});
       const NAVY='FF2C4E75', BLUE='FFDCE9F7', GRAY='FFEDF2F7';
       rowsModel.forEach((m,i)=>{
         const r=i+1, row=ws.getRow(r);
-        for(let c=1;c<=8;c++) row.getCell(c).border=box;
-        if(m.t==='write'){ row.height=28; return; }
-        ws.mergeCells(r,3,r,8);
-        const cfg={
-          h1:{h:30,bg:NAVY,fg:'FFFFFFFF',bold:true,size:13,v:['코드명','LOT번호',m.title]},
-          h2:{h:22,bg:BLUE,fg:'FF2C4E75',bold:true,size:11,v:['코드명','LOT번호',m.label]},
-          info:{h:24,bg:GRAY,fg:'FF1F2933',bold:true,size:11,v:[m.code,m.lot,`작업지시일: ${m.date}`]}
-        }[m.t];
-        row.height=cfg.h;
-        cfg.v.forEach((val,k)=>{
-          const cell=row.getCell(k===2?3:k+1);
-          cell.value=String(val); cell.numFmt='@';   // LOT(1-2 등)가 날짜로 바뀌지 않게 텍스트 지정
-          cell.font={bold:cfg.bold,size:cfg.size,color:{argb:cfg.fg}};
-          cell.fill=fill(cfg.bg);
-          cell.alignment={horizontal:'center',vertical:'middle',wrapText:true};
-        });
-        for(let c=4;c<=8;c++) row.getCell(c).fill=fill(cfg.bg);
+        for(let c=1;c<=9;c++) row.getCell(c).border=box;
+        if(m.t==='cont'){ row.height=28; return; }
+        const style=(cell,bg,fg,bold,size)=>{ cell.font={bold,size,color:{argb:fg}}; cell.fill=fill(bg); cell.alignment={horizontal:'center',vertical:'middle',wrapText:true}; };
+        if(m.t==='h1'||m.t==='h2'){
+          ws.mergeCells(r,4,r,9);
+          const h1=m.t==='h1', bg=h1?NAVY:BLUE, fg=h1?'FFFFFFFF':'FF2C4E75', size=h1?13:11;
+          row.height=h1?30:22;
+          PRESS_COLS.forEach((t,k)=>{ const c=row.getCell(k+1); c.value=t; style(c,bg,fg,true,size); });
+          const tc=row.getCell(4); tc.value=h1?m.title:m.label; style(tc,bg,fg,true,size);
+          for(let c=5;c<=9;c++) row.getCell(c).fill=fill(bg);
+          return;
+        }
+        // item: 코드 | 품목명(빈칸) | LOT | 수기 6칸
+        row.height=28;
+        const vals=[m.code,'',m.lot];
+        vals.forEach((v,k)=>{ const c=row.getCell(k+1); c.value=String(v); c.numFmt='@'; style(c,GRAY,'FF1F2933',true,11); });
+        if(m.span>1) for(let k=1;k<=3;k++) ws.mergeCells(r,k,r+m.span-1,k);
       });
       const buf=await wb.xlsx.writeBuffer();
       downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
     }else{
-      // ExcelJS를 불러오지 못한 경우: 서식(색상) 없이 같은 배치로 저장(SheetJS)
+      // ExcelJS를 불러오지 못한 경우: 색상 없이 같은 배치로 저장(SheetJS)
       const aoa=[], merges=[];
       rowsModel.forEach(m=>{
         const r=aoa.length;
-        if(m.t==='write'){ aoa.push(Array(8).fill('')); return; }
-        merges.push({s:{r,c:2},e:{r,c:7}});
-        const v=m.t==='h1'?['코드명','LOT번호',m.title]:m.t==='h2'?['코드명','LOT번호',m.label]:[m.code,m.lot,`작업지시일: ${m.date}`];
-        aoa.push([v[0],v[1],v[2],'','','','','']);
+        if(m.t==='cont'){ aoa.push(Array(9).fill('')); return; }
+        if(m.t==='h1'||m.t==='h2'){ merges.push({s:{r,c:3},e:{r,c:8}}); aoa.push([...PRESS_COLS,m.t==='h1'?m.title:m.label,'','','','','']); return; }
+        aoa.push([m.code,'',m.lot,'','','','','','']);
+        if(m.span>1) for(let k=0;k<3;k++) merges.push({s:{r,c:k},e:{r:r+m.span-1,c:k}});
       });
       const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:false});
       Object.keys(ws).forEach(k=>{ if(k[0]!=='!' && ws[k].t==='n'){ ws[k].t='s'; ws[k].v=String(ws[k].v); } });
-      ws['!merges']=merges; ws['!cols']=[{wch:26},{wch:22},...Array(6).fill({wch:15})];
+      ws['!merges']=merges; ws['!cols']=[{wch:24},{wch:26},{wch:22},...Array(6).fill({wch:14})];
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'프레스일지'); XLSX.writeFile(wb,name);
     }
-    flash(`엑셀 LOT ${recs.length}건 내보내기 완료${(from||to)?` (${from||'처음'} ~ ${to||'마지막'})`:''}`);
-  }catch(err){ console.error(err); flash('엑셀 내보내기 실패: '+(err?.message||err),true); }
-});
+    flash(`프레스일지 엑셀 내보내기 완료 (LOT ${recs.length}건)`);
+    return true;
+  }catch(err){ console.error(err); flash('엑셀 내보내기 실패: '+(err?.message||err),true); return false; }
+}
 
 function openPinInline(){
   $('pinInlineInput').value='';
@@ -4736,6 +4823,7 @@ function activateAdmin(){
   if($('mobileAdminBtn')) $('mobileAdminBtn').textContent='작업자 모드';
   closePinInline();
   renderOrderList();
+  applyHomePerms();
   flash('관리자 모드 활성화');
 }
 function deactivateAdmin(){
@@ -4748,6 +4836,7 @@ function deactivateAdmin(){
   closePinInline();
   showOp();
   renderOrderList();
+  applyHomePerms();
   flash('작업자 모드로 전환했습니다');
 }
 function submitInlinePin(){
@@ -4799,11 +4888,13 @@ $('pinInlineInput').addEventListener('keydown',e=>{
 
 
 function openWorkspace(){document.body.classList.add('workspace-open');}
-function showHome(){document.body.classList.remove('workspace-open');$('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');}
+function showHome(){clearPopViews();document.body.classList.remove('workspace-open');$('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');}
 if($('homeBtn')) $('homeBtn').addEventListener('click',showHome);
 document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventListener('click',()=>{
   const go=card.dataset.go;
-  if(card.classList.contains('adminOnly')&&!isAdmin){flash('관리자 모드에서 사용할 수 있습니다',true);return;}
+  if(!canAccess(go)){flash(card.classList.contains('adminOnly')?'관리자 모드에서 사용할 수 있습니다':'이 메뉴에 대한 접근 권한이 없습니다',true);return;}
+  if(go==='presslog'){ showPressLogView(); return; }
+  if(go==='perm'){ showPermView(); return; }
   openWorkspace();
   if(go==='batch') $('tabBatch').click();
   else if(go==='live') $('tabLive').click();
@@ -4813,7 +4904,7 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
   else if(go==='history'){ $('tabBatch').click(); setTimeout(()=>{ if($('printHistoryPanel'))$('printHistoryPanel').style.display='block'; $('printHistoryPanel')?.scrollIntoView({behavior:'smooth',block:'start'}); },120); }
   else if(go==='printer'){ $('tabBatch').click(); setTimeout(()=>$('printerSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
 }));
-function showOp(){$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabExpRules'))$('tabExpRules').classList.remove('active');if($('tabFreePrint'))$('tabFreePrint').classList.remove('active');}
+function showOp(){clearPopViews();$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabExpRules'))$('tabExpRules').classList.remove('active');if($('tabFreePrint'))$('tabFreePrint').classList.remove('active');}
 async function autoSaveLabelWorkBeforeLeaving(){
   // v4.11.3: 라벨 서식 편집 후 출력/다른 관리 화면으로 이동해도 변경사항이 사라지지 않도록 자동 저장.
   if(document.body.classList.contains('editing')){
@@ -7561,6 +7652,105 @@ if($('zebraTestBtn')) $('zebraTestBtn').addEventListener('click',async()=>{
   }catch(e){setZebraStatus(`테스트 실패 · ${e.message||e}`,'err');flash(`테스트 실패: ${e.message||e}`,true);}
 });
 
+/* ===== 홈 버튼 권한 마스터 ===== */
+const HOME_MENUS=[
+  {key:'batch',   label:'일괄 출력',   desc:'작업지시 기반 출력', workerDefault:true},
+  {key:'live',    label:'실시간 출력', desc:'현장 즉시 출력',     workerDefault:true},
+  {key:'presslog',label:'프레스일지',  desc:'날짜별 LOT · xlsx',  workerDefault:true},
+  {key:'history', label:'출력 이력',   desc:'품목 · 라벨 · LOT',  workerDefault:false},
+  {key:'editor',  label:'라벨 마스터', desc:'라벨 서식 편집',     adminOnly:true},
+  {key:'products',label:'제품 관리',   desc:'품목 · 라벨 연결',   adminOnly:true},
+  {key:'lot',     label:'LOT 규칙',    desc:'제품별 채번 규칙',   adminOnly:true},
+  {key:'printer', label:'프린터 설정', desc:'Zebra · 브라우저 인쇄', adminOnly:true},
+  {key:'perm',    label:'권한 마스터', desc:'버튼별 접속 권한',   adminOnly:true}
+];
+const HOME_PERMS_KEY='ksa-home-perms-v1';
+let HOME_PERMS={};
+function canAccess(key){
+  if(isAdmin) return true;
+  const m=HOME_MENUS.find(x=>x.key===key); if(!m||m.adminOnly) return false;
+  const v=HOME_PERMS[key];
+  return (v&&typeof v.worker==='boolean')?v.worker:!!m.workerDefault;
+}
+function applyHomePerms(){
+  document.querySelectorAll('#homeView [data-go]').forEach(c=>c.classList.toggle('permHidden',!canAccess(c.dataset.go)));
+  [['tabBatch','batch'],['tabLive','live'],['tabPressLog','presslog']].forEach(([id,k])=>$(id)?.classList.toggle('permHidden',!canAccess(k)));
+}
+async function loadHomePerms(){
+  try{ const raw=await storeGet(HOME_PERMS_KEY); if(raw){ const v=JSON.parse(raw); if(v&&typeof v==='object') HOME_PERMS=v; } }catch(e){ console.warn('perm load failed',e); }
+  applyHomePerms();
+}
+function renderPermView(){
+  $('permBody').innerHTML=`<table class="permTable"><tr><th>홈 버튼</th><th style="width:130px;">작업자 모드</th><th style="width:130px;">관리자 모드</th></tr>${HOME_MENUS.map(m=>{
+    const on=m.adminOnly?false:canAccessRole(m,'worker');
+    return `<tr><td><b>${escapeHtml(m.label)}</b><span class="lockTag">${escapeHtml(m.desc)}</span></td><td><input type="checkbox" data-perm-key="${m.key}" ${on?'checked':''} ${m.adminOnly?'disabled':''}>${m.adminOnly?'<span class="lockTag">🔒 관리자 전용</span>':''}</td><td><input type="checkbox" checked disabled><span class="lockTag">항상</span></td></tr>`;
+  }).join('')}</table>`;
+}
+function canAccessRole(m,role){ const v=HOME_PERMS[m.key]; return (v&&typeof v[role]==='boolean')?v[role]:!!m.workerDefault; }
+$('permSave')?.addEventListener('click',async()=>{
+  const next={};
+  document.querySelectorAll('#permBody [data-perm-key]').forEach(cb=>{ if(!cb.disabled) next[cb.dataset.permKey]={worker:cb.checked}; });
+  HOME_PERMS=next;
+  try{ await storeSet(HOME_PERMS_KEY,JSON.stringify(HOME_PERMS)); applyHomePerms(); flash('권한 마스터를 저장했습니다'); }
+  catch(e){ console.error(e); flash('권한 저장에 실패했습니다',true); }
+});
+$('permReset')?.addEventListener('click',()=>{ HOME_PERMS={}; renderPermView(); flash('기본값을 표시했습니다. 저장을 눌러야 적용됩니다'); });
+
+/* ===== POP 화면 전환(프레스일지 · 권한 마스터) ===== */
+function clearPopViews(){
+  document.body.classList.remove('view-presslog','view-perm');
+  $('tabPressLog')?.classList.remove('active'); $('tabPerm')?.classList.remove('active');
+}
+async function showPopView(cls,tabId){
+  try{ await autoSaveLabelWorkBeforeLeaving(); }catch(e){}
+  openWorkspace(); clearPopViews();
+  ['opView','editorView','productMasterView','lotRuleView','expRuleView','varRuleView','freePrintView'].forEach(id=>{ const e=$(id); if(e) e.style.display='none'; });
+  document.querySelectorAll('#workspaceNav button').forEach(b=>b.classList.remove('active'));
+  document.body.classList.add(cls); $(tabId)?.classList.add('active');
+}
+document.querySelectorAll('#workspaceNav button').forEach(b=>b.addEventListener('click',()=>{ if(b.id!=='tabPressLog'&&b.id!=='tabPerm') clearPopViews(); },true));
+async function showPressLogView(){
+  if(!canAccess('presslog')){flash('이 메뉴에 대한 접근 권한이 없습니다',true);return;}
+  await showPopView('view-presslog','tabPressLog'); renderPressLogView();
+}
+async function showPermView(){
+  if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}
+  await showPopView('view-perm','tabPerm'); renderPermView();
+}
+$('tabPressLog')?.addEventListener('click',showPressLogView);
+$('tabPerm')?.addEventListener('click',showPermView);
+
+/* ===== 프레스일지 화면 (날짜별 조회) ===== */
+let plDate='';
+function plShiftDate(d,delta){ const t=new Date(d+'T00:00:00'); t.setDate(t.getDate()+delta); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
+function plDow(d){ return ['일','월','화','수','목','금','토'][new Date(d+'T00:00:00').getDay()]; }
+function renderPressLogView(){
+  if(!$('plBody')) return;
+  if(!plDate) plDate=todayISO();
+  $('plDate').value=plDate;
+  const all=buildPressLogRecords('','');
+  const dates=[...new Set(all.map(r=>r.d).filter(Boolean))].sort().reverse().slice(0,31);
+  $('plDates').innerHTML=dates.length?dates.map(d=>`<button type="button" data-pld="${d}" class="${d===plDate?'on':''}">${d.slice(5)} (${plDow(d)})</button>`).join(''):'<span style="font-size:12px;color:var(--sub);">출력 이력이 있는 작업지시일이 없습니다.</span>';
+  $('plDates').querySelectorAll('[data-pld]').forEach(b=>b.addEventListener('click',()=>{ plDate=b.dataset.pld; renderPressLogView(); }));
+  const recs=all.filter(r=>r.d===plDate);
+  if(!recs.length){ $('plBody').innerHTML=`<div class="empty">${escapeHtml(plDate)} (${plDow(plDate)}) 작업지시일의 출력 이력이 없습니다.</div>`; return; }
+  $('plBody').innerHTML=pressLogBlocks(recs).map(bl=>{
+    const body=bl.items.map(it=>{
+      let h=`<tr><td class="it" rowspan="${it.lines}">${escapeHtml(it.code)}</td><td class="it" rowspan="${it.lines}"></td><td class="it" rowspan="${it.lines}">${escapeHtml(String(it.lot))}</td>${'<td class="wr"></td>'.repeat(6)}</tr>`;
+      for(let i=1;i<it.lines;i++) h+=`<tr>${'<td class="wr"></td>'.repeat(6)}</tr>`;
+      return h;
+    }).join('');
+    return `<table class="plTable"><colgroup><col style="width:17%"><col style="width:19%"><col style="width:15%">${'<col style="width:8.2%">'.repeat(6)}</colgroup>
+      <tr><td class="h1">코드명</td><td class="h1">품목명</td><td class="h1">LOT번호</td><td class="h1" colspan="6">${escapeHtml(bl.title)}</td></tr>
+      <tr><td class="h2">코드명</td><td class="h2">품목명</td><td class="h2">LOT번호</td><td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td></tr>${body}</table>`;
+  }).join('');
+}
+$('plDate')?.addEventListener('change',()=>{ plDate=$('plDate').value||todayISO(); renderPressLogView(); });
+$('plPrev')?.addEventListener('click',()=>{ plDate=plShiftDate(plDate||todayISO(),-1); renderPressLogView(); });
+$('plNext')?.addEventListener('click',()=>{ plDate=plShiftDate(plDate||todayISO(),1); renderPressLogView(); });
+$('plToday')?.addEventListener('click',()=>{ plDate=todayISO(); renderPressLogView(); });
+$('plExport')?.addEventListener('click',()=>exportPressLogXlsx(plDate||todayISO(),plDate||todayISO()));
+
 async function initApp(){
   try{await window.KSA_DB_PROMISE;}catch(e){}
   const dbBadge=$('dbStatus');
@@ -7583,6 +7773,7 @@ async function initApp(){
   else { const diag=browserPrintSdkDiagnostic(); setZebraStatus(diag.text+' · ZPL 직접 인쇄에는 Zebra Browser Print 프로그램도 실행되어 있어야 합니다.','warn'); }
 
   await loadLayouts();await loadLotRules();await loadExpRules();await loadCustomVars();await loadVarLabelOverrides();refreshCustomVariableOptions();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
+  try{ await loadHomePerms(); }catch(e){}
   if(HAS_SHARED_STORAGE || window.KSA_DB_READY){
     setInterval(async()=>{
       if(document.body.classList.contains('editing'))return;
@@ -7594,6 +7785,7 @@ async function initApp(){
 setupSeparatedLabelScreens();
 initApp();
 
+applyHomePerms();
 setTimeout(showHome,0);
 </script>
   <!-- 기존 설정들이 끝나는 위치 혹은 </body> 바로 위 -->
