@@ -89,6 +89,7 @@
   table.plTable .wr input:focus,table.plTable .nmIn:focus{outline:2px solid var(--amber);outline-offset:-2px;background:#fffaf0;}
   table.plTable .it.nm{padding:0;background:#fff;}
   table.plTable .sm{background:#fff4d6;}
+  .plShiftRow button{border-radius:8px;font-size:13px;padding:6px 16px;} .plShiftRow button:disabled{opacity:.35;cursor:not-allowed;} .plLockNote{font-size:12px;color:var(--danger);align-self:center;margin-left:6px;font-weight:700;}
   .plMach button{border-radius:8px;} .plMach button small{opacity:.75;margin-left:2px;}
   table.plTable select.mcSel{width:100%;border:0;background:transparent;font-weight:800;color:#2c4e75;text-align:center;font-size:13px;cursor:pointer;padding:4px 0;}
   table.plTable .mc{font-weight:800;color:#2c4e75;}
@@ -602,6 +603,8 @@ body.workspace-open #homeView{display:none;}
     </div>
     <div class="lockednote" style="margin:0 0 10px;">출력 이력의 <b>작업지시일</b> 기준으로 날짜별 주간 → 야간, 설비 M1 → M5 순서로 표시합니다. 한 LOT에서 6장 출력 = 1줄(6칸), 12장 = 2줄(12칸)이며, 페일(Hobbock/pail) 제품은 1줄입니다. 칸에 <b>드럼 무게를 직접 입력</b>하면 맨 오른쪽 <b>합계</b>에 LOT별 합이 바로 계산됩니다(<code>24kg x 12</code>처럼 쓰면 24×12로 계산, 엑셀 복사·붙여넣기 가능, 방향키·Enter로 이동).</div>
     <div class="plDates" id="plDates"></div>
+    <div class="plDates plShiftRow" id="plShifts" title="근무조 선택"></div>
+    <label id="plShiftLockWrap" class="adminOnly" style="display:none;font-size:12px;color:var(--sub);margin:-4px 0 10px;cursor:pointer;"><input type="checkbox" id="plShiftLockBox" style="width:auto;margin-right:6px;">이 기기 근무조 고정 (작업자 모드에서는 선택한 근무조의 일지만 보이고 바꿀 수 없음)</label>
     <div class="plDates plMach" id="plMachines" title="설비(믹서) 선택"></div>
     <div id="plBody"><div class="empty">날짜를 선택하세요.</div></div>
   </div>
@@ -4775,14 +4778,14 @@ function plApplyOverrides(recs){
   return recs;
 }
 function plFilterMachine(recs,m){ return !m?recs:recs.filter(r=>m==='__none'?!r.mc:r.mc===m); }
-async function exportPressLogXlsx(from,to,machine=''){
+async function exportPressLogXlsx(from,to,machine='',shift=''){
   const recs=buildPressLogRecords(from,to);
   if(!recs.length){flash('선택한 작업지시일에 해당하는 프레스일지 데이터가 없습니다',true);return false;}
   await plLoadDates([...new Set(recs.map(r=>r.d))]);   // 웹에서 입력한 값을 같이 내보내기 위해 저장분 로드
   plApplyOverrides(recs);
-  const recsF=plFilterMachine(recs,machine);
-  if(!recsF.length){flash('선택한 설비에 해당하는 프레스일지 데이터가 없습니다',true);return false;}
-  const rowsModel=buildPressLogSheetRows(pressLogBlocks(recsF)), name=`프레스일지${exportFileSuffix(from,to)}${machine&&machine!=='__none'?'_'+machine:''}.xlsx`;
+  const recsF=plFilterMachine(recs,machine).filter(r=>!shift||r.s===shift);
+  if(!recsF.length){flash('선택한 조건(설비·근무조)에 해당하는 프레스일지 데이터가 없습니다',true);return false;}
+  const rowsModel=buildPressLogSheetRows(pressLogBlocks(recsF)), name=`프레스일지${exportFileSuffix(from,to)}${machine&&machine!=='__none'?'_'+machine:''}${shift?'_'+shift:''}.xlsx`;
   const cellVal=v=>{ const t=String(v??'').trim(); return (t!==''&&/^-?\d+(\.\d+)?$/.test(t))?Number(t):t; };
   try{
     if(window.ExcelJS){
@@ -4842,7 +4845,7 @@ async function exportPressLogXlsx(from,to,machine=''){
       Object.keys(ws).forEach(k=>{ if(k[0]!=='!' && /^[ABCD]\d+$/.test(k) && ws[k].t==='n'){ ws[k].t='s'; ws[k].v=String(ws[k].v); } });
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'프레스일지'); XLSX.writeFile(wb,name);
     }
-    flash(`프레스일지 엑셀 내보내기 완료 (LOT ${recsF.length}건${machine?' · '+(machine==='__none'?'설비 미지정':machine):''})`);
+    flash(`프레스일지 엑셀 내보내기 완료 (LOT ${recsF.length}건${machine?' · '+(machine==='__none'?'설비 미지정':machine):''}${shift?' · '+shift:''})`);
     return true;
   }catch(err){ console.error(err); flash('엑셀 내보내기 실패: '+(err?.message||err),true); return false; }
 }
@@ -4868,6 +4871,7 @@ function activateAdmin(){
   closePinInline();
   renderOrderList();
   applyHomePerms();
+  if(document.body.classList.contains('view-presslog')&&typeof renderPressLogView==='function') renderPressLogView();
   flash('관리자 모드 활성화');
 }
 function deactivateAdmin(){
@@ -7800,6 +7804,12 @@ function plShiftDate(d,delta){ const t=new Date(d+'T00:00:00'); t.setDate(t.getD
 function plDow(d){ return ['일','월','화','수','목','금','토'][new Date(d+'T00:00:00').getDay()]; }
 let plDate='';
 let plMachine='';   // '' = 설비 전체 보기
+/* 근무조(주간/야간) 보기: 기기에 기억. 관리자가 '이 기기 근무조 고정'을 켜면 작업자 모드에서는 바꿀 수 없다 */
+let plShift='', plShiftLock=false;
+try{ plShift=localStorage.getItem('ksa-pl-shift')||''; plShiftLock=localStorage.getItem('ksa-pl-shift-lock')==='1'; }catch(e){}
+if(plShift!=='주간'&&plShift!=='야간') plShift='';
+function plShiftLocked(){ return plShiftLock && !isAdmin && !!plShift; }
+function plSaveShiftPrefs(){ try{ localStorage.setItem('ksa-pl-shift',plShift); localStorage.setItem('ksa-pl-shift-lock',plShiftLock?'1':'0'); }catch(e){} }
 let plRenderSeq=0;
 async function renderPressLogView(){
   if(!$('plBody')) return;
@@ -7812,7 +7822,14 @@ async function renderPressLogView(){
   const dates=[...new Set(all.map(r=>r.d).filter(Boolean))].sort().reverse().slice(0,31);
   $('plDates').innerHTML=dates.length?dates.map(d=>`<button type="button" data-pld="${d}" class="${d===plDate?'on':''}">${d.slice(5)} (${plDow(d)})</button>`).join(''):'<span style="font-size:12px;color:var(--sub);">출력 이력이 있는 작업지시일이 없습니다.</span>';
   $('plDates').querySelectorAll('[data-pld]').forEach(b=>b.addEventListener('click',()=>{ plDate=b.dataset.pld; renderPressLogView(); }));
-  const dayRecs=plApplyOverrides(all.filter(r=>r.d===plDate));
+  const allDay=plApplyOverrides(all.filter(r=>r.d===plDate));
+  // 근무조(주간/야간) 선택 칩: 고정된 기기의 작업자 모드에서는 바꿀 수 없다
+  const locked=plShiftLocked();
+  const sCnt=sv=>allDay.filter(r=>r.s===sv).length;
+  $('plShifts').innerHTML=[['','전체',allDay.length],['주간','☀ 주간',sCnt('주간')],['야간','☾ 야간',sCnt('야간')]].map(([v,l,n])=>`<button type="button" data-pls="${v}" class="${v===plShift?'on':''}"${locked&&v!==plShift?' disabled':''}>${l} <small>${n}</small></button>`).join('')+(locked?'<span class="plLockNote">🔒 이 기기는 근무조가 고정되어 있습니다</span>':'');
+  $('plShifts').querySelectorAll('[data-pls]').forEach(b=>b.addEventListener('click',()=>{ if(plShiftLocked()) return; plShift=b.dataset.pls; plSaveShiftPrefs(); renderPressLogView(); }));
+  if($('plShiftLockBox')){ $('plShiftLockBox').checked=plShiftLock; $('plShiftLockWrap').style.display=isAdmin?'':'none'; }
+  const dayRecs=allDay.filter(r=>!plShift||r.s===plShift);
   // 설비 선택 칩(전체 + M1~M5 + 미지정): 해당 날짜의 LOT 건수 표시
   const cnt=m=>dayRecs.filter(r=>r.mc===m).length, noneCnt=dayRecs.filter(r=>!r.mc).length;
   const chips=[['','전체',dayRecs.length],...['M1','M2','M3','M4','M5'].map(m=>[m,m,cnt(m)])];
@@ -7820,7 +7837,7 @@ async function renderPressLogView(){
   if(plMachine&&!chips.some(c=>c[0]===plMachine)) plMachine='';
   $('plMachines').innerHTML=chips.map(([v,l,n])=>`<button type="button" data-plm="${v}" class="${v===plMachine?'on':''}">${l} <small>${n}</small></button>`).join('');
   $('plMachines').querySelectorAll('[data-plm]').forEach(b=>b.addEventListener('click',()=>{ plMachine=b.dataset.plm; renderPressLogView(); }));
-  if($('plExport')) $('plExport').textContent=plMachine?`📥 ${plMachine==='__none'?'미지정':plMachine} 프레스일지 엑셀 내보내기`:'📥 프레스일지 엑셀(xlsx) 내보내기';
+  if($('plExport')){ const tag=[plShift,plMachine&&(plMachine==='__none'?'미지정':plMachine)].filter(Boolean).join(' · '); $('plExport').textContent=tag?`📥 ${tag} 프레스일지 엑셀 내보내기`:'📥 프레스일지 엑셀(xlsx) 내보내기'; }
   const recs=plFilterMachine(dayRecs,plMachine);
   if(!recs.length){ $('plBody').innerHTML=`<div class="empty">${escapeHtml(plDate)} (${plDow(plDate)}) 작업지시일의 출력 이력이 없습니다.</div>`; return; }
   let gr=0;
@@ -7897,6 +7914,13 @@ $('plBody')?.addEventListener('change',e=>{
   plScheduleSave(d);
   renderPressLogView();                  // 설비 순서·필터에 맞게 다시 그림
 });
+$('plShiftLockBox')?.addEventListener('change',()=>{
+  if(!isAdmin) return;
+  if($('plShiftLockBox').checked && !plShift){ $('plShiftLockBox').checked=false; flash('먼저 주간 또는 야간을 선택한 뒤 고정하세요',true); return; }
+  plShiftLock=$('plShiftLockBox').checked; plSaveShiftPrefs();
+  flash(plShiftLock?`이 기기를 ${plShift} 근무조로 고정했습니다 (작업자 모드에서 변경 불가)`:'근무조 고정을 해제했습니다');
+  renderPressLogView();
+});
 $('plDate')?.addEventListener('change',()=>{ plDate=$('plDate').value||todayISO(); renderPressLogView(); });
 $('plPrev')?.addEventListener('click',()=>{ plDate=plShiftDate(plDate||todayISO(),-1); renderPressLogView(); });
 $('plNext')?.addEventListener('click',()=>{ plDate=plShiftDate(plDate||todayISO(),1); renderPressLogView(); });
@@ -7907,7 +7931,7 @@ $('plClear')?.addEventListener('click',async()=>{
   if(!confirm(`${d} 작업지시일에 입력한 값(품목명·칸 값)을 모두 지울까요? 되돌릴 수 없습니다.`)) return;
   PL_CACHE[d]={}; plScheduleSave(d); renderPressLogView();
 });
-$('plExport')?.addEventListener('click',()=>exportPressLogXlsx(plDate||todayISO(),plDate||todayISO(),plMachine));
+$('plExport')?.addEventListener('click',()=>exportPressLogXlsx(plDate||todayISO(),plDate||todayISO(),plMachine,plShift));
 
 async function initApp(){
   try{await window.KSA_DB_PROMISE;}catch(e){}
