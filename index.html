@@ -602,6 +602,12 @@ body.workspace-open #homeView{display:none;}
 .plGrip{cursor:grab;touch-action:none;padding:2px 4px;color:var(--sub);user-select:none;font-size:16px;}
 table.plTable input[readonly]{background:#f3f6fa;color:#555;}
 
+.plPrev{display:block;margin-top:4px;font-size:10px;font-weight:600;color:var(--sub);line-height:1.35;word-break:break-all;}
+.plPrev b{display:block;color:#2c4e75;font-size:10.5px;}
+.plSame{display:block;margin:3px auto 0;border:1px solid #2c4e75;background:#fff;color:#2c4e75;border-radius:6px;padding:2px 5px;font-size:10.5px;font-weight:800;cursor:pointer;}
+.plSumCtl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 6px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fafcff;}
+.plSumCtl input[type=date],.plSumCtl select{width:auto;padding:6px 8px;}
+
 /* 출력 모드: 프린터 설정 · 역순출력 · 라벨 미리보기 · 출력만 남김 (관리 패널은 ⚙ 버튼으로 다시 표시) */
 body.simpleOp.opBatch #opView .opGrid>.opCol:first-child{display:none;}
 body.simpleOp.opBatch #featureFlagsPanel{display:none;}
@@ -8149,53 +8155,149 @@ async function plOpenLabel(oid){
 $('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-pllabel]'); if(b) plOpenLabel(b.dataset.pllabel); });
 
 /* ===== 프레스일지 관리자: 제품순번·배치순번·드럼수량 + 중복 LOT + 요약 ===== */
-const PL_ADMIN_DEFS={pseq:{l:'제품순번',w:7,px:62},bseq:{l:'배치순번',w:7,px:62},drm:{l:'드럼수량',w:7,px:62}};
+const PL_ADMIN_DEFS={pseq:{l:'제품순번',w:7,px:62},bseq:{l:'배치순번',w:7,px:62},drm:{l:'드럼수량',w:7,px:62},lseq:{l:'LOT순번',w:7,px:62}};
 let PL_DUP=new Set();
 function plDef(c){ return PL_COLDEFS[c]||PL_ADMIN_DEFS[c]; }
 // 관리자 모드에서만 LOT 우측에 제품순번·배치순번·드럼수량 입력 컬럼을 붙인다
 function plEffCols(){
   const base=PL_COLS.slice();
   if(!isAdmin) return base;
-  const i=base.indexOf('lot'); base.splice(i>=0?i+1:base.length,0,'pseq','bseq','drm'); return base;
+  const i=base.indexOf('lot'); base.splice(i>=0?i+1:base.length,0,'pseq','bseq','drm','lseq'); return base;
 }
 function plLotOf(o){ try{ return String(computeLotInfo(o,1).lot||''); }catch(e){ return ''; } }
-function plDupMap(){ const m=new Map(); (workOrders||[]).forEach(o=>{ const l=plLotOf(o); if(!l) return; if(!m.has(l)) m.set(l,[]); m.get(l).push(o); }); return m; }
-function plDupSet(){ const r=new Set(); plDupMap().forEach((a,l)=>{ if(a.length>1) r.add(l); }); return r; }
+function plShiftOf(o){ return String(o&&o.shift||'').includes('야')?'야간':'주간'; }
+function plCodeOf(o){ let p=null; try{ p=resolveOrderProduct(o); }catch(e){} return String((p&&p.code)||(o&&o.productCode)||''); }
+function plRulePattern(o){ let p=null; try{ p=resolveOrderProduct(o); }catch(e){} try{ return String(getLotRuleById(getProductLotRuleId(p||{}))?.pattern||''); }catch(e){ return ''; } }
+function plUsesSeq(o){ return plRulePattern(o).includes('{LOTSEQ}'); }
+// 렌더 1회당 작업지시별 LOT·품목코드·규칙 정보를 계산해 둔다
+let PL_LOTS=new Map(), PL_META=new Map();
+function plBuildCaches(){
+  PL_LOTS=new Map(); PL_META=new Map();
+  (workOrders||[]).forEach(o=>{
+    PL_LOTS.set(o.id,plLotOf(o)); const pat=plRulePattern(o);
+    // shared: LOT에 설비/배치 토큰이 없어 같은 날짜·같은 품목이면 LOT가 같아지는 규칙(예: 다우)
+    PL_META.set(o.id,{code:plCodeOf(o),shared:!/\{(BC|BS|M|MACHINE)\}/.test(pat),useSeq:pat.includes('{LOTSEQ}')});
+  });
+}
+// 중복 LOT: ① 서로 다른 품목코드가 같은 LOT  ② 같은 품목이라도 자동 규칙으로 같은 LOT가 2건 이상(공유 LOT 규칙 · 직전 LOT 동일 지정은 정상으로 본다)
+function plDupSet(){
+  plBuildCaches();
+  const m=new Map(); (workOrders||[]).forEach(o=>{ const l=PL_LOTS.get(o.id); if(!l) return; if(!m.has(l)) m.set(l,[]); m.get(l).push(o); });
+  const r=new Set();
+  m.forEach((a,l)=>{
+    if(a.length<2) return;
+    if(new Set(a.map(o=>PL_META.get(o.id).code)).size>1){ r.add(l); return; }
+    if(a.filter(o=>!o.customLot&&!PL_META.get(o.id).shared).length>1) r.add(l);
+  });
+  return r;
+}
+function plOrderKey(o){ return [o.date||'',plShiftOf(o)==='야간'?1:0,Number(o.batchCount)||0,Number(o.batchSeq)||0]; }
+function plCmpKey(a,b){ for(let i=0;i<a.length;i++){ if(a[i]!==b[i]) return a[i]<b[i]?-1:1; } return 0; }
+// 같은 품목코드의 직전 LOT (현재 LOT와 다른 가장 가까운 이전 작업지시)
+function plPrevLot(it){
+  const o=(workOrders||[]).find(x=>String(x.id)===String(it.oid)); if(!o) return null;
+  const cur=PL_LOTS.get(o.id), ko=plOrderKey(o); let best=null,kb=null;
+  (workOrders||[]).forEach(x=>{
+    if(x===o) return; const m=PL_META.get(x.id); if(!m||m.code!==it.code) return;
+    const l=PL_LOTS.get(x.id); if(!l||l===cur) return;
+    const kx=plOrderKey(x); if(plCmpKey(kx,ko)<0&&(!kb||plCmpKey(kx,kb)>0)){ best=x; kb=kx; }
+  });
+  return best?{lot:PL_LOTS.get(best.id),date:best.date,shift:plShiftOf(best)}:null;
+}
+function plPrevHtml(it){
+  if(!isAdmin) return '';
+  const pv=plPrevLot(it), ids=(it.oids&&it.oids.length?it.oids:[it.oid]).join(','), o0=(workOrders||[]).find(x=>String(x.id)===String(it.oid));
+  let h=pv?`<span class="plPrev" title="${escapeHtml(pv.date+' '+pv.shift)}">직전 LOT<b>${escapeHtml(pv.lot)}</b>${plLockNow?'':`<button type="button" class="plSame" data-plsame="${escapeHtml(ids)}" data-lot="${escapeHtml(pv.lot)}">＝ 동일하게</button>`}</span>`:'<span class="plPrev">직전 LOT 없음</span>';
+  if(o0&&o0.customLot&&!plLockNow) h+=`<button type="button" class="plSame" data-plunsame="${escapeHtml(ids)}">↺ 규칙대로</button>`;
+  return h;
+}
 function plDupBanner(recs){
   const d=[...new Set(recs.map(r=>String(r.lot)).filter(l=>PL_DUP.has(l)))];
   return d.length?`<div class="plDupBar">⚠ 동일한 LOT번호가 중복되어 있습니다 (${d.length}건): ${d.map(escapeHtml).join(' / ')}${isAdmin?'<br><span style="font-weight:600;">제품순번·배치순번을 수정해 LOT를 구분하세요.</span>':'<br><span style="font-weight:600;">관리자에게 알려 주세요.</span>'}</div>`:'';
 }
+let plSumR={on:false,from:'',fs:'주간',to:'',ts:'주간'};
+function plSumKey(d,sh){ return d+'|'+(sh==='야간'?1:0); }
 function plSummaryHtml(recs,label){
+  const R=plSumR; let rows=recs, lab=label;
+  if(R.on){
+    const fk=plSumKey(R.from,R.fs), tk=plSumKey(R.to,R.ts);
+    rows=plFilterMachine(buildPressLogRecords('','').filter(r=>{ const k=plSumKey(r.d,r.s); return k>=fk&&k<=tk; }),plMachine);
+    lab=`${R.from} ${R.fs} ~ ${R.to} ${R.ts} · ${plMachine?(plMachine==='__none'?'미지정':plMachine):'설비 전체'}`;
+  }
   const g=new Map();
-  recs.forEach(it=>{
+  rows.forEach(it=>{
     const pi=plProdInfo(it); let e=g.get(it.code);
-    if(!e){ e={short:pi.short||it.code,color:pi.color||'-',b:0}; g.set(it.code,e); }
-    e.b+=(it.oids&&it.oids.length)||1;      // 동일 품목은 배치수 합산
+    if(!e){ e={code:it.code,short:pi.short||'-',color:pi.color||'-',b:0}; g.set(it.code,e); }
+    e.b+=(it.oids&&it.oids.length)||1;      // 동일 품목코드는 배치수 합산
   });
-  if(!g.size) return '';
-  const rows=[...g.values()], tot=rows.reduce((a,e)=>a+e.b,0);
-  return `<table class="plSum"><caption>▣ 요약 · ${escapeHtml(label)}</caption><tr><th>약어명</th><th>색상</th><th>배치수</th></tr>${rows.map(e=>`<tr><td>${escapeHtml(e.short)}</td><td>${escapeHtml(e.color)}</td><td><b>${e.b}</b></td></tr>`).join('')}<tr class="tot"><td colspan="2">합계</td><td>${tot}</td></tr></table>`;
+  const list=[...g.values()], tot=list.reduce((a,e)=>a+e.b,0);
+  const v=(x,d)=>escapeHtml(x||d||''), sel=(id,val)=>`<select id="${id}"><option value="주간"${val==='야간'?'':' selected'}>주간</option><option value="야간"${val==='야간'?' selected':''}>야간</option></select>`;
+  const ctl=`<div class="plSumCtl" id="plSumCtl"><b>▣ 요약 기간</b><span><input type="date" id="plSumFrom" value="${v(R.from,plDate)}"> ${sel('plSumFs',R.fs)}</span><span>~</span><span><input type="date" id="plSumTo" value="${v(R.to,plDate)}"> ${sel('plSumTs',R.ts)}</span><button type="button" class="btn btn-primary auto" id="plSumGo">조회</button>${R.on?'<button type="button" class="btn btn-ghost auto" id="plSumReset">현재 화면 기준</button>':''}</div>`;
+  if(!list.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
+  return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption><tr><th>품목코드</th><th>약어명</th><th>색상</th><th>배치수</th></tr>${list.map(e=>`<tr><td>${escapeHtml(e.code)}</td><td>${escapeHtml(e.short)}</td><td>${escapeHtml(e.color)}</td><td><b>${e.b}</b></td></tr>`).join('')}<tr class="tot"><td colspan="3">합계</td><td>${tot}</td></tr></table>`;
 }
+$('plBody')?.addEventListener('click',async e=>{
+  const t=e.target.closest&&e.target.closest('#plSumGo,#plSumReset'); if(!t) return;
+  if(t.id==='plSumReset'){ plSumR.on=false; await renderPressLogView(); return; }
+  const f=$('plSumFrom').value, fs=$('plSumFs').value, to=$('plSumTo').value, ts=$('plSumTs').value;
+  if(!f||!to){ flash('시작일과 종료일을 선택하세요',true); return; }
+  if(plSumKey(f,fs)>plSumKey(to,ts)){ flash('시작이 종료보다 늦습니다',true); return; }
+  Object.assign(plSumR,{on:true,from:f,fs,to,ts});
+  await renderPressLogView(); $('plSumCtl')?.scrollIntoView({behavior:'smooth',block:'center'});
+});
+
+// LOT가 바뀐 작업지시의 입력칸 값을 새 LOT 키로 옮긴다
+function plMoveCells(o,oldLot){
+  const d=o.date, sh=plShiftOf(o), code=plCodeOf(o), newLot=plLotOf(o);
+  if(oldLot===newLot) return;
+  const shared=(workOrders||[]).some(x=>x!==o&&x.date===d&&plShiftOf(x)===sh&&plCodeOf(x)===code&&plLotOf(x)===oldLot);
+  const day=PL_CACHE[d]; if(!day||shared) return;
+  const ok=plKey(d,sh,code,oldLot), nk=plKey(d,sh,code,newLot);
+  if(day[ok]&&!day[nk]){ day[nk]=day[ok]; delete day[ok]; plScheduleSave(d); }
+}
+async function plAfterOrderEdit(targets,warn){
+  try{ await saveWorkOrders(); }catch(e){ console.error(e); flash('작업지시 저장에 실패했습니다',true); }
+  try{ renderOrderList(); }catch(_){}
+  if(warn){ const ds=plDupSet(), bad=[...new Set(targets.map(plLotOf).filter(l=>ds.has(l)))]; if(bad.length) alert(`⚠ 중복 LOT 번호입니다\n\n${bad.join('\n')}\n\n제품순번 / 배치순번 / LOT순번을 확인하세요.`); }
+  renderPressLogView();
+}
+function plLockedAny(targets){ return targets.some(o=>plLocked(o.date,plShiftOf(o))); }
 async function plSeqChange(el){
   if(!isAdmin) return;
   const o=(workOrders||[]).find(x=>String(x.id)===String(el.dataset.oid)); if(!o) return;
-  const f=el.dataset.f, v=Math.max(1,Math.round(Number(el.value)||1)), d=o.date, sh=String(o.shift||'').includes('야')?'야간':'주간';
-  if(plLocked(d,sh)){ flash('확정된 일지는 수정할 수 없습니다',true); renderPressLogView(); return; }
-  let p=null; try{ p=resolveOrderProduct(o); }catch(e){}
-  const code=String((p&&p.code)||o.productCode||''), oldLot=plLotOf(o);
-  o[f]=(f==='batchCount')?String(v):v;
-  const newLot=plLotOf(o);
-  if(f!=='batchDrums' && oldLot!==newLot){
-    // LOT가 바뀌면 이미 입력한 칸 값도 새 LOT로 옮긴다
-    const shared=(workOrders||[]).some(x=>x!==o&&x.date===d&&(String(x.shift||'').includes('야')?'야간':'주간')===sh&&plLotOf(x)===oldLot);
-    const day=PL_CACHE[d];
-    if(day&&!shared){ const ok=plKey(d,sh,code,oldLot), nk=plKey(d,sh,code,newLot); if(day[ok]&&!day[nk]){ day[nk]=day[ok]; delete day[ok]; plScheduleSave(d); } }
-  }
-  try{ await saveWorkOrders(); }catch(e){ console.error(e); flash('작업지시 저장에 실패했습니다',true); }
-  try{ renderOrderList(); }catch(_){}
-  const dups=plDupMap().get(newLot);
-  if(f!=='batchDrums'&&dups&&dups.length>1) alert(`⚠ 중복 LOT 번호입니다\n\n${newLot}\n\n같은 LOT가 ${dups.length}건 있습니다. 제품순번 / 배치순번을 확인하세요.`);
-  renderPressLogView();
+  const f=el.dataset.f, v=Math.max(1,Math.round(Number(el.value)||1));
+  // LOT순번은 같은 날짜·같은 품목코드 전체가 같은 번호를 쓴다
+  const targets=(f==='lotSeq')?(workOrders||[]).filter(x=>x.date===o.date&&plCodeOf(x)===plCodeOf(o)&&plUsesSeq(x)):[o];
+  await plLoadDate(o.date);
+  if(plLockedAny(targets)){ flash('확정된 일지는 수정할 수 없습니다',true); renderPressLogView(); return; }
+  const olds=targets.map(plLotOf);
+  targets.forEach(t=>{ t[f]=(f==='batchCount')?String(v):v; });
+  targets.forEach((t,i)=>plMoveCells(t,olds[i]));
+  await plAfterOrderEdit(targets,f!=='batchDrums');
+}
+// 직전 LOT와 동일하게(customLot 지정) / 규칙대로 되돌리기
+async function plUseLot(idsStr,lot){
+  if(!isAdmin) return;
+  const targets=String(idsStr).split(',').map(id=>(workOrders||[]).find(o=>String(o.id)===id)).filter(Boolean); if(!targets.length) return;
+  await plLoadDate(targets[0].date);
+  if(plLockedAny(targets)){ flash('확정된 일지는 수정할 수 없습니다',true); return; }
+  const olds=targets.map(plLotOf);
+  targets.forEach(t=>{ t.customLot=lot||''; });
+  targets.forEach((t,i)=>plMoveCells(t,olds[i]));
+  flash(lot?`직전 LOT(${lot})와 동일하게 지정했습니다`:'LOT 규칙대로 되돌렸습니다');
+  await plAfterOrderEdit(targets,true);
+}
+$('plBody')?.addEventListener('click',e=>{
+  const a=e.target.closest&&e.target.closest('[data-plsame],[data-plunsame]'); if(!a) return;
+  if(a.dataset.plsame!==undefined) plUseLot(a.dataset.plsame,a.dataset.lot); else plUseLot(a.dataset.plunsame,'');
+});
+// 생산계획에서 만든 작업지시: 같은 날짜·같은 품목코드는 같은 LOT순번, 다른 품목은 다음 번호
+function plAssignLotSeq(o,pool){
+  if(!plUsesSeq(o)) return;
+  const code=plCodeOf(o), others=pool.filter(x=>x!==o&&x.date===o.date);
+  const same=others.filter(x=>plCodeOf(x)===code&&plUsesSeq(x));
+  if(same.length){ o.lotSeq=Number(same[0].lotSeq)||1; return; }
+  o.lotSeq=others.filter(x=>plUsesSeq(x)).reduce((a,x)=>Math.max(a,Number(x.lotSeq)||0),0)+1;
 }
 $('plBody')?.addEventListener('change',e=>{ const el=e.target; if(el.classList&&el.classList.contains('plSeqIn')) plSeqChange(el); });
 
@@ -8283,11 +8385,11 @@ async function plPlanMove(id){
   let uid=Date.now(); const made=[];
   [['주간',dN],['야간',nN]].forEach(([shift,cnt])=>{
     for(let i=0;i<cnt;i++){
-      made.push({id:uid++,date:it.date,shift,productIdx:pIdx,machine:it.machine||'',batchCount:String(pseq),batchSeq:bseq++,
+      const ob={id:uid++,date:it.date,shift,productIdx:pIdx,machine:it.machine||'',batchCount:String(pseq),batchSeq:bseq++,
         batchDrums:drums,batchWeight:w,volume:(p.volume==null||p.volume==='')?null:Number(p.volume),includeBasic:true,
         manualLotInput:'',lotSeq:1,status:'pending',labelCode:labelCode||'',variant:variant||'',lotRuleId:ruleId||'',
         productMasterId:p.masterId||'',productProfileKey:p.importProfileKey||'',productCode:p.code||'',
-        productName:p.shortName||p.name||p.scheduleName||it.product,memo:'',importSource:'plan',planId:it.id});
+        productName:p.shortName||p.name||p.scheduleName||it.product,memo:'',importSource:'plan',planId:it.id}; plAssignLotSeq(ob,[...(workOrders||[]),...made]); made.push(ob);
     }
   });
   workOrders.push(...made);
@@ -8296,7 +8398,7 @@ async function plPlanMove(id){
   try{ renderOrderList(); }catch(_){}
   plDate=it.date; plShift=dN&&!nN?'주간':(nN&&!dN?'야간':(isAdmin?'':plShift)); try{ localStorage.setItem(PL_SHIFT_KEY,plShift); }catch(e){}
   flash(`${made.length}배치를 프레스일지로 이동했습니다 (제품순번 ${pseq})`);
-  const dups=made.map(plLotOf).filter(l=>plDupMap().get(l)?.length>1);
+  const ds=plDupSet(), dups=made.map(plLotOf).filter(l=>ds.has(l));
   if(dups.length) alert(`⚠ 중복 LOT 번호가 있습니다\n\n${[...new Set(dups)].join('\n')}\n\n프레스일지에서 제품순번 / 배치순번을 확인하세요.`);
   await plRenderPlan(); renderPressLogView();
 }
@@ -8356,10 +8458,11 @@ function plInfoTds(it,rec,key){
     color:`<td class="it" ${rs}>${pi.color?escapeHtml(pi.color):plAddBtn('product',pi,it)}</td>`,
     batch:`<td class="it" ${rs}>${plBatchCell(it)}</td>`,
     name:`<td class="it nm" ${rs}><input type="text" class="nmIn" autocomplete="off" data-k="${ek}" data-name="1" placeholder="품목명" value="${escapeHtml(rec.name||'')}"${lk?' readonly':''}></td>`,
-    lot:`<td class="it" ${rs}>${escapeHtml(String(it.lot))}${PL_DUP.has(String(it.lot))?'<span class="plDup">⚠ 중복 LOT</span>':''}</td>`,
+    lot:`<td class="it" ${rs}>${escapeHtml(String(it.lot))}${PL_DUP.has(String(it.lot))?'<span class="plDup">⚠ 중복 LOT</span>':''}${plPrevHtml(it)}</td>`,
     pseq:sin('batchCount',Number(o0&&o0.batchCount)||1,'제품순번'),
     bseq:sin('batchSeq',Number(o0&&o0.batchSeq)||1,'배치순번'),
-    drm:sin('batchDrums',Number(o0&&o0.batchDrums)||it.n||1,'드럼수량')
+    drm:sin('batchDrums',Number(o0&&o0.batchDrums)||it.n||1,'드럼수량'),
+    lseq:(o0&&plUsesSeq(o0))?sin('lotSeq',Number(o0.lotSeq)||1,'LOT순번 (같은 날짜·같은 품목코드는 같은 번호)'):`<td class="it pin" ${rs}><span style="color:#aab;">-</span></td>`
   };
   return plEffCols().map(c=>T[c]).join('');
 }
