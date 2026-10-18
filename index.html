@@ -602,6 +602,9 @@ body.workspace-open #homeView{display:none;}
 .plGrip{cursor:grab;touch-action:none;padding:2px 4px;color:var(--sub);user-select:none;font-size:16px;}
 table.plTable input[readonly]{background:#f3f6fa;color:#555;}
 
+.plLabelBtn{display:block;width:100%;margin:2px 0;border:1px solid #2c4e75;background:#2c4e75;color:#fff;border-radius:7px;padding:6px 4px;font-size:11.5px;font-weight:800;cursor:pointer;}
+table.plTable td.lb{background:#eef4fb;padding:4px;}
+
 .plPailBtn{display:block;margin:5px auto 0;border:1px solid #b36b00;background:#fff;color:#b36b00;border-radius:7px;padding:3px 7px;font-size:11px;font-weight:800;cursor:pointer;}
 #plPailModal{position:fixed;inset:0;background:rgba(15,37,64,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:16px;}
 #plPailModal .card{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:380px;box-shadow:0 14px 40px rgba(0,0,0,.3);}
@@ -4732,10 +4735,10 @@ function buildPressLogRecords(from,to){
     const drums=Math.min(300,Math.max(1,Math.round(Number(o.batchDrums)||1)));
     const m=lotMetaFromOrder(o);
     const key=code+'\u0001'+lot+'\u0001'+m.d+'\u0001'+m.s;
-    if(seen.has(key)){ seen.get(key).n+=drums; return; }   // 같은 코드·LOT·날짜·주야는 한 줄로 합산
+    if(seen.has(key)){ const q=seen.get(key); q.n+=drums; q.oids.push(o.id); return; }   // 같은 코드·LOT·날짜·주야는 한 줄로 합산
     const mn=parseInt(String(m.m||'').replace(/\D/g,''),10);
     const nm=String((p&&(p.fullName||p.name||p.shortName||p.scheduleName))||o.productName||'');
-    const rec={code,lot,d:m.d,s:m.s,mn:isNaN(mn)?99:mn,mc:plMachineLabel(m.m),n:drums,pail:isPailProduct(code,nm),oid:o.id};
+    const rec={code,lot,d:m.d,s:m.s,mn:isNaN(mn)?99:mn,mc:plMachineLabel(m.m),n:drums,pail:isPailProduct(code,nm),oid:o.id,oids:[o.id]};
     seen.set(key,rec); recs.push(rec);
   });
   const ranged=recs.filter(r=>{ if(!from&&!to) return true; return r.d&&(!from||r.d>=from)&&(!to||r.d<=to); });
@@ -7889,22 +7892,22 @@ async function renderPressLogView(){
         const r=gr++;
         let tds='';
         for(let ci=0;ci<6;ci++){ const i=li*6+ci; tds+=inp(key,i,cells[i]??'',r,ci); }
-        if(li===0) h+=`<tr data-pk="${escapeHtml(key)}">${plInfoTds(it,rec,key)}${tds}<td class="sm" rowspan="${it.lines}"><b class="smv">${plFmt(sum)}</b><span class="smc">입력 ${filled}${it.pail?'':` / ${it.n}`}</span>${it.pail&&!plLockNow?`<button type="button" class="plPailBtn" data-plpail="${escapeHtml(key)}">⚖ 계산</button>`:''}</td></tr>`;
+        if(li===0) h+=`<tr data-pk="${escapeHtml(key)}">${plInfoTds(it,rec,key)}${tds}<td class="sm" rowspan="${it.lines}"><b class="smv">${plFmt(sum)}</b><span class="smc">입력 ${filled}${it.pail?'':` / ${it.n}`}</span>${it.pail&&!plLockNow?`<button type="button" class="plPailBtn" data-plpail="${escapeHtml(key)}">⚖ 계산</button>`:''}</td>${plLabelTd(it)}</tr>`;
         else h+=`<tr>${tds}</tr>`;
       }
       return h;
     }).join('');
-    const tot=PL_COLS.reduce((a,c)=>a+PL_COLDEFS[c].w,0)+42+11, pct=w=>(w*100/tot).toFixed(2)+'%';
-    const colgroup=PL_COLS.map(c=>`<col style="width:${pct(PL_COLDEFS[c].w)}">`).join('')+`<col style="width:${pct(7)}">`.repeat(6)+`<col style="width:${pct(11)}">`;
-    const minPx=PL_COLS.reduce((a,c)=>a+PL_COLDEFS[c].px,0)+6*46+84;
+    const tot=PL_COLS.reduce((a,c)=>a+PL_COLDEFS[c].w,0)+42+11+9, pct=w=>(w*100/tot).toFixed(2)+'%';
+    const colgroup=PL_COLS.map(c=>`<col style="width:${pct(PL_COLDEFS[c].w)}">`).join('')+`<col style="width:${pct(7)}">`.repeat(6)+`<col style="width:${pct(11)}"><col style="width:${pct(9)}">`;
+    const minPx=PL_COLS.reduce((a,c)=>a+PL_COLDEFS[c].px,0)+6*46+84+70;
     const hd=cls=>PL_COLS.map(c=>`<td class="${cls}">${PL_COLDEFS[c].l}</td>`).join('');
     const cf=plConfirmOf(bl.d,bl.s);
     const bar=`<div class="plConfirm${cf?' done':''}" data-d="${bl.d}" data-s="${bl.s}">`+(cf
       ?`<span>🔒 ${escapeHtml(bl.s)} 일지 확정됨 · ${escapeHtml(cf.by||'')} · ${escapeHtml(cf.at||'')}</span>${isAdmin?'<button type="button" class="btn btn-ghost auto" data-plunconfirm="1">확정 취소</button>':''}`
       :`<span>${escapeHtml(bl.s)} 일지 작성이 끝나면 확정하세요. 확정하면 수정할 수 없습니다.</span><button type="button" class="btn btn-ok auto" data-plconfirm="1">✔ 확정</button>`)+`</div>`;
     return `${bar}<div class="plScroll"><table class="plTable" data-d="${bl.d}" style="min-width:${minPx}px"><colgroup>${colgroup}</colgroup>
-      <tr>${hd('h1')}<td class="h1" colspan="6">${escapeHtml(bl.title)}</td><td class="h1">합계</td></tr>
-      <tr>${hd('h2')}<td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td><td class="h2"></td></tr>${body}</table></div>`;
+      <tr>${hd('h1')}<td class="h1" colspan="6">${escapeHtml(bl.title)}</td><td class="h1">합계</td><td class="h1">라벨</td></tr>
+      <tr>${hd('h2')}<td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td><td class="h2"></td><td class="h2"></td></tr>${body}</table></div>`;
   }).join('');
   plSetStatus('칸을 눌러 바로 입력하세요. 자동 저장됩니다.');
 }
@@ -8038,6 +8041,29 @@ function plPailOpen(key){
   calc();
 }
 $('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-plpail]'); if(b) plPailOpen(b.dataset.plpail); });
+
+/* ===== 프레스일지 → 일괄 라벨 출력 화면 연결 (LOT별 라벨 버튼) ===== */
+function plLabelTd(it){
+  let can=true; try{ can=canAccess('batch'); }catch(e){}
+  const ids=(it.oids&&it.oids.length?it.oids:[it.oid]).filter(x=>x!=null);
+  const btns=(can&&ids.length)?ids.map((id,i)=>`<button type="button" class="plLabelBtn" data-pllabel="${escapeHtml(String(id))}" title="이 작업지시의 라벨을 일괄 출력 화면에서 열기">🏷 ${ids.length>1?'라벨 '+(i+1):'라벨'}</button>`).join(''):'';
+  return `<td class="lb" rowspan="${it.lines}">${btns}</td>`;
+}
+async function plOpenLabel(oid){
+  const o=(workOrders||[]).find(x=>String(x.id)===String(oid));
+  if(!o){ flash('연결된 작업지시를 찾지 못했습니다',true); return; }
+  // 작업지시 목록에서 해당 작업지시가 보이도록 필터를 맞춘다(날짜 선택, 설비 전체)
+  try{
+    if($('orderFilter')){ $('orderFilter').value='date'; if($('orderFilterDate')){ $('orderFilterDate').style.display=''; $('orderFilterDate').value=o.date; } }
+    orderMachineFilter='ALL'; document.querySelectorAll('.machineFilterBtn').forEach(b=>b.classList.toggle('active',b.dataset.machine==='ALL'));
+  }catch(e){}
+  $('tabBatch').click();                       // 일괄 출력 모드 화면으로 전환(프레스일지 입력값은 자동 저장됨)
+  await new Promise(r=>setTimeout(r,250));
+  try{ await selectOrder(o.id); }catch(e){ console.error(e); flash('작업지시를 불러오지 못했습니다',true); return; }
+  flash('일괄 출력 화면에서 라벨을 출력하세요 · 프레스일지는 위 탭에서 돌아올 수 있습니다');
+  setTimeout(()=>{ ($('prodNameOut')||$('opView'))?.scrollIntoView({behavior:'smooth',block:'start'}); },150);
+}
+$('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-pllabel]'); if(b) plOpenLabel(b.dataset.pllabel); });
 
 /* ===== 프레스일지 v2: 컬럼 설정 · 확정 · 약어명/색상명 ===== */
 const PL_COLS_KEY='ksa-presslog-cols-v1';
