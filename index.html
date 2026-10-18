@@ -8455,19 +8455,24 @@ function plOpenAddJob(date,shift){
     <div class="row2"><div><label>작업지시일</label><input type="date" id="pjDate" value="${escapeHtml(date||plDate||todayISO())}"></div>
     <div><label>설비</label><select id="pjMc">${['','M1','M2','M3','M4','M5'].map(x=>`<option value="${x}"${x===mdef?' selected':''}>${x||'미지정'}</option>`).join('')}</select></div></div>
     <label>주간 / 야간</label><div class="seg"><button type="button" data-sh="주간" class="${sh==='주간'?'on':''}">☀ 주간</button><button type="button" data-sh="야간" class="${sh==='야간'?'on':''}">🌙 야간</button></div>
-    <label>제품 검색 (품목코드 · 제품명 · 색상)</label><input type="text" id="pjQ" autocomplete="off" placeholder="예: O200 백색">
+    <label>제품 검색 (품목코드 · 제품명 · 색상)</label><input type="text" id="pjQ" autocomplete="off" placeholder="예: O200 백색 (여러 단어는 띄어쓰기)">
     <div class="pick" id="pjPick"></div><div class="sel" id="pjSel" style="display:none;"></div>
     <div class="row2"><div><label>배치 수</label><input type="number" id="pjN" min="1" step="1" value="1" inputmode="numeric"></div>
     <div><label>배치당 드럼수량</label><input type="number" id="pjD" min="1" step="1" value="1" inputmode="numeric"></div></div>
     <div class="acts"><button type="button" id="pjCancel" style="background:#eef2f7;color:var(--navy);">취소</button><button type="button" id="pjOk" style="background:#2c4e75;color:#fff;">추가</button></div></div>`;
   document.body.appendChild(m);
-  const norm=t=>String(t||'').toLowerCase().replace(/\s+/g,'');
   const label=x=>`${x.code||''} · ${x.shortName||x.name||x.scheduleName||x.fullName||''}${x.color?' '+x.color:''}`;
   const renderPick=()=>{
-    const q=norm(m.querySelector('#pjQ').value), box=m.querySelector('#pjPick');
-    if(!q){ box.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--sub);">검색어를 입력하세요</div>'; return; }
-    const hits=(ALL_PRODUCTS||[]).map((x,i)=>({x,i})).filter(({x})=>x.active!==false&&[x.code,x.fullName,x.shortName,x.name,x.scheduleName,x.color,(x.shortName||'')+(x.color||'')].some(t=>norm(t).includes(q))).slice(0,12);
-    box.innerHTML=hits.length?hits.map(h=>`<button type="button" data-pi="${h.i}" class="${sel&&sel.i===h.i?'on':''}">${escapeHtml(label(h.x))}</button>`).join(''):'<div style="padding:8px 10px;font-size:12px;color:var(--sub);">검색 결과가 없습니다</div>';
+    // 다중검색: 띄어쓰기로 나눈 단어를 모두 포함하는 제품(AND). 하이픈·언더바·공백·괄호는 무시 (O200_백색 = O200 백색 = o-200백색)
+    const toks=String(m.querySelector('#pjQ').value||'').split(/\s+/).map(normalizeProductSearch).filter(Boolean), box=m.querySelector('#pjPick');
+    if(!toks.length){ box.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--sub);">검색어를 입력하세요 (여러 단어는 띄어쓰기로 구분)</div>'; return; }
+    const all=(ALL_PRODUCTS||[]).map((x,i)=>({x,i})).filter(({x})=>{
+      if(x.active===false) return false;
+      const hay=[x.code,x.fullName,x.shortName,x.name,x.scheduleName,x.color,x.type,x.family,`${x.shortName||x.name||''}${x.color||''}`].map(normalizeProductSearch).join('|');
+      return toks.every(t=>hay.includes(t));
+    });
+    const hits=all.slice(0,40);
+    box.innerHTML=hits.length?hits.map(h=>`<button type="button" data-pi="${h.i}" class="${sel&&sel.i===h.i?'on':''}">${escapeHtml(label(h.x))}</button>`).join('')+(all.length>hits.length?`<div style="padding:6px 10px;font-size:11.5px;color:var(--sub);">${all.length}건 중 ${hits.length}건 표시 — 검색어를 더 입력해 좁혀 보세요</div>`:''):'<div style="padding:8px 10px;font-size:12px;color:var(--sub);">검색 결과가 없습니다</div>';
   };
   m.querySelector('#pjQ').addEventListener('input',renderPick); renderPick();
   m.querySelector('#pjPick').addEventListener('click',e=>{
