@@ -601,6 +601,19 @@ body.workspace-open #homeView{display:none;}
 .plColChip label{display:flex;align-items:center;gap:4px;margin:0;font-size:13px;color:var(--ink);}
 .plGrip{cursor:grab;touch-action:none;padding:2px 4px;color:var(--sub);user-select:none;font-size:16px;}
 table.plTable input[readonly]{background:#f3f6fa;color:#555;}
+
+.plPailBtn{display:block;margin:5px auto 0;border:1px solid #b36b00;background:#fff;color:#b36b00;border-radius:7px;padding:3px 7px;font-size:11px;font-weight:800;cursor:pointer;}
+#plPailModal{position:fixed;inset:0;background:rgba(15,37,64,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:16px;}
+#plPailModal .card{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:380px;box-shadow:0 14px 40px rgba(0,0,0,.3);}
+#plPailModal h3{margin:0 0 4px;font-size:16px;color:var(--navy);}
+#plPailModal .sub{font-size:12px;color:var(--sub);margin-bottom:6px;word-break:break-all;}
+#plPailModal input[type=number]{width:100%;box-sizing:border-box;}
+#plPailModal .seg{display:flex;gap:8px;margin:4px 0;}
+#plPailModal .seg button{flex:1;padding:10px;border-radius:9px;border:1.5px solid var(--line);background:#fff;font-weight:800;cursor:pointer;color:var(--sub);}
+#plPailModal .seg button.on{background:#2c4e75;border-color:#2c4e75;color:#fff;}
+#plPailModal .calc{background:#fff4d6;border-radius:9px;padding:10px 12px;font-weight:800;color:#1f2933;margin:12px 0;font-size:14px;}
+#plPailModal .acts{display:flex;gap:8px;}
+#plPailModal .acts button{flex:1;padding:11px;border-radius:9px;border:none;font-weight:800;cursor:pointer;}
 </style>
 <div id="pressLogView" class="popView">
   <div class="panel">
@@ -618,9 +631,8 @@ table.plTable input[readonly]{background:#f3f6fa;color:#555;}
       <button type="button" class="btn btn-ghost auto adminOnly" id="plColsBtn">⚙ 컬럼 설정</button>
       <button type="button" class="btn btn-primary auto" id="plExport">📥 프레스일지 엑셀(xlsx) 내보내기</button>
     </div>
-    <div class="lockednote" style="margin:0 0 10px;"><b>작업지시</b> 기준으로(라벨 출력 이력과 별개) 날짜별 주간 → 야간, 설비 M1 → M5 순서로 표시합니다. 작업지시의 총 드럼 수 6개 = 1줄(6칸), 12개 = 2줄(12칸)이며, 페일(Hobbock/pail) 제품은 1줄입니다. 칸에 <b>드럼 무게를 직접 입력</b>하면 맨 오른쪽 <b>합계</b>에 LOT별 합이 바로 계산됩니다(<code>24kg x 12</code>처럼 쓰면 24×12로 계산, 엑셀 복사·붙여넣기 가능, 방향키·Enter로 이동).</div>
+    <div class="lockednote" style="margin:0 0 10px;"><b>작업지시</b> 기준으로(라벨 출력 이력과 별개) 날짜별 주간 → 야간, 설비 M1 → M5 순서로 표시합니다. 작업지시의 총 드럼 수 6개 = 1줄(6칸), 12개 = 2줄(12칸)이며, 페일(Hobbock/pail) 제품은 1줄이며 <b>⚖ 계산</b> 버튼으로 개당 중량 × 개수(+잔량)를 합계에 넣을 수 있습니다. 날짜는 작업지시가 있는 날만 선택됩니다. 칸에 <b>드럼 무게를 직접 입력</b>하면 맨 오른쪽 <b>합계</b>에 LOT별 합이 바로 계산됩니다(<code>24kg x 12</code>처럼 쓰면 24×12로 계산, 엑셀 복사·붙여넣기 가능, 방향키·Enter로 이동).</div>
     <div id="plColsPanel" class="plColsPanel" style="display:none;"></div>
-    <div class="plDates" id="plDates"></div>
     <div class="plDates plShiftRow" id="plShifts" title="주간/야간 선택"></div>
     <div class="plDates plMach" id="plMachines" title="설비(믹서) 선택"></div>
     <div id="plBody"><div class="empty">날짜를 선택하세요.</div></div>
@@ -7820,6 +7832,7 @@ function plFmt(n){ return Number(n).toLocaleString('ko-KR',{maximumFractionDigit
 function plShiftDate(d,delta){ const t=new Date(d+'T00:00:00'); t.setDate(t.getDate()+delta); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
 function plDow(d){ return ['일','월','화','수','목','금','토'][new Date(d+'T00:00:00').getDay()]; }
 let plDate='';
+let plOrderDates=[];   // 작업지시가 있는 날짜(오름차순)
 let plMachine='';   // '' = 설비 전체 보기
 // 주간/야간 선택: 이 기기에 기억한다. 관리자는 '전체'도 가능, 작업자 모드는 선택한 주야 일지만 보인다(기본 주간).
 const PL_SHIFT_KEY='ksa-pl-shift-v1';
@@ -7838,9 +7851,16 @@ async function renderPressLogView(){
   if(seq!==plRenderSeq) return;
   const all=buildPressLogRecords('','');
   const effShift=plEffShift();
-  const dates=[...new Set(plFilterShift(all,effShift).map(r=>r.d).filter(Boolean))].sort().reverse().slice(0,31);
-  $('plDates').innerHTML=dates.length?dates.map(d=>`<button type="button" data-pld="${d}" class="${d===plDate?'on':''}">${d.slice(5)} (${plDow(d)})</button>`).join(''):'<span style="font-size:12px;color:var(--sub);">작업지시가 있는 날짜가 없습니다.</span>';
-  $('plDates').querySelectorAll('[data-pld]').forEach(b=>b.addEventListener('click',()=>{ plDate=b.dataset.pld; renderPressLogView(); }));
+  // 작업지시가 내려진 날짜만 선택 가능: 달력 min/max + 변경 시 검증, 유효하지 않은 날짜면 가장 가까운 이전 작업지시일로 이동
+  plOrderDates=[...new Set(all.map(r=>r.d).filter(Boolean))].sort();
+  if(plOrderDates.length){
+    $('plDate').min=plOrderDates[0]; $('plDate').max=plOrderDates[plOrderDates.length-1];
+    if(!plOrderDates.includes(plDate)){
+      const pv=plOrderDates.filter(x=>x<=plDate); plDate=pv.length?pv[pv.length-1]:plOrderDates[0];
+      $('plDate').value=plDate; await plLoadDate(plDate);
+      if(seq!==plRenderSeq) return;
+    }
+  }
   const dayAll=plApplyOverrides(all.filter(r=>r.d===plDate));
   // 주간/야간 선택 칩 (작업자 모드는 '전체' 없음)
   const shChips=[...(isAdmin?[['','전체']]:[]),['주간','☀ 주간'],['야간','🌙 야간']];
@@ -7869,7 +7889,7 @@ async function renderPressLogView(){
         const r=gr++;
         let tds='';
         for(let ci=0;ci<6;ci++){ const i=li*6+ci; tds+=inp(key,i,cells[i]??'',r,ci); }
-        if(li===0) h+=`<tr data-pk="${escapeHtml(key)}">${plInfoTds(it,rec,key)}${tds}<td class="sm" rowspan="${it.lines}"><b class="smv">${plFmt(sum)}</b><span class="smc">입력 ${filled}${it.pail?'':` / ${it.n}`}</span></td></tr>`;
+        if(li===0) h+=`<tr data-pk="${escapeHtml(key)}">${plInfoTds(it,rec,key)}${tds}<td class="sm" rowspan="${it.lines}"><b class="smv">${plFmt(sum)}</b><span class="smc">입력 ${filled}${it.pail?'':` / ${it.n}`}</span>${it.pail&&!plLockNow?`<button type="button" class="plPailBtn" data-plpail="${escapeHtml(key)}">⚖ 계산</button>`:''}</td></tr>`;
         else h+=`<tr>${tds}</tr>`;
       }
       return h;
@@ -7934,6 +7954,7 @@ $('plBody')?.addEventListener('paste',e=>{
 });
 $('plBody')?.addEventListener('change',async e=>{
   const el=e.target; if(!el.classList||!el.classList.contains('mcSel')) return;
+  if(!isAdmin){ flash('설비 변경은 관리자 모드에서만 가능합니다',true); renderPressLogView(); return; }
   const key=el.dataset.k, [d,sh,code,lot]=key.split('|');
   if(plLocked(d,sh)){ flash('확정된 일지는 수정할 수 없습니다',true); renderPressLogView(); return; }
   const v=el.value;
@@ -7945,10 +7966,15 @@ $('plBody')?.addEventListener('change',async e=>{
   try{ renderOrderList(); }catch(_){}
   renderPressLogView();
 });
-$('plDate')?.addEventListener('change',()=>{ plDate=$('plDate').value||todayISO(); renderPressLogView(); });
-$('plPrev')?.addEventListener('click',()=>{ plDate=plShiftDate(plDate||todayISO(),-1); renderPressLogView(); });
-$('plNext')?.addEventListener('click',()=>{ plDate=plShiftDate(plDate||todayISO(),1); renderPressLogView(); });
-$('plToday')?.addEventListener('click',()=>{ plDate=todayISO(); renderPressLogView(); });
+$('plDate')?.addEventListener('change',()=>{
+  const v=$('plDate').value;
+  if(!v||(plOrderDates.length&&!plOrderDates.includes(v))){ flash('작업지시가 내려진 날짜만 선택할 수 있습니다',true); $('plDate').value=plDate; return; }
+  plDate=v; renderPressLogView();
+});
+// ◀ ▶ : 작업지시가 있는 이전/다음 날짜로 이동
+$('plPrev')?.addEventListener('click',()=>{ const c=plOrderDates.filter(x=>x<plDate); if(!c.length){ flash('이전 작업지시일이 없습니다',true); return; } plDate=c[c.length-1]; renderPressLogView(); });
+$('plNext')?.addEventListener('click',()=>{ const c=plOrderDates.filter(x=>x>plDate); if(!c.length){ flash('다음 작업지시일이 없습니다',true); return; } plDate=c[0]; renderPressLogView(); });
+$('plToday')?.addEventListener('click',()=>{ plDate=todayISO(); renderPressLogView(); });   // 오늘 작업지시가 없으면 가장 가까운 이전 작업지시일로 이동
 $('plReload')?.addEventListener('click',async()=>{ await plLoadDate(plDate||todayISO(),true); renderPressLogView(); flash('저장된 값을 다시 불러왔습니다'); });
 $('plClear')?.addEventListener('click',async()=>{
   const d=plDate||todayISO();
@@ -7957,6 +7983,61 @@ $('plClear')?.addEventListener('click',async()=>{
   PL_CACHE[d]={}; plScheduleSave(d); renderPressLogView();
 });
 $('plExport')?.addEventListener('click',()=>exportPressLogXlsx(plDate||todayISO(),plDate||todayISO(),plMachine,plEffShift()));
+
+/* ===== Hobbock(페일) 중량 계산: 개당 중량(마스터) × 생산 개수 (+ 잔량) → 합계 ===== */
+function plPailInfo(it){
+  let o=(workOrders||[]).find(x=>String(x.id)===String(it.oid))||plFindOrder(it.code,it.lot), p=null;
+  try{ p=o?resolveOrderProduct(o):null; }catch(e){}
+  if(!p) p=(ALL_PRODUCTS||[]).find(x=>String(x.code||'')===String(it.code))||null;
+  const mk=Number(p&&p.kg), ok=Number(o&&o.batchWeight);
+  if(mk>0) return {kg:mk,src:'마스터 값'};
+  if(ok>0) return {kg:ok,src:'작업지시 값'};
+  return {kg:'',src:'마스터에 중량 없음 — 직접 입력'};
+}
+function plPailOpen(key){
+  const [d,s,code,lot]=key.split('|');
+  if(plLocked(d,s)){ flash('확정된 일지는 수정할 수 없습니다',true); return; }
+  const it=buildPressLogRecords('','').find(r=>r.d===d&&r.s===s&&r.code===code&&r.lot===lot); if(!it) return;
+  const rec=plRecord(d,s,code,lot), saved=rec.pail||{}, info=plPailInfo(it);
+  let hasRem=saved.rem>0;
+  $('plPailModal')?.remove();
+  const m=document.createElement('div'); m.id='plPailModal';
+  m.innerHTML=`<div class="card"><h3>⚖ Hobbock 중량 계산</h3><div class="sub">${escapeHtml(code)} · ${escapeHtml(lot)}</div>
+    <label>개당 중량 (kg) <small style="font-weight:600;">· ${escapeHtml(saved.kg?'이전 입력값':info.src)}</small></label><input type="number" id="ppKg" step="any" min="0" inputmode="decimal" value="${saved.kg||info.kg}">
+    <label>생산 개수</label><input type="number" id="ppN" step="1" min="1" inputmode="numeric" value="${saved.n||it.n}">
+    <label>잔량이 있나요?</label><div class="seg"><button type="button" data-rem="0" class="${hasRem?'':'on'}">없음</button><button type="button" data-rem="1" class="${hasRem?'on':''}">있음</button></div>
+    <div id="ppRemBox" style="display:${hasRem?'block':'none'};"><label>잔량 (kg)</label><input type="number" id="ppRem" step="any" min="0" inputmode="decimal" value="${saved.rem||''}"></div>
+    <div class="calc" id="ppCalc"></div>
+    <div class="acts"><button type="button" id="ppCancel" style="background:#eef2f7;color:var(--navy);">취소</button><button type="button" id="ppOk" style="background:#b36b00;color:#fff;">합계에 적용</button></div></div>`;
+  document.body.appendChild(m);
+  const val=id=>Number(m.querySelector('#'+id).value)||0;
+  const calc=()=>{
+    const kg=val('ppKg'), n=Math.round(val('ppN')), rem=hasRem?val('ppRem'):0, tot=Math.round((kg*n+rem)*100)/100;
+    m.querySelector('#ppCalc').textContent=`${plFmt(kg)} × ${n}개${hasRem?` + 잔량 ${plFmt(rem)}`:''} = ${plFmt(tot)} kg`; return {kg,n,rem,tot};
+  };
+  m.addEventListener('input',calc);
+  m.querySelectorAll('[data-rem]').forEach(b=>b.addEventListener('click',()=>{
+    hasRem=b.dataset.rem==='1';
+    m.querySelectorAll('[data-rem]').forEach(x=>x.classList.toggle('on',x===b));
+    m.querySelector('#ppRemBox').style.display=hasRem?'block':'none'; calc();
+  }));
+  m.addEventListener('click',e=>{ if(e.target===m) m.remove(); });
+  m.querySelector('#ppCancel').addEventListener('click',()=>m.remove());
+  m.querySelector('#ppOk').addEventListener('click',()=>{
+    const c=calc();
+    if(!(c.kg>0)){ flash('개당 중량을 입력하세요',true); return; }
+    if(!(c.n>=1)){ flash('생산 개수를 입력하세요',true); return; }
+    if(hasRem&&!(c.rem>0)){ flash('잔량을 입력하거나 "없음"을 선택하세요',true); return; }
+    const day=(PL_CACHE[d]=PL_CACHE[d]||{}), r=(day[key]=day[key]||{name:'',cells:[]});
+    if((r.cells||[]).some(v=>String(v??'').trim()!=='') && !confirm('이미 입력된 값이 있습니다. 계산 결과로 바꿀까요?')) return;
+    // 합계 계산 규칙(plNum)에 맞춰 "개당중량 x 개수" 칸 + 잔량 칸으로 넣는다 → 엑셀 내보내기에도 그대로 반영
+    r.cells=[`${c.kg} x ${c.n}`,hasRem?String(c.rem):'','','','',''];
+    r.pail={kg:c.kg,n:c.n,rem:hasRem?c.rem:0};
+    plScheduleSave(d); m.remove(); renderPressLogView(); flash(`합계 ${plFmt(c.tot)}kg 적용`);
+  });
+  calc();
+}
+$('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-plpail]'); if(b) plPailOpen(b.dataset.plpail); });
 
 /* ===== 프레스일지 v2: 컬럼 설정 · 확정 · 약어명/색상명 ===== */
 const PL_COLS_KEY='ksa-presslog-cols-v1';
@@ -7995,7 +8076,9 @@ function plInfoTds(it,rec,key){
   const rs=`rowspan="${it.lines}"`, ek=escapeHtml(key), pi=plProdInfo(it), lk=plLockNow;
   const opts=['','M1','M2','M3','M4','M5',...(it.mc&&!/^M[1-5]$/.test(it.mc)?[it.mc]:[])].map(o=>`<option value="${o}"${o===(it.mc||'')?' selected':''}>${o||'-'}</option>`).join('');
   const T={
-    mc:`<td class="it mc" ${rs}><select class="mcSel" data-k="${ek}" data-oid="${escapeHtml(String(it.oid??''))}" title="설비(믹서) 선택"${lk?' disabled':''}>${opts}</select></td>`,
+    mc:(isAdmin
+      ?`<td class="it mc" ${rs}><select class="mcSel" data-k="${ek}" data-oid="${escapeHtml(String(it.oid??''))}" title="설비(믹서) 선택 (관리자 전용)"${lk?' disabled':''}>${opts}</select></td>`
+      :`<td class="it mc" ${rs}>${escapeHtml(it.mc||'-')}</td>`),
     code:`<td class="it" ${rs}>${escapeHtml(it.code)}</td>`,
     short:`<td class="it" ${rs}>${escapeHtml(pi.short)}</td>`,
     color:`<td class="it" ${rs}>${escapeHtml(pi.color)}</td>`,
