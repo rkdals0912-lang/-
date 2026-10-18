@@ -586,6 +586,22 @@ body.workspace-open #homeView{display:none;}
 </div>
 
 <main>
+<style>
+.plScroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px;}
+.plScroll table.plTable{margin-bottom:0;}
+.plConfirm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:8px 12px;border-radius:10px;background:#fff8ef;border:1px solid #f1d39d;font-size:12.5px;font-weight:700;color:#8a5a13;}
+.plConfirm.done{background:#e9f6ee;border-color:#b9dfc9;color:var(--ok);}
+.plConfirm .btn{margin-top:0;width:auto;}
+.plColsPanel{border:1.5px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfd;margin:0 0 12px;}
+.plColChips{display:flex;flex-wrap:wrap;gap:8px;}
+.plColChip{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:13px;font-weight:700;}
+.plColChip.off{opacity:.55;background:#f4f6f8;}
+.plColChip.drag{border-color:var(--amber);box-shadow:0 4px 14px rgba(0,0,0,.18);}
+.plColChip button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:2px 7px;cursor:pointer;}
+.plColChip label{display:flex;align-items:center;gap:4px;margin:0;font-size:13px;color:var(--ink);}
+.plGrip{cursor:grab;touch-action:none;padding:2px 4px;color:var(--sub);user-select:none;font-size:16px;}
+table.plTable input[readonly]{background:#f3f6fa;color:#555;}
+</style>
 <div id="pressLogView" class="popView">
   <div class="panel">
     <div class="toolbar">
@@ -599,9 +615,11 @@ body.workspace-open #homeView{display:none;}
       <span id="plStatus" style="font-size:11.5px;color:var(--sub);"></span>
       <button type="button" class="btn btn-ghost auto" id="plReload" title="저장된 값을 다시 불러오기">↻ 새로고침</button>
       <button type="button" class="btn btn-ghost auto" id="plClear">입력값 지우기</button>
+      <button type="button" class="btn btn-ghost auto adminOnly" id="plColsBtn">⚙ 컬럼 설정</button>
       <button type="button" class="btn btn-primary auto" id="plExport">📥 프레스일지 엑셀(xlsx) 내보내기</button>
     </div>
     <div class="lockednote" style="margin:0 0 10px;">출력 이력의 <b>작업지시일</b> 기준으로 날짜별 주간 → 야간, 설비 M1 → M5 순서로 표시합니다. 한 LOT에서 6장 출력 = 1줄(6칸), 12장 = 2줄(12칸)이며, 페일(Hobbock/pail) 제품은 1줄입니다. 칸에 <b>드럼 무게를 직접 입력</b>하면 맨 오른쪽 <b>합계</b>에 LOT별 합이 바로 계산됩니다(<code>24kg x 12</code>처럼 쓰면 24×12로 계산, 엑셀 복사·붙여넣기 가능, 방향키·Enter로 이동).</div>
+    <div id="plColsPanel" class="plColsPanel" style="display:none;"></div>
     <div class="plDates" id="plDates"></div>
     <div class="plDates plShiftRow" id="plShifts" title="주간/야간 선택"></div>
     <div class="plDates plMach" id="plMachines" title="설비(믹서) 선택"></div>
@@ -7815,6 +7833,7 @@ async function renderPressLogView(){
   const seq=++plRenderSeq;
   if(!plDate) plDate=todayISO();
   $('plDate').value=plDate;
+  await plLoadCols();
   await plLoadDate(plDate);
   if(seq!==plRenderSeq) return;
   const all=buildPressLogRecords('','');
@@ -7839,8 +7858,9 @@ async function renderPressLogView(){
   const recs=plFilterMachine(dayRecs,plMachine);
   if(!recs.length){ $('plBody').innerHTML=`<div class="empty">${escapeHtml(plDate)} (${plDow(plDate)}) 작업지시일의 ${effShift?escapeHtml(effShift)+' ':''}출력 이력이 없습니다.</div>`; return; }
   let gr=0;
-  const inp=(key,i,val,r,c)=>`<td class="wr"><input type="text" inputmode="decimal" autocomplete="off" data-k="${escapeHtml(key)}" data-i="${i}" data-r="${r}" data-c="${c}" value="${escapeHtml(val)}"></td>`;
+  const inp=(key,i,val,r,c)=>`<td class="wr"><input type="text" inputmode="decimal" autocomplete="off" data-k="${escapeHtml(key)}" data-i="${i}" data-r="${r}" data-c="${c}" value="${escapeHtml(val)}"${plLockNow?' readonly':''}></td>`;
   $('plBody').innerHTML=pressLogBlocks(recs).map(bl=>{
+    plLockNow=!!plConfirmOf(bl.d,bl.s);
     const body=bl.items.map(it=>{
       const key=plKey(bl.d,bl.s,it.code,it.lot), rec=plRecord(bl.d,bl.s,it.code,it.lot), cells=rec.cells||[];
       const sum=plSum(cells), filled=cells.filter(v=>String(v??'').trim()!=='').length;
@@ -7849,14 +7869,22 @@ async function renderPressLogView(){
         const r=gr++;
         let tds='';
         for(let ci=0;ci<6;ci++){ const i=li*6+ci; tds+=inp(key,i,cells[i]??'',r,ci); }
-        if(li===0) h+=`<tr data-pk="${escapeHtml(key)}"><td class="it mc" rowspan="${it.lines}"><select class="mcSel" data-k="${escapeHtml(key)}" title="설비(믹서) 선택">${['','M1','M2','M3','M4','M5',...(it.mc&&!/^M[1-5]$/.test(it.mc)?[it.mc]:[])].map(o=>`<option value="${o}"${o===(it.mc||'')?' selected':''}>${o||'-'}</option>`).join('')}</select></td><td class="it" rowspan="${it.lines}">${escapeHtml(it.code)}</td><td class="it nm" rowspan="${it.lines}"><input type="text" class="nmIn" autocomplete="off" data-k="${escapeHtml(key)}" data-name="1" placeholder="품목명" value="${escapeHtml(rec.name||'')}"></td><td class="it" rowspan="${it.lines}">${escapeHtml(String(it.lot))}</td>${tds}<td class="sm" rowspan="${it.lines}"><b class="smv">${plFmt(sum)}</b><span class="smc">입력 ${filled}${it.pail?'':` / ${it.n}`}</span></td></tr>`;
+        if(li===0) h+=`<tr data-pk="${escapeHtml(key)}">${plInfoTds(it,rec,key)}${tds}<td class="sm" rowspan="${it.lines}"><b class="smv">${plFmt(sum)}</b><span class="smc">입력 ${filled}${it.pail?'':` / ${it.n}`}</span></td></tr>`;
         else h+=`<tr>${tds}</tr>`;
       }
       return h;
     }).join('');
-    return `<table class="plTable" data-d="${bl.d}"><colgroup><col style="width:7%"><col style="width:13%"><col style="width:15%"><col style="width:12%">${'<col style="width:7%">'.repeat(6)}<col style="width:11%"></colgroup>
-      <tr><td class="h1">설비명</td><td class="h1">코드명</td><td class="h1">품목명</td><td class="h1">LOT번호</td><td class="h1" colspan="6">${escapeHtml(bl.title)}</td><td class="h1">합계</td></tr>
-      <tr><td class="h2">설비명</td><td class="h2">코드명</td><td class="h2">품목명</td><td class="h2">LOT번호</td><td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td><td class="h2"></td></tr>${body}</table>`;
+    const tot=PL_COLS.reduce((a,c)=>a+PL_COLDEFS[c].w,0)+42+11, pct=w=>(w*100/tot).toFixed(2)+'%';
+    const colgroup=PL_COLS.map(c=>`<col style="width:${pct(PL_COLDEFS[c].w)}">`).join('')+`<col style="width:${pct(7)}">`.repeat(6)+`<col style="width:${pct(11)}">`;
+    const minPx=PL_COLS.reduce((a,c)=>a+PL_COLDEFS[c].px,0)+6*46+84;
+    const hd=cls=>PL_COLS.map(c=>`<td class="${cls}">${PL_COLDEFS[c].l}</td>`).join('');
+    const cf=plConfirmOf(bl.d,bl.s);
+    const bar=`<div class="plConfirm${cf?' done':''}" data-d="${bl.d}" data-s="${bl.s}">`+(cf
+      ?`<span>🔒 ${escapeHtml(bl.s)} 일지 확정됨 · ${escapeHtml(cf.by||'')} · ${escapeHtml(cf.at||'')}</span>${isAdmin?'<button type="button" class="btn btn-ghost auto" data-plunconfirm="1">확정 취소</button>':''}`
+      :`<span>${escapeHtml(bl.s)} 일지 작성이 끝나면 확정하세요. 확정하면 수정할 수 없습니다.</span><button type="button" class="btn btn-ok auto" data-plconfirm="1">✔ 확정</button>`)+`</div>`;
+    return `${bar}<div class="plScroll"><table class="plTable" data-d="${bl.d}" style="min-width:${minPx}px"><colgroup>${colgroup}</colgroup>
+      <tr>${hd('h1')}<td class="h1" colspan="6">${escapeHtml(bl.title)}</td><td class="h1">합계</td></tr>
+      <tr>${hd('h2')}<td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td><td class="h2"></td></tr>${body}</table></div>`;
   }).join('');
   plSetStatus('칸을 눌러 바로 입력하세요. 자동 저장됩니다.');
 }
@@ -7864,6 +7892,7 @@ async function renderPressLogView(){
 $('plBody')?.addEventListener('input',e=>{
   const el=e.target; if(!el.matches||!el.matches('input[data-k]')) return;
   const key=el.dataset.k, d=key.split('|')[0];
+  if(plLocked(d,key.split('|')[1])) return;
   const day=(PL_CACHE[d]=PL_CACHE[d]||{});
   const rec=(day[key]=day[key]||{name:'',cells:[]});
   if(el.dataset.name){ rec.name=el.value; }
@@ -7900,17 +7929,35 @@ $('plBody')?.addEventListener('paste',e=>{
   const all=plInputs(), r0=+el.dataset.r, c0=+el.dataset.c;
   text.replace(/\r/g,'').replace(/\n+$/,'').split('\n').forEach((line,i)=>line.split('\t').forEach((tok,j)=>{
     const t=all.find(x=>+x.dataset.r===r0+i&&+x.dataset.c===c0+j);
-    if(t){ t.value=tok.trim(); t.dispatchEvent(new Event('input',{bubbles:true})); }
+    if(t&&!t.readOnly){ t.value=tok.trim(); t.dispatchEvent(new Event('input',{bubbles:true})); }
   }));
 });
-$('plBody')?.addEventListener('change',e=>{
+$('plBody')?.addEventListener('change',async e=>{
   const el=e.target; if(!el.classList||!el.classList.contains('mcSel')) return;
-  const key=el.dataset.k, d=key.split('|')[0];
-  const day=(PL_CACHE[d]=PL_CACHE[d]||{});
+  const key=el.dataset.k, [d,sh,code,lot]=key.split('|');
+  if(plLocked(d,sh)){ flash('확정된 일지는 수정할 수 없습니다',true); renderPressLogView(); return; }
+  const v=el.value, day=(PL_CACHE[d]=PL_CACHE[d]||{});
   const rec=(day[key]=day[key]||{name:'',cells:[]});
-  rec.mc=el.value;                       // ''이면 작업지시 값으로 되돌림
+  rec.mc=v;                              // ''이면 작업지시 값으로 되돌림
+  let msg='';
+  if(v){
+    // 설비 변경 → 연결된 작업지시의 설비도 함께 변경 (같은 작업지시의 다른 LOT도 같은 설비로)
+    const index=buildLotOrderIndex(), order=index.idx.get(code+'\u0001'+lot);
+    if(order){
+      order.machine=v;
+      try{ await saveWorkOrders(); msg=`설비 ${v} 변경 · 작업지시에도 반영했습니다`; }
+      catch(err){ console.error(err); flash('작업지시 설비 저장에 실패했습니다',true); }
+      buildPressLogRecords('','').forEach(r=>{
+        if(index.idx.get(r.code+'\u0001'+r.lot)!==order) return;
+        const dd=(PL_CACHE[r.d]=PL_CACHE[r.d]||{}), k=plKey(r.d,r.s,r.code,r.lot);
+        (dd[k]=dd[k]||{name:'',cells:[]}).mc=v; plScheduleSave(r.d);
+      });
+      try{ renderOrderList(); }catch(_){}
+    }else msg='연결된 작업지시를 찾지 못해 일지에만 반영했습니다';
+  }
   plScheduleSave(d);
   renderPressLogView();                  // 설비 순서·필터에 맞게 다시 그림
+  if(msg) flash(msg);
 });
 $('plDate')?.addEventListener('change',()=>{ plDate=$('plDate').value||todayISO(); renderPressLogView(); });
 $('plPrev')?.addEventListener('click',()=>{ plDate=plShiftDate(plDate||todayISO(),-1); renderPressLogView(); });
@@ -7919,10 +7966,103 @@ $('plToday')?.addEventListener('click',()=>{ plDate=todayISO(); renderPressLogVi
 $('plReload')?.addEventListener('click',async()=>{ await plLoadDate(plDate||todayISO(),true); renderPressLogView(); flash('저장된 값을 다시 불러왔습니다'); });
 $('plClear')?.addEventListener('click',async()=>{
   const d=plDate||todayISO();
+  if(plDayLocked(d)){ flash('확정된 일지가 있어 지울 수 없습니다. 관리자가 확정을 취소한 뒤 지워주세요',true); return; }
   if(!confirm(`${d} 작업지시일에 입력한 값(품목명·칸 값)을 모두 지울까요? 되돌릴 수 없습니다.`)) return;
   PL_CACHE[d]={}; plScheduleSave(d); renderPressLogView();
 });
 $('plExport')?.addEventListener('click',()=>exportPressLogXlsx(plDate||todayISO(),plDate||todayISO(),plMachine,plEffShift()));
+
+/* ===== 프레스일지 v2: 컬럼 설정 · 확정 · 약어명/색상명 ===== */
+const PL_COLS_KEY='ksa-presslog-cols-v1';
+const PL_COLDEFS={mc:{l:'설비명',w:7,px:56},code:{l:'코드명',w:13,px:96},short:{l:'약어명',w:12,px:96},color:{l:'색상명',w:9,px:76},name:{l:'품목명',w:15,px:110},lot:{l:'LOT번호',w:12,px:92}};
+const PL_DEFAULT_COLS=['mc','code','name','lot'];
+let PL_COLS=PL_DEFAULT_COLS.slice(), PL_COLS_LOADED=false, plLockNow=false;
+async function plLoadCols(){
+  if(PL_COLS_LOADED) return; PL_COLS_LOADED=true;
+  try{ const raw=await storeGet(PL_COLS_KEY); if(raw){ const a=JSON.parse(raw); if(Array.isArray(a)){ const ok=a.filter((c,i)=>PL_COLDEFS[c]&&a.indexOf(c)===i); if(ok.length) PL_COLS=ok; } } }catch(e){}
+}
+function plConfirmOf(d,s){ const m=(PL_CACHE[d]||{}).__meta; return (m&&m.confirm&&m.confirm[s])||null; }
+function plLocked(d,s){ return !!plConfirmOf(d,s); }
+function plDayLocked(d){ const m=(PL_CACHE[d]||{}).__meta; return !!(m&&m.confirm&&Object.keys(m.confirm).length); }
+function plProdInfo(it){
+  let p=null;
+  try{ const o=buildLotOrderIndex().idx.get(it.code+'\u0001'+it.lot); p=o?resolveOrderProduct(o):null; }catch(e){}
+  if(!p) p=(ALL_PRODUCTS||[]).find(x=>String(x.code||'')===String(it.code))||null;
+  return {short:p?String(p.shortName||p.name||p.scheduleName||''):'',color:p?String(p.color||''):''};
+}
+function plInfoTds(it,rec,key){
+  const rs=`rowspan="${it.lines}"`, ek=escapeHtml(key), pi=plProdInfo(it), lk=plLockNow;
+  const opts=['','M1','M2','M3','M4','M5',...(it.mc&&!/^M[1-5]$/.test(it.mc)?[it.mc]:[])].map(o=>`<option value="${o}"${o===(it.mc||'')?' selected':''}>${o||'-'}</option>`).join('');
+  const T={
+    mc:`<td class="it mc" ${rs}><select class="mcSel" data-k="${ek}" title="설비(믹서) 선택"${lk?' disabled':''}>${opts}</select></td>`,
+    code:`<td class="it" ${rs}>${escapeHtml(it.code)}</td>`,
+    short:`<td class="it" ${rs}>${escapeHtml(pi.short)}</td>`,
+    color:`<td class="it" ${rs}>${escapeHtml(pi.color)}</td>`,
+    name:`<td class="it nm" ${rs}><input type="text" class="nmIn" autocomplete="off" data-k="${ek}" data-name="1" placeholder="품목명" value="${escapeHtml(rec.name||'')}"${lk?' readonly':''}></td>`,
+    lot:`<td class="it" ${rs}>${escapeHtml(String(it.lot))}</td>`
+  };
+  return PL_COLS.map(c=>T[c]).join('');
+}
+// 확정 / 확정 취소(관리자)
+$('plBody')?.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('[data-plconfirm],[data-plunconfirm]'); if(!b) return;
+  const bar=b.closest('.plConfirm'), d=bar.dataset.d, sh=bar.dataset.s;
+  const day=(PL_CACHE[d]=PL_CACHE[d]||{}), meta=(day.__meta=day.__meta||{}); meta.confirm=meta.confirm||{};
+  if(b.hasAttribute('data-plconfirm')){
+    const empty=buildPressLogRecords('','').filter(r=>r.d===d&&r.s===sh&&!(plRecord(d,sh,r.code,r.lot).cells||[]).some(v=>String(v??'').trim()!=='')).length;
+    if(!confirm((empty?`입력이 없는 LOT가 ${empty}건 있습니다. `:'')+`${d} ${sh} 프레스일지를 확정할까요? 확정 후에는 수정할 수 없습니다.`)) return;
+    meta.confirm[sh]={by:($('workerName')?.value||'').trim()||(isAdmin?'관리자':'작업자'),at:new Date().toLocaleString('ko-KR')};
+    flash(`${sh} 프레스일지를 확정했습니다`);
+  }else{
+    if(!isAdmin) return;
+    if(!confirm(`${d} ${sh} 프레스일지 확정을 취소할까요?`)) return;
+    delete meta.confirm[sh]; flash('확정을 취소했습니다');
+  }
+  plScheduleSave(d); renderPressLogView();
+});
+// 컬럼 설정 패널 (관리자): 체크로 넣고 빼기, ⠿ 드래그 또는 ◀ ▶로 좌우 이동
+function plRenderColsPanel(){
+  const box=$('plColsPanel'); if(!box) return;
+  const all=[...PL_COLS,...Object.keys(PL_COLDEFS).filter(c=>!PL_COLS.includes(c))];
+  box.innerHTML=`<div class="lockednote" style="margin:0 0 10px;">표시할 컬럼을 체크하고, <b>⠿</b>를 잡고 좌우로 끌어 순서를 바꾸세요(◀ ▶ 버튼도 사용 가능). 수기 입력칸 6개와 합계는 항상 오른쪽에 고정됩니다.</div>
+    <div class="plColChips" id="plColChips">${all.map(c=>`<span class="plColChip${PL_COLS.includes(c)?'':' off'}" data-c="${c}"><span class="plGrip" title="끌어서 이동">⠿</span><label><input type="checkbox"${PL_COLS.includes(c)?' checked':''}> ${PL_COLDEFS[c].l}</label><button type="button" data-mv="-1">◀</button><button type="button" data-mv="1">▶</button></span>`).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:10px;"><button type="button" class="btn btn-primary auto" id="plColsSave">저장</button><button type="button" class="btn btn-ghost auto" id="plColsReset">기본값</button><button type="button" class="btn btn-ghost auto" id="plColsClose">닫기</button></div>`;
+}
+async function plSaveCols(ids){
+  PL_COLS=ids;
+  try{ await storeSet(PL_COLS_KEY,JSON.stringify(ids)); flash('프레스일지 컬럼 설정을 저장했습니다'); }
+  catch(e){ console.error(e); flash('컬럼 설정 저장에 실패했습니다',true); }
+  renderPressLogView();
+}
+(function(){
+  const box=$('plColsPanel'); if(!box) return;
+  let drag=null;
+  $('plColsBtn')?.addEventListener('click',()=>{ if(!isAdmin) return; const open=box.style.display==='none'; box.style.display=open?'block':'none'; if(open) plRenderColsPanel(); });
+  box.addEventListener('pointerdown',e=>{
+    const g=e.target.closest&&e.target.closest('.plGrip'); if(!g) return;
+    drag=g.closest('.plColChip'); drag.classList.add('drag'); e.preventDefault();
+    try{ g.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  box.addEventListener('pointermove',e=>{
+    if(!drag) return;
+    const t=document.elementFromPoint(e.clientX,e.clientY), over=t&&t.closest&&t.closest('.plColChip');
+    if(!over||over===drag||over.parentNode!==drag.parentNode) return;
+    if(drag.compareDocumentPosition(over)&Node.DOCUMENT_POSITION_FOLLOWING) over.after(drag); else over.before(drag);
+  });
+  const end=()=>{ if(drag){ drag.classList.remove('drag'); drag=null; } };
+  box.addEventListener('pointerup',end); box.addEventListener('pointercancel',end);
+  box.addEventListener('change',e=>{ const c=e.target.closest&&e.target.closest('.plColChip'); if(c&&e.target.type==='checkbox') c.classList.toggle('off',!e.target.checked); });
+  box.addEventListener('click',e=>{
+    const mv=e.target.closest&&e.target.closest('[data-mv]');
+    if(mv){ const c=mv.closest('.plColChip'); if(mv.dataset.mv==='-1'&&c.previousElementSibling) c.previousElementSibling.before(c); else if(mv.dataset.mv==='1'&&c.nextElementSibling) c.nextElementSibling.after(c); return; }
+    if(e.target.id==='plColsSave'){
+      const ids=[...box.querySelectorAll('.plColChip')].filter(c=>c.querySelector('input').checked).map(c=>c.dataset.c);
+      if(!ids.length){ flash('컬럼을 하나 이상 선택하세요',true); return; }
+      plSaveCols(ids).then(()=>plRenderColsPanel());
+    }else if(e.target.id==='plColsReset'){ plSaveCols(PL_DEFAULT_COLS.slice()).then(()=>plRenderColsPanel()); }
+    else if(e.target.id==='plColsClose'){ box.style.display='none'; }
+  });
+})();
 
 async function initApp(){
   try{await window.KSA_DB_PROMISE;}catch(e){}
@@ -7963,6 +8103,127 @@ setTimeout(showHome,0);
 </script>
   <!-- 기존 설정들이 끝나는 위치 혹은 </body> 바로 위 -->
 </div> <!-- 또는 적절한 패널 닫기 태그 위 -->
-<script src="./i18n.js"></script>
+<script>
+/* KSA 다국어(i18n) 레이어 — 한국어/English/中文/සිංහල/Русский
+   - 한국어 원문을 키로 사용, 번역이 없는 문구는 한국어 그대로 표시됩니다.
+   - 문구 추가: KSA_I18N.add({'한국어 원문':['English','中文','සිංහල','Русский']})
+   - 라벨 미리보기/편집 캔버스(.canvasBox)는 실제 인쇄물이므로 번역하지 않습니다. */
+(function(){
+var LANGS=[['ko','한국어'],['en','English'],['zh','中文'],['si','සිංහල'],['ru','Русский']];
+var IDX={en:0,zh:1,si:2,ru:3}, K=/[가-힣]/, KEY='ksa-lang';
+var D={
+'작업자':['Worker','作业员','සේවකයා','Оператор'],
+'이름 입력':['Enter name','输入姓名','නම ඇතුළත් කරන්න','Введите имя'],
+'⌂ 홈':['⌂ Home','⌂ 首页','⌂ මුල් පිටුව','⌂ Главная'],
+'작업자 모드':['Worker mode','作业员模式','සේවක මාදිලිය','Режим оператора'],
+'관리자 모드 전환 (PIN)':['Switch to admin mode (PIN)','切换管理员模式 (PIN)','පරිපාලක මාදිලියට මාරු වන්න (PIN)','Режим администратора (PIN)'],
+'DB 확인중':['Checking DB','正在检查数据库','DB පරීක්ෂා කරමින්','Проверка БД'],
+'관리자 PIN':['Admin PIN','管理员PIN','පරිපාලක PIN','PIN администратора'],
+'확인':['OK','确认','තහවුරු කරන්න','ОК'],
+'취소':['Cancel','取消','අවලංගු කරන්න','Отмена'],
+'저장':['Save','保存','සුරකින්න','Сохранить'],
+'오늘':['Today','今天','අද','Сегодня'],
+'↻ 새로고침':['↻ Refresh','↻ 刷新','↻ නැවුම් කරන්න','↻ Обновить'],
+'메뉴':['Menu','菜单','මෙනුව','Меню'],
+'원하는 업무를 선택하세요. 관리자 기능은 관리자 모드에서 활성화됩니다.':['Choose a task. Admin functions are enabled in admin mode.','请选择业务。管理员功能须在管理员模式下启用。','කාර්යයක් තෝරන්න. පරිපාලක කාර්යයන් පරිපාලක මාදිලියේදී ක්‍රියාත්මක වේ.','Выберите задачу. Функции администратора доступны в режиме администратора.'],
+'일괄 출력':['Batch print','批量打印','තොග මුද්‍රණය','Пакетная печать'],
+'작업지시 기반 출력':['Print from work orders','基于作业指令打印','වැඩ නියෝග මත මුද්‍රණය','Печать по заданиям'],
+'실시간 출력':['Live print','实时打印','සජීවී මුද්‍රණය','Печать на месте'],
+'현장 즉시 발행':['On-site instant issue','现场即时打印','ස්ථානයේම වහාම නිකුත් කිරීම','Мгновенная печать'],
+'라벨 편집':['Label editor','标签编辑','ලේබල් සංස්කරණය','Редактор этикеток'],
+'제품 관리':['Products','产品管理','නිෂ්පාදන කළමනාකරණය','Продукты'],
+'LOT 규칙':['LOT rules','LOT规则','LOT නීති','Правила LOT'],
+'프레스일지':['Press log','压机日志','ප්‍රෙස් දිනපොත','Журнал пресса'],
+'출력 이력':['Print history','打印记录','මුද්‍රණ ඉතිහාසය','История печати'],
+'프린터':['Printer','打印机','මුද්‍රණ යන්ත්‍රය','Принтер'],
+'권한 마스터':['Permissions','权限管理','අවසර කළමනාකරණය','Права доступа'],
+'1. 일괄 출력 모드':['1. Batch print mode','1. 批量打印模式','1. තොග මුද්‍රණ මාදිලිය','1. Пакетная печать'],
+'2. 실시간 출력 모드':['2. Live print mode','2. 实时打印模式','2. සජීවී මුද්‍රණ මාදිලිය','2. Печать на месте'],
+'🏷 라벨 마스터':['🏷 Label master','🏷 标签母版','🏷 ලේබල් ප්‍රධාන','🏷 Мастер этикеток'],
+'▦ 제품관리(마스터)':['▦ Product master','▦ 产品主数据','▦ නිෂ්පාදන ප්‍රධාන','▦ Мастер продуктов'],
+'🖨 계획 없이 출력':['🖨 Print without plan','🖨 无计划打印','🖨 සැලසුමකින් තොරව මුද්‍රණය','🖨 Печать без плана'],
+'▤ 프레스일지':['▤ Press log','▤ 压机日志','▤ ප්‍රෙස් දිනපොත','▤ Журнал пресса'],
+'🔐 권한 마스터':['🔐 Permissions','🔐 权限管理','🔐 අවසර කළමනාකරණය','🔐 Права доступа'],
+'주간':['Day shift','白班','දිවා','Дневная'],
+'야간':['Night shift','夜班','රාත්‍රී','Ночная'],
+'제품 선택':['Select product','选择产品','නිෂ්පාදනය තෝරන්න','Выбор продукта'],
+'품목코드 검색':['Search item code','搜索品目代码','අයිතම කේතය සොයන්න','Поиск по коду'],
+'총 드럼 수':['Total drums','总桶数','මුළු ඩ්‍රම් ගණන','Всего бочек'],
+'작업지시 목록':['Work order list','作业指令列表','වැඩ නියෝග ලැයිස්තුව','Список заданий'],
+'작업지시 관리 (관리자)':['Work orders (Admin)','作业指令管理(管理员)','වැඩ නියෝග (පරිපාලක)','Задания (админ)'],
+'현재 선택된 작업':['Selected job','当前所选作业','තෝරාගත් කාර්යය','Выбранное задание'],
+'프린터 검색':['Find printers','搜索打印机','මුද්‍රණ යන්ත්‍ර සොයන්න','Найти принтеры'],
+'라벨 미리보기':['Label preview','标签预览','ලේබල් පෙරදසුන','Предпросмотр этикетки'],
+'🖨 바로 인쇄 (선택한 드럼만)':['🖨 Print now (selected drums)','🖨 立即打印(仅所选桶)','🖨 වහාම මුද්‍රණය (තෝරාගත් ඩ්‍රම්)','🖨 Печать (выбранные бочки)'],
+'🖨 전체 드럼 인쇄':['🖨 Print all drums','🖨 打印全部桶','🖨 සියලු ඩ්‍රම් මුද්‍රණය','🖨 Печать всех бочек']
+};
+var cur='ko', M=new WeakMap();
+try{ cur=localStorage.getItem(KEY)||'ko'; }catch(e){}
+if(!IDX.hasOwnProperty(cur)) cur='ko';
+
+function tr(s){
+  if(cur==='ko'||typeof s!=='string') return s;
+  var k=s.trim(), e=D[k];
+  return (e&&e[IDX[cur]])?s.replace(k,e[IDX[cur]]):s;
+}
+function skip(el){ return !el||(el.closest&&el.closest('script,style,textarea,.canvasBox,#editorCanvasWrap,#langSel')); }
+function text(n,force){
+  if(skip(n.parentNode)) return;
+  var r=M.get(n), v=n.nodeValue;
+  if(!(r&&v===r.t)){ if(!K.test(v)){ if(r)M.delete(n); return; } r={o:v}; }
+  else if(!force) return;
+  r.t=tr(r.o); M.set(n,r); if(r.t!==v) n.nodeValue=r.t;
+}
+function attrs(el,force){
+  if(skip(el)) return;
+  var m=el.__i18n||(el.__i18n={});
+  ['placeholder','title','aria-label'].forEach(function(a){
+    var v=el.getAttribute(a); if(v==null) return; var r=m[a];
+    if(!(r&&v===r.t)){ if(!K.test(v)){ delete m[a]; return; } r=m[a]={o:v}; }
+    else if(!force) return;
+    r.t=tr(r.o); if(r.t!==v) el.setAttribute(a,r.t);
+  });
+}
+function walk(root,force){
+  if(root.nodeType===3){ text(root,force); return; }
+  if(root.nodeType!==1) return;
+  attrs(root,force);
+  var w=document.createTreeWalker(root,5,null), n;
+  while((n=w.nextNode())){ n.nodeType===3?text(n,force):attrs(n,force); }
+}
+function setLang(l){
+  if(!IDX.hasOwnProperty(l)&&l!=='ko') return;
+  cur=l; try{ localStorage.setItem(KEY,l); }catch(e){}
+  document.documentElement.lang=l;
+  var s=document.getElementById('langSel'); if(s) s.value=l;
+  walk(document.body,true);
+}
+function mount(){
+  var host=document.querySelector('header .meta');
+  if(host&&!document.getElementById('langSel')){
+    var s=document.createElement('select'); s.id='langSel'; s.setAttribute('aria-label','Language');
+    s.style.cssText='background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#fff;padding:5px 8px;border-radius:6px;font-size:12.5px;width:auto;cursor:pointer;';
+    LANGS.forEach(function(x){ var o=document.createElement('option'); o.value=x[0]; o.textContent=x[1]; o.style.color='#1b232f'; s.appendChild(o); });
+    s.value=cur; s.onchange=function(){ setLang(s.value); };
+    host.insertBefore(s,host.firstChild);
+  }
+  document.documentElement.lang=cur;
+  walk(document.body,true);
+  new MutationObserver(function(ms){
+    ms.forEach(function(m){
+      if(m.type==='childList') m.addedNodes.forEach(function(n){ walk(n); });
+      else if(m.type==='characterData') text(m.target);
+      else attrs(m.target);
+    });
+  }).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','title','aria-label']});
+}
+['alert','confirm','prompt'].forEach(function(f){
+  var o=window[f]; window[f]=function(a,b){ return o.call(window,tr(a),b); };
+});
+window.KSA_I18N={t:tr,set:setLang,get:function(){return cur;},add:function(d){ for(var k in d) D[k]=d[k]; walk(document.body,true); }};
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mount); else mount();
+})();
+
+</script>
 </body>
 </html>
