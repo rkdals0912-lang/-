@@ -618,7 +618,7 @@ table.plTable input[readonly]{background:#f3f6fa;color:#555;}
       <button type="button" class="btn btn-ghost auto adminOnly" id="plColsBtn">⚙ 컬럼 설정</button>
       <button type="button" class="btn btn-primary auto" id="plExport">📥 프레스일지 엑셀(xlsx) 내보내기</button>
     </div>
-    <div class="lockednote" style="margin:0 0 10px;">출력 이력의 <b>작업지시일</b> 기준으로 날짜별 주간 → 야간, 설비 M1 → M5 순서로 표시합니다. 한 LOT에서 6장 출력 = 1줄(6칸), 12장 = 2줄(12칸)이며, 페일(Hobbock/pail) 제품은 1줄입니다. 칸에 <b>드럼 무게를 직접 입력</b>하면 맨 오른쪽 <b>합계</b>에 LOT별 합이 바로 계산됩니다(<code>24kg x 12</code>처럼 쓰면 24×12로 계산, 엑셀 복사·붙여넣기 가능, 방향키·Enter로 이동).</div>
+    <div class="lockednote" style="margin:0 0 10px;"><b>작업지시</b> 기준으로(라벨 출력 이력과 별개) 날짜별 주간 → 야간, 설비 M1 → M5 순서로 표시합니다. 작업지시의 총 드럼 수 6개 = 1줄(6칸), 12개 = 2줄(12칸)이며, 페일(Hobbock/pail) 제품은 1줄입니다. 칸에 <b>드럼 무게를 직접 입력</b>하면 맨 오른쪽 <b>합계</b>에 LOT별 합이 바로 계산됩니다(<code>24kg x 12</code>처럼 쓰면 24×12로 계산, 엑셀 복사·붙여넣기 가능, 방향키·Enter로 이동).</div>
     <div id="plColsPanel" class="plColsPanel" style="display:none;"></div>
     <div class="plDates" id="plDates"></div>
     <div class="plDates plShiftRow" id="plShifts" title="주간/야간 선택"></div>
@@ -4710,24 +4710,25 @@ function entryOrderMeta(e,index){
 }
 function plMachineLabel(m){ const t=String(m||'').trim(); if(!t) return ''; const n=t.replace(/\D/g,''); return n?`M${n}`:t; }
 function buildPressLogRecords(from,to){
-  const index=buildLotOrderIndex();
+  // 작업지시 기준: 라벨 출력 이력과 무관하게 작업지시(날짜·주야·설비·드럼 수)로 일지 줄을 만든다.
   const seen=new Map(), recs=[];
-  log.forEach(e=>{
-    const lots=(e.lots&&e.lots.length)?e.lots:[e.lot||''];
-    lots.forEach(l=>{
-      const key=(e.code||'')+'\u0001'+l;
-      if(seen.has(key)){ seen.get(key).n++; return; }  // 같은 LOT를 또 출력한 장수는 칸 수(드럼 수)로 센다
-      const m=(e.lotMeta&&e.lotMeta[l])||resolveLotMeta(e.code,l,index,null)||{};
-      const d=m.d||logDateKey(e)||'';
-      const mn=parseInt(String(m.m||'').replace(/\D/g,''),10);
-      const rec={code:e.code||'',lot:l,d,s:m.s==='야간'?'야간':'주간',mn:isNaN(mn)?99:mn,mc:plMachineLabel(m.m),n:1,pail:isPailProduct(e.code,e.product)};
-      seen.set(key,rec); recs.push(rec);
-    });
+  (workOrders||[]).forEach(o=>{
+    if(!o||!o.date) return;
+    let p=null; try{ p=resolveOrderProduct(o); }catch(e){}
+    const code=String((p&&p.code)||o.productCode||''); if(!code) return;
+    let lot=''; try{ lot=String(computeLotInfo(o,1).lot||''); }catch(e){}
+    const drums=Math.min(300,Math.max(1,Math.round(Number(o.batchDrums)||1)));
+    const m=lotMetaFromOrder(o);
+    const key=code+'\u0001'+lot+'\u0001'+m.d+'\u0001'+m.s;
+    if(seen.has(key)){ seen.get(key).n+=drums; return; }   // 같은 코드·LOT·날짜·주야는 한 줄로 합산
+    const mn=parseInt(String(m.m||'').replace(/\D/g,''),10);
+    const nm=String((p&&(p.fullName||p.name||p.shortName||p.scheduleName))||o.productName||'');
+    const rec={code,lot,d:m.d,s:m.s,mn:isNaN(mn)?99:mn,mc:plMachineLabel(m.m),n:drums,pail:isPailProduct(code,nm),oid:o.id};
+    seen.set(key,rec); recs.push(rec);
   });
   const ranged=recs.filter(r=>{ if(!from&&!to) return true; return r.d&&(!from||r.d>=from)&&(!to||r.d<=to); });
   ranged.sort((x,y)=>(x.d<y.d?-1:x.d>y.d?1:0)||(lotShiftRank(x.s)-lotShiftRank(y.s))||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0));
-  // 드럼(출력 장수) 1장 = 수기 입력 1칸. 한 줄에 C~H 6칸 → 6장=1줄, 12장=2줄, 40장=7줄.
-  // 페일(Hobbock/pail) 제품은 '24kg x 개수'를 한 칸에 적으므로 장수와 관계없이 1줄.
+  // 드럼 1개 = 수기 입력 1칸. 한 줄에 6칸 → 6드럼=1줄, 12드럼=2줄. 페일(Hobbock/pail)은 장수와 관계없이 1줄.
   ranged.forEach(r=>{ r.lines=r.pail?1:Math.max(1,Math.ceil(r.n/6)); });
   return ranged;
 }
@@ -4789,7 +4790,6 @@ function buildPressLogSheetRows(blocks){
 function plApplyOverrides(recs){
   recs.forEach(r=>{
     const o=plRecord(r.d,r.s,r.code,r.lot);
-    if(o.mc){ r.mc=plMachineLabel(o.mc); const n=parseInt(r.mc.replace(/\D/g,''),10); r.mn=isNaN(n)?99:n; }
   });
   recs.sort((x,y)=>(x.d<y.d?-1:x.d>y.d?1:0)||(lotShiftRank(x.s)-lotShiftRank(y.s))||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0));
   return recs;
@@ -7839,7 +7839,7 @@ async function renderPressLogView(){
   const all=buildPressLogRecords('','');
   const effShift=plEffShift();
   const dates=[...new Set(plFilterShift(all,effShift).map(r=>r.d).filter(Boolean))].sort().reverse().slice(0,31);
-  $('plDates').innerHTML=dates.length?dates.map(d=>`<button type="button" data-pld="${d}" class="${d===plDate?'on':''}">${d.slice(5)} (${plDow(d)})</button>`).join(''):'<span style="font-size:12px;color:var(--sub);">출력 이력이 있는 작업지시일이 없습니다.</span>';
+  $('plDates').innerHTML=dates.length?dates.map(d=>`<button type="button" data-pld="${d}" class="${d===plDate?'on':''}">${d.slice(5)} (${plDow(d)})</button>`).join(''):'<span style="font-size:12px;color:var(--sub);">작업지시가 있는 날짜가 없습니다.</span>';
   $('plDates').querySelectorAll('[data-pld]').forEach(b=>b.addEventListener('click',()=>{ plDate=b.dataset.pld; renderPressLogView(); }));
   const dayAll=plApplyOverrides(all.filter(r=>r.d===plDate));
   // 주간/야간 선택 칩 (작업자 모드는 '전체' 없음)
@@ -7856,7 +7856,7 @@ async function renderPressLogView(){
   $('plMachines').querySelectorAll('[data-plm]').forEach(b=>b.addEventListener('click',()=>{ plMachine=b.dataset.plm; renderPressLogView(); }));
   if($('plExport')){ const tag=[effShift,plMachine?(plMachine==='__none'?'미지정':plMachine):''].filter(Boolean).join(' · '); $('plExport').textContent=tag?`📥 ${tag} 프레스일지 엑셀 내보내기`:'📥 프레스일지 엑셀(xlsx) 내보내기'; }
   const recs=plFilterMachine(dayRecs,plMachine);
-  if(!recs.length){ $('plBody').innerHTML=`<div class="empty">${escapeHtml(plDate)} (${plDow(plDate)}) 작업지시일의 ${effShift?escapeHtml(effShift)+' ':''}출력 이력이 없습니다.</div>`; return; }
+  if(!recs.length){ $('plBody').innerHTML=`<div class="empty">${escapeHtml(plDate)} (${plDow(plDate)}) ${effShift?escapeHtml(effShift)+' ':''}작업지시가 없습니다.</div>`; return; }
   let gr=0;
   const inp=(key,i,val,r,c)=>`<td class="wr"><input type="text" inputmode="decimal" autocomplete="off" data-k="${escapeHtml(key)}" data-i="${i}" data-r="${r}" data-c="${c}" value="${escapeHtml(val)}"${plLockNow?' readonly':''}></td>`;
   $('plBody').innerHTML=pressLogBlocks(recs).map(bl=>{
@@ -7936,28 +7936,14 @@ $('plBody')?.addEventListener('change',async e=>{
   const el=e.target; if(!el.classList||!el.classList.contains('mcSel')) return;
   const key=el.dataset.k, [d,sh,code,lot]=key.split('|');
   if(plLocked(d,sh)){ flash('확정된 일지는 수정할 수 없습니다',true); renderPressLogView(); return; }
-  const v=el.value, day=(PL_CACHE[d]=PL_CACHE[d]||{});
-  const rec=(day[key]=day[key]||{name:'',cells:[]});
-  rec.mc=v;                              // ''이면 작업지시 값으로 되돌림
-  let msg='';
-  if(v){
-    // 설비 변경 → 연결된 작업지시의 설비도 함께 변경 (같은 작업지시의 다른 LOT도 같은 설비로)
-    const order=plFindOrder(code,lot);
-    if(order){
-      order.machine=v;
-      try{ await saveWorkOrders(); msg=`설비 ${v} 변경 · 작업지시에도 반영했습니다`; }
-      catch(err){ console.error(err); flash('작업지시 설비 저장에 실패했습니다',true); }
-      buildPressLogRecords('','').forEach(r=>{
-        if(plFindOrder(r.code,r.lot)!==order) return;
-        const dd=(PL_CACHE[r.d]=PL_CACHE[r.d]||{}), k=plKey(r.d,r.s,r.code,r.lot);
-        (dd[k]=dd[k]||{name:'',cells:[]}).mc=v; plScheduleSave(r.d);
-      });
-      try{ renderOrderList(); }catch(_){}
-    }else{ flash('연결된 작업지시를 찾지 못해 일지에만 반영했습니다 (작업지시 설비는 변경되지 않음)',true); }
-  }
-  plScheduleSave(d);
-  renderPressLogView();                  // 설비 순서·필터에 맞게 다시 그림
-  if(msg) flash(msg);
+  const v=el.value;
+  const order=(workOrders||[]).find(o=>String(o.id)===String(el.dataset.oid))||plFindOrder(code,lot);
+  if(!order){ flash('연결된 작업지시를 찾지 못했습니다',true); renderPressLogView(); return; }
+  order.machine=v;                       // 작업지시가 원본: 설비를 작업지시에 바로 저장
+  try{ await saveWorkOrders(); flash(v?`설비 ${v}로 변경 · 작업지시에 반영했습니다`:'설비를 미지정으로 변경했습니다'); }
+  catch(err){ console.error(err); flash('작업지시 설비 저장에 실패했습니다',true); }
+  try{ renderOrderList(); }catch(_){}
+  renderPressLogView();
 });
 $('plDate')?.addEventListener('change',()=>{ plDate=$('plDate').value||todayISO(); renderPressLogView(); });
 $('plPrev')?.addEventListener('click',()=>{ plDate=plShiftDate(plDate||todayISO(),-1); renderPressLogView(); });
@@ -8009,7 +7995,7 @@ function plInfoTds(it,rec,key){
   const rs=`rowspan="${it.lines}"`, ek=escapeHtml(key), pi=plProdInfo(it), lk=plLockNow;
   const opts=['','M1','M2','M3','M4','M5',...(it.mc&&!/^M[1-5]$/.test(it.mc)?[it.mc]:[])].map(o=>`<option value="${o}"${o===(it.mc||'')?' selected':''}>${o||'-'}</option>`).join('');
   const T={
-    mc:`<td class="it mc" ${rs}><select class="mcSel" data-k="${ek}" title="설비(믹서) 선택"${lk?' disabled':''}>${opts}</select></td>`,
+    mc:`<td class="it mc" ${rs}><select class="mcSel" data-k="${ek}" data-oid="${escapeHtml(String(it.oid??''))}" title="설비(믹서) 선택"${lk?' disabled':''}>${opts}</select></td>`,
     code:`<td class="it" ${rs}>${escapeHtml(it.code)}</td>`,
     short:`<td class="it" ${rs}>${escapeHtml(pi.short)}</td>`,
     color:`<td class="it" ${rs}>${escapeHtml(pi.color)}</td>`,
