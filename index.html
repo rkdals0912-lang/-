@@ -7942,18 +7942,18 @@ $('plBody')?.addEventListener('change',async e=>{
   let msg='';
   if(v){
     // 설비 변경 → 연결된 작업지시의 설비도 함께 변경 (같은 작업지시의 다른 LOT도 같은 설비로)
-    const index=buildLotOrderIndex(), order=index.idx.get(code+'\u0001'+lot);
+    const order=plFindOrder(code,lot);
     if(order){
       order.machine=v;
       try{ await saveWorkOrders(); msg=`설비 ${v} 변경 · 작업지시에도 반영했습니다`; }
       catch(err){ console.error(err); flash('작업지시 설비 저장에 실패했습니다',true); }
       buildPressLogRecords('','').forEach(r=>{
-        if(index.idx.get(r.code+'\u0001'+r.lot)!==order) return;
+        if(plFindOrder(r.code,r.lot)!==order) return;
         const dd=(PL_CACHE[r.d]=PL_CACHE[r.d]||{}), k=plKey(r.d,r.s,r.code,r.lot);
         (dd[k]=dd[k]||{name:'',cells:[]}).mc=v; plScheduleSave(r.d);
       });
       try{ renderOrderList(); }catch(_){}
-    }else msg='연결된 작업지시를 찾지 못해 일지에만 반영했습니다';
+    }else{ flash('연결된 작업지시를 찾지 못해 일지에만 반영했습니다 (작업지시 설비는 변경되지 않음)',true); }
   }
   plScheduleSave(d);
   renderPressLogView();                  // 설비 순서·필터에 맞게 다시 그림
@@ -7984,6 +7984,21 @@ async function plLoadCols(){
 function plConfirmOf(d,s){ const m=(PL_CACHE[d]||{}).__meta; return (m&&m.confirm&&m.confirm[s])||null; }
 function plLocked(d,s){ return !!plConfirmOf(d,s); }
 function plDayLocked(d){ const m=(PL_CACHE[d]||{}).__meta; return !!(m&&m.confirm&&Object.keys(m.confirm).length); }
+// 프레스일지 LOT → 작업지시 찾기 (resolveLotMeta와 같은 규칙: LOT 정확일치 → 코드+날짜 → 직접입력 LOT 끝자리)
+function plFindOrder(code,lot){
+  code=String(code||''); lot=String(lot||'');
+  try{
+    const index=buildLotOrderIndex();
+    const hit=index.idx.get(code+'\u0001'+lot); if(hit) return hit;
+    const ymd=lotYmdFromText(lot);
+    let c=(index.byCode.get(code)||[]).filter(o=>!ymd||o.date===ymd);
+    if(c.length>1){
+      const suf=c.filter(o=>o.manualLotInput&&lot.toUpperCase().endsWith(String(o.manualLotInput).toUpperCase()));
+      if(suf.length) c=suf;
+    }
+    return c[0]||null;
+  }catch(e){ return null; }
+}
 function plProdInfo(it){
   let p=null;
   try{ const o=buildLotOrderIndex().idx.get(it.code+'\u0001'+it.lot); p=o?resolveOrderProduct(o):null; }catch(e){}
