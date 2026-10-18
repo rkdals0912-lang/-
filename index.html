@@ -602,6 +602,22 @@ body.workspace-open #homeView{display:none;}
 .plGrip{cursor:grab;touch-action:none;padding:2px 4px;color:var(--sub);user-select:none;font-size:16px;}
 table.plTable input[readonly]{background:#f3f6fa;color:#555;}
 
+.plAddJob{display:block;width:100%;margin:-6px 0 18px;padding:11px;border:2px dashed #2c4e75;background:#f4f8fd;color:#2c4e75;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;}
+#plJobModal{position:fixed;inset:0;background:rgba(15,37,64,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:16px;}
+#plJobModal .card{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:400px;max-height:92vh;overflow:auto;box-shadow:0 14px 40px rgba(0,0,0,.3);}
+#plJobModal h3{margin:0 0 6px;font-size:16px;color:var(--navy);}
+#plJobModal input,#plJobModal select{width:100%;box-sizing:border-box;}
+#plJobModal .seg{display:flex;gap:8px;margin:4px 0;}
+#plJobModal .seg button{flex:1;padding:10px;border-radius:9px;border:1.5px solid var(--line);background:#fff;font-weight:800;cursor:pointer;color:var(--sub);}
+#plJobModal .seg button.on{background:#2c4e75;border-color:#2c4e75;color:#fff;}
+#plJobModal .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+#plJobModal .pick{border:1px solid var(--line);border-radius:9px;margin-top:6px;max-height:190px;overflow:auto;}
+#plJobModal .pick button{display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-bottom:1px solid #eef1f6;background:#fff;cursor:pointer;font-size:12.5px;}
+#plJobModal .pick button.on{background:#e7f0fb;font-weight:800;}
+#plJobModal .sel{margin-top:6px;padding:8px 10px;border-radius:9px;background:#fff4d6;font-weight:800;font-size:13px;color:#1f2933;word-break:break-all;}
+#plJobModal .acts{display:flex;gap:8px;margin-top:14px;}
+#plJobModal .acts button{flex:1;padding:11px;border-radius:9px;border:none;font-weight:800;cursor:pointer;}
+
 .plPrev{display:block;margin-top:4px;font-size:10px;font-weight:600;color:var(--sub);line-height:1.35;word-break:break-all;}
 .plPrev b{display:block;color:#2c4e75;font-size:10.5px;}
 .plSame{display:block;margin:3px auto 0;border:1px solid #2c4e75;background:#fff;color:#2c4e75;border-radius:6px;padding:2px 5px;font-size:10.5px;font-weight:800;cursor:pointer;}
@@ -7896,7 +7912,8 @@ async function renderPressLogView(){
   const effShift=plEffShift();
   // 작업지시가 내려진 날짜만 선택 가능: 달력 min/max + 변경 시 검증, 유효하지 않은 날짜면 가장 가까운 이전 작업지시일로 이동
   plOrderDates=[...new Set(all.map(r=>r.d).filter(Boolean))].sort();
-  if(plOrderDates.length){
+  if(isAdmin){ $('plDate').min=''; $('plDate').max=''; }
+  else if(plOrderDates.length){
     $('plDate').min=plOrderDates[0]; $('plDate').max=plOrderDates[plOrderDates.length-1];
     if(!plOrderDates.includes(plDate)){
       const pv=plOrderDates.filter(x=>x<=plDate); plDate=pv.length?pv[pv.length-1]:plOrderDates[0];
@@ -7919,7 +7936,11 @@ async function renderPressLogView(){
   $('plMachines').querySelectorAll('[data-plm]').forEach(b=>b.addEventListener('click',()=>{ plMachine=b.dataset.plm; renderPressLogView(); }));
   if($('plExport')){ const tag=[effShift,plMachine?(plMachine==='__none'?'미지정':plMachine):''].filter(Boolean).join(' · '); $('plExport').textContent=tag?`📥 ${tag} 프레스일지 엑셀 내보내기`:'📥 프레스일지 엑셀(xlsx) 내보내기'; }
   const recs=plFilterMachine(dayRecs,plMachine);
-  if(!recs.length){ $('plBody').innerHTML=`<div class="empty">${escapeHtml(plDate)} (${plDow(plDate)}) ${effShift?escapeHtml(effShift)+' ':''}작업지시가 없습니다.</div>`; return; }
+  if(!recs.length){
+    $('plBody').innerHTML=`<div class="empty">${escapeHtml(plDate)} (${plDow(plDate)}) ${effShift?escapeHtml(effShift)+' ':''}작업지시가 없습니다.</div>`
+      +(isAdmin?['주간','야간'].filter(sh=>!effShift||sh===effShift).map(sh=>`<button type="button" class="plAddJob" data-pladdjob="1" data-d="${plDate}" data-s="${sh}">＋ ${sh} 작업 추가</button>`).join(''):'');
+    return;
+  }
   PL_DUP=plDupSet();
   let gr=0;
   const inp=(key,i,val,r,c)=>`<td class="wr"><input type="text" inputmode="decimal" autocomplete="off" data-k="${escapeHtml(key)}" data-i="${i}" data-r="${r}" data-c="${c}" value="${escapeHtml(val)}"${plLockNow?' readonly':''}></td>`;
@@ -7949,7 +7970,7 @@ async function renderPressLogView(){
       :`<span>${escapeHtml(bl.s)} 일지 작성이 끝나면 확정하세요. 확정하면 수정할 수 없습니다.</span><button type="button" class="btn btn-ok auto" data-plconfirm="1">✔ 확정</button>`)+`</div>`;
     return `${bar}<div class="plScroll"><table class="plTable" data-d="${bl.d}" style="min-width:${minPx}px"><colgroup>${colgroup}</colgroup>
       <tr>${hd('h1')}<td class="h1" colspan="6">${escapeHtml(bl.title)}</td><td class="h1">합계</td><td class="h1">라벨 출력</td></tr>
-      <tr>${hd('h2')}<td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td><td class="h2"></td><td class="h2"></td></tr>${body}</table></div>`;
+      <tr>${hd('h2')}<td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td><td class="h2"></td><td class="h2"></td></tr>${body}</table></div>${isAdmin?`<button type="button" class="plAddJob" data-pladdjob="1" data-d="${bl.d}" data-s="${bl.s}">＋ ${bl.s} 작업 추가</button>`:''}`;
   }).join('')+plSummaryHtml(recs,[plDate,effShift||'주·야 전체',plMachine?(plMachine==='__none'?'미지정':plMachine):'설비 전체'].join(' · '));
   plSetStatus('칸을 눌러 바로 입력하세요. 자동 저장됩니다.');
 }
@@ -8013,12 +8034,12 @@ $('plBody')?.addEventListener('change',async e=>{
 });
 $('plDate')?.addEventListener('change',()=>{
   const v=$('plDate').value;
-  if(!v||(plOrderDates.length&&!plOrderDates.includes(v))){ flash('작업지시가 내려진 날짜만 선택할 수 있습니다',true); $('plDate').value=plDate; return; }
+  if(!v||(!isAdmin&&plOrderDates.length&&!plOrderDates.includes(v))){ flash('작업지시가 내려진 날짜만 선택할 수 있습니다',true); $('plDate').value=plDate; return; }
   plDate=v; renderPressLogView();
 });
 // ◀ ▶ : 작업지시가 있는 이전/다음 날짜로 이동
-$('plPrev')?.addEventListener('click',()=>{ const c=plOrderDates.filter(x=>x<plDate); if(!c.length){ flash('이전 작업지시일이 없습니다',true); return; } plDate=c[c.length-1]; renderPressLogView(); });
-$('plNext')?.addEventListener('click',()=>{ const c=plOrderDates.filter(x=>x>plDate); if(!c.length){ flash('다음 작업지시일이 없습니다',true); return; } plDate=c[0]; renderPressLogView(); });
+$('plPrev')?.addEventListener('click',()=>{ if(isAdmin){ plDate=plShiftDate(plDate||todayISO(),-1); renderPressLogView(); return; } const c=plOrderDates.filter(x=>x<plDate); if(!c.length){ flash('이전 작업지시일이 없습니다',true); return; } plDate=c[c.length-1]; renderPressLogView(); });
+$('plNext')?.addEventListener('click',()=>{ if(isAdmin){ plDate=plShiftDate(plDate||todayISO(),1); renderPressLogView(); return; } const c=plOrderDates.filter(x=>x>plDate); if(!c.length){ flash('다음 작업지시일이 없습니다',true); return; } plDate=c[0]; renderPressLogView(); });
 $('plToday')?.addEventListener('click',()=>{ plDate=todayISO(); renderPressLogView(); });   // 오늘 작업지시가 없으면 가장 가까운 이전 작업지시일로 이동
 $('plReload')?.addEventListener('click',async()=>{ await plLoadDate(plDate||todayISO(),true); renderPressLogView(); flash('저장된 값을 다시 불러왔습니다'); });
 $('plClear')?.addEventListener('click',async()=>{
@@ -8402,6 +8423,84 @@ async function plPlanMove(id){
   if(dups.length) alert(`⚠ 중복 LOT 번호가 있습니다\n\n${[...new Set(dups)].join('\n')}\n\n프레스일지에서 제품순번 / 배치순번을 확인하세요.`);
   await plRenderPlan(); renderPressLogView();
 }
+
+/* ===== 프레스일지 관리자: ＋ 작업 추가 (작업지시일에 작업이 없어도 날짜를 골라 추가) ===== */
+function plNewOrders(date,machine,p,pIdx,shift,count,drums){
+  // 제품순번: 같은 날짜·설비에 같은 제품이 있으면 그 순번, 없으면 다음 순번 / 배치순번은 이어서 부여
+  const same=(workOrders||[]).filter(o=>o.date===date&&String(o.machine||'')===String(machine||''));
+  const mine=same.filter(o=>String(o.productCode||'')===String(p.code||'')&&String(o.productMasterId||'')===String(p.masterId||''));
+  const pseq=mine.length?(Number(mine[0].batchCount)||1):(same.reduce((a,o)=>Math.max(a,Number(o.batchCount)||0),0)+1);
+  let bseq=mine.reduce((a,o)=>Math.max(a,Number(o.batchSeq)||0),0)+1;
+  const w=(p.kg==null||p.kg==='')?null:Number(p.kg);
+  const variants=availableVariants(p), variant=variants[0]||'';
+  const labelCode=normalizeSelectedLabelType(p,'',variant), ruleId=labelEffectiveLotRule(p,labelCode,variant)||getProductLotRuleId(p);
+  let uid=Date.now(); const made=[];
+  for(let i=0;i<count;i++){
+    const ob={id:uid++,date,shift,productIdx:pIdx,machine:machine||'',batchCount:String(pseq),batchSeq:bseq++,
+      batchDrums:drums,batchWeight:w,volume:(p.volume==null||p.volume==='')?null:Number(p.volume),includeBasic:true,
+      manualLotInput:'',lotSeq:1,status:'pending',labelCode:labelCode||'',variant:variant||'',lotRuleId:ruleId||'',
+      productMasterId:p.masterId||'',productProfileKey:p.importProfileKey||'',productCode:p.code||'',
+      productName:p.shortName||p.name||p.scheduleName||'',memo:'',importSource:'presslog'};
+    plAssignLotSeq(ob,[...(workOrders||[]),...made]); made.push(ob);
+  }
+  return {made,pseq};
+}
+function plOpenAddJob(date,shift){
+  if(!isAdmin){ flash('관리자 모드에서만 작업을 추가할 수 있습니다',true); return; }
+  $('plJobModal')?.remove();
+  let sh=shift==='야간'?'야간':'주간', sel=null;
+  const mdef=/^M[1-5]$/.test(plMachine||'')?plMachine:'';
+  const m=document.createElement('div'); m.id='plJobModal';
+  m.innerHTML=`<div class="card"><h3>＋ 작업 추가</h3>
+    <div class="row2"><div><label>작업지시일</label><input type="date" id="pjDate" value="${escapeHtml(date||plDate||todayISO())}"></div>
+    <div><label>설비</label><select id="pjMc">${['','M1','M2','M3','M4','M5'].map(x=>`<option value="${x}"${x===mdef?' selected':''}>${x||'미지정'}</option>`).join('')}</select></div></div>
+    <label>주간 / 야간</label><div class="seg"><button type="button" data-sh="주간" class="${sh==='주간'?'on':''}">☀ 주간</button><button type="button" data-sh="야간" class="${sh==='야간'?'on':''}">🌙 야간</button></div>
+    <label>제품 검색 (품목코드 · 제품명 · 색상)</label><input type="text" id="pjQ" autocomplete="off" placeholder="예: O200 백색">
+    <div class="pick" id="pjPick"></div><div class="sel" id="pjSel" style="display:none;"></div>
+    <div class="row2"><div><label>배치 수</label><input type="number" id="pjN" min="1" step="1" value="1" inputmode="numeric"></div>
+    <div><label>배치당 드럼수량</label><input type="number" id="pjD" min="1" step="1" value="1" inputmode="numeric"></div></div>
+    <div class="acts"><button type="button" id="pjCancel" style="background:#eef2f7;color:var(--navy);">취소</button><button type="button" id="pjOk" style="background:#2c4e75;color:#fff;">추가</button></div></div>`;
+  document.body.appendChild(m);
+  const norm=t=>String(t||'').toLowerCase().replace(/\s+/g,'');
+  const label=x=>`${x.code||''} · ${x.shortName||x.name||x.scheduleName||x.fullName||''}${x.color?' '+x.color:''}`;
+  const renderPick=()=>{
+    const q=norm(m.querySelector('#pjQ').value), box=m.querySelector('#pjPick');
+    if(!q){ box.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--sub);">검색어를 입력하세요</div>'; return; }
+    const hits=(ALL_PRODUCTS||[]).map((x,i)=>({x,i})).filter(({x})=>x.active!==false&&[x.code,x.fullName,x.shortName,x.name,x.scheduleName,x.color,(x.shortName||'')+(x.color||'')].some(t=>norm(t).includes(q))).slice(0,12);
+    box.innerHTML=hits.length?hits.map(h=>`<button type="button" data-pi="${h.i}" class="${sel&&sel.i===h.i?'on':''}">${escapeHtml(label(h.x))}</button>`).join(''):'<div style="padding:8px 10px;font-size:12px;color:var(--sub);">검색 결과가 없습니다</div>';
+  };
+  m.querySelector('#pjQ').addEventListener('input',renderPick); renderPick();
+  m.querySelector('#pjPick').addEventListener('click',e=>{
+    const b=e.target.closest('[data-pi]'); if(!b) return;
+    const i=+b.dataset.pi, x=ALL_PRODUCTS[i]; if(!x) return; sel={i,x};
+    const box=m.querySelector('#pjSel'); box.style.display='block'; box.textContent='선택: '+label(x);
+    m.querySelector('#pjD').value=Math.max(1,Math.round(Number(x.drums)||1)); renderPick();
+  });
+  m.querySelectorAll('[data-sh]').forEach(b=>b.addEventListener('click',()=>{ sh=b.dataset.sh; m.querySelectorAll('[data-sh]').forEach(x=>x.classList.toggle('on',x===b)); }));
+  m.addEventListener('click',e=>{ if(e.target===m) m.remove(); });
+  m.querySelector('#pjCancel').addEventListener('click',()=>m.remove());
+  m.querySelector('#pjOk').addEventListener('click',async()=>{
+    const d=m.querySelector('#pjDate').value, mc=m.querySelector('#pjMc').value;
+    const n=Math.max(0,Math.round(Number(m.querySelector('#pjN').value)||0)), dr=Math.max(0,Math.round(Number(m.querySelector('#pjD').value)||0));
+    if(!d){ flash('작업지시일을 선택하세요',true); return; }
+    if(!sel){ flash('제품을 선택하세요',true); return; }
+    if(n<1||dr<1){ flash('배치 수와 드럼수량을 입력하세요',true); return; }
+    await plLoadDate(d);
+    if(plLocked(d,sh)){ flash(`${d} ${sh} 일지는 확정되어 작업을 추가할 수 없습니다`,true); return; }
+    const {made,pseq}=plNewOrders(d,mc,sel.x,sel.i,sh,n,dr);
+    workOrders.push(...made);
+    try{ await saveWorkOrders(); }catch(err){ console.error(err); workOrders.splice(workOrders.length-made.length,made.length); flash('작업지시 저장에 실패했습니다',true); return; }
+    try{ renderOrderList(); }catch(_){}
+    m.remove();
+    plDate=d; plShift=sh; try{ localStorage.setItem(PL_SHIFT_KEY,plShift); }catch(e){}
+    if(plMachine&&plMachine!==(mc||'__none')) plMachine='';
+    flash(`${made.length}배치를 추가했습니다 (제품순번 ${pseq})`);
+    const ds=plDupSet(), bad=[...new Set(made.map(plLotOf).filter(l=>ds.has(l)))];
+    if(bad.length) alert(`⚠ 중복 LOT 번호가 있습니다\n\n${bad.join('\n')}\n\n제품순번 / 배치순번 / LOT순번을 확인하세요.`);
+    renderPressLogView();
+  });
+}
+$('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-pladdjob]'); if(b) plOpenAddJob(b.dataset.d,b.dataset.s); });
 
 /* 출력 모드 정리: 일괄 출력 화면은 프린터 설정·역순출력·라벨 미리보기·출력만 남기고, 관리 패널은 ⚙ 버튼으로 표시 */
 document.body.classList.add('simpleOp','opBatch');
