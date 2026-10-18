@@ -601,6 +601,7 @@ body.workspace-open #homeView{display:none;}
 .plColChip label{display:flex;align-items:center;gap:4px;margin:0;font-size:13px;color:var(--ink);}
 .plGrip{cursor:grab;touch-action:none;padding:2px 4px;color:var(--sub);user-select:none;font-size:16px;}
 table.plTable input[readonly]{background:#f3f6fa;color:#555;}
+.plDelJob{display:block;width:100%;margin:6px 0 0;border:1px solid #d9534f;background:#fff;color:#c0392b;border-radius:7px;padding:4px;font-size:11px;font-weight:800;cursor:pointer;}
 
 .plAddJob{display:block;width:100%;margin:-6px 0 18px;padding:11px;border:2px dashed #2c4e75;background:#f4f8fd;color:#2c4e75;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;}
 #plJobModal{position:fixed;inset:0;background:rgba(15,37,64,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -6623,7 +6624,7 @@ function setupSeparatedLabelScreens(){
   masterPanel.classList.add('labelMasterFormPanel');
   const listPanel=document.createElement('div');
   listPanel.className='panel labelMasterListPanel';
-  listPanel.innerHTML='<div class="listHead"><h2 style="margin:0"><span class="n">≡</span>등록 라벨 목록</h2><span id="labelMasterCount" class="countBadge">0개</span></div>';
+  listPanel.innerHTML='<div class="listHead"><h2 style="margin:0"><span class="n">≡</span>등록 라벨 목록</h2><span id="labelMasterCount" class="countBadge">0개</span></div><div style="margin:-2px 0 8px;"><button type="button" class="miniBtn" id="lmCleanLayouts" title="삭제된 라벨에 남아 있는 서식을 DB에서 지웁니다">🧹 삭제된 라벨 서식 정리</button></div>';
   const list=$('lmList');
   if(list) listPanel.appendChild(list);
   const linkPanel=document.createElement('div');
@@ -6943,6 +6944,14 @@ async function deleteLabelMaster(code){
     p.manualLabelCodes=(p.manualLabelCodes||[]).filter(c=>String(c)!==code);
     p.manualUnlinkedLabelCodes=[...new Set([...(p.manualUnlinkedLabelCodes||[]),code])];
   }
+  // 라벨 전용 서식(lbl_xxx)도 함께 삭제해서 DB(서식 저장소)에서도 지운다. 다른 라벨이 쓰는 서식·기본 서식은 건드리지 않는다.
+  try{
+    const keys=new Set([labelEditorKey(code)]); if(String(x.layoutKey||'').startsWith('lbl_')) keys.add(x.layoutKey);
+    const usedByOthers=new Set(allLabelMaster().filter(v=>v.labelCode!==code).map(v=>v.layoutKey).filter(Boolean));
+    let removed=0; keys.forEach(k=>{ if(k.startsWith('lbl_')&&!usedByOthers.has(k)&&LAYOUTS[k]){ delete LAYOUTS[k]; removed++; } });
+    if(!LAYOUTS[editorKey]) editorKey='basic';
+    if(removed) await saveLayouts();
+  }catch(e){ console.error('label layout delete failed',e); flash('라벨 서식 삭제 중 오류가 발생했습니다',true); }
   await saveCustomLabelMaster();
   await saveCustomProducts();
   rebuildProductCollections();
@@ -8138,6 +8147,7 @@ function plLabelTd(it){
       ?ids.map((id,i)=>`<button type="button" class="plStat ${cls}" data-pllabel="${escapeHtml(String(id))}" title="일괄 출력 화면에서 라벨 열기">${txt}${ids.length>1?' '+(i+1):''}</button>`).join('')
       :`<span class="plStat ${cls}">${txt}</span>`;
   }
+  if(isAdmin&&ids.length) h+=`<button type="button" class="plDelJob" data-pldel="${escapeHtml(String(ids[ids.length-1]))}" title="이 작업(배치) 삭제">🗑 삭제${ids.length>1?' (1건)':''}</button>`;
   return `<td class="lb" rowspan="${it.lines}">${h}</td>`;
 }
 async function plGoProduct(mid,code){
@@ -8506,6 +8516,46 @@ function plOpenAddJob(date,shift){
   });
 }
 $('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-pladdjob]'); if(b) plOpenAddJob(b.dataset.d,b.dataset.s); });
+
+/* ===== 삭제된 라벨에 남은 전용 서식(lbl_*) 정리 ===== */
+async function cleanOrphanLabelLayouts(){
+  if(!isAdmin){ flash('관리자 모드에서만 사용할 수 있습니다',true); return; }
+  const masters=allLabelMaster();
+  if(!masters.length){ flash('라벨 마스터를 불러오지 못한 상태라 정리하지 않았습니다. 새로고침 후 다시 시도하세요',true); return; }
+  const keep=new Set();
+  masters.forEach(m=>{ keep.add(labelEditorKey(m.labelCode)); if(m.layoutKey) keep.add(m.layoutKey); if(m.baseLayoutKey) keep.add(m.baseLayoutKey); });
+  allMasterProducts().forEach(pr=>(pr.labels||[]).forEach(l=>{ if(l.layoutKey) keep.add(l.layoutKey); keep.add(labelEditorKey(l.labelCode)); }));
+  const orphans=Object.keys(LAYOUTS||{}).filter(k=>k.startsWith('lbl_')&&!keep.has(k));
+  if(!orphans.length){ flash('정리할 삭제된 라벨 서식이 없습니다'); return; }
+  if(!confirm(`삭제된 라벨에 남은 서식 ${orphans.length}개를 DB에서 지울까요?\n\n${orphans.slice(0,15).join('\n')}${orphans.length>15?'\n...':''}\n\n되돌릴 수 없습니다.`)) return;
+  orphans.forEach(k=>{ delete LAYOUTS[k]; });
+  if(!LAYOUTS[editorKey]) editorKey='basic';
+  try{ await saveLayouts(); flash(`삭제된 라벨 서식 ${orphans.length}개를 정리했습니다`); }catch(e){ console.error(e); flash('서식 저장에 실패했습니다',true); }
+}
+document.addEventListener('click',e=>{ if(e.target.closest&&e.target.closest('#lmCleanLayouts')) cleanOrphanLabelLayouts(); });
+
+/* ===== 프레스일지 관리자: 작업(배치) 삭제 ===== */
+async function plDeleteJob(oid){
+  if(!isAdmin){ flash('관리자 모드에서만 삭제할 수 있습니다',true); return; }
+  const idx=(workOrders||[]).findIndex(x=>String(x.id)===String(oid)); if(idx<0) return;
+  const o=workOrders[idx], d=o.date, sh=plShiftOf(o), code=plCodeOf(o), lot=plLotOf(o);
+  await plLoadDate(d);
+  if(plLocked(d,sh)){ flash('확정된 일지의 작업은 삭제할 수 없습니다. 확정을 먼저 취소하세요',true); return; }
+  const same=(workOrders||[]).filter(x=>x!==o&&x.date===d&&plShiftOf(x)===sh&&plCodeOf(x)===code&&plLotOf(x)===lot).length;
+  const rec=(PL_CACHE[d]||{})[plKey(d,sh,code,lot)], hasInput=!!(rec&&((rec.cells||[]).some(v=>String(v??'').trim()!=='')||String(rec.name||'').trim()));
+  const msg=`${d} ${sh} · ${code}\nLOT ${lot}\n\n이 작업(배치)을 삭제할까요?`+(same?`\n\n같은 LOT 작업지시 ${same+1}건 중 1건만 삭제됩니다.`:(hasInput?'\n\n입력한 칸 값도 함께 삭제됩니다.':''))+'\n되돌릴 수 없습니다.';
+  if(!confirm(msg)) return;
+  workOrders.splice(idx,1);
+  if(!same&&PL_CACHE[d]&&PL_CACHE[d][plKey(d,sh,code,lot)]){ delete PL_CACHE[d][plKey(d,sh,code,lot)]; plScheduleSave(d); }
+  if(o.planId){ try{ await plPlanLoad(); const it=PL_PLAN.find(x=>x.id===o.planId); if(it&&it.moved>0){ it.moved--; await plPlanSave(); } }catch(e){} }   // 생산계획에서 만든 배치면 계획의 남은 배치 수로 되돌린다
+  if(activeOrderId===o.id){ activeOrderId=null; generated=[]; try{ refreshActiveOrderPanel(); renderPreview(); }catch(e){} }
+  try{ await saveWorkOrders(); }catch(e){ console.error(e); flash('작업지시 저장에 실패했습니다. 새로고침 후 확인하세요',true); }
+  try{ renderOrderList(); }catch(_){}
+  flash('작업을 삭제했습니다');
+  if($('plPlanPanel')&&$('plPlanPanel').style.display!=='none') plRenderPlan();
+  renderPressLogView();
+}
+$('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-pldel]'); if(b) plDeleteJob(b.dataset.pldel); });
 
 /* 출력 모드 정리: 일괄 출력 화면은 프린터 설정·역순출력·라벨 미리보기·출력만 남기고, 관리 패널은 ⚙ 버튼으로 표시 */
 document.body.classList.add('simpleOp','opBatch');
