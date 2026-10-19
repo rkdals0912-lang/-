@@ -794,6 +794,13 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
           <button type="button" class="miniBtn machineFilterBtn" data-machine="M5">M5</button>
           <button type="button" class="miniBtn machineFilterBtn" data-machine="M6">M6</button>
         </div>
+        <div id="orderBulkBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;padding:8px 10px;background:#f4f7fb;border:1px solid var(--line);border-radius:8px;">
+          <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:12.5px;font-weight:800;cursor:pointer;"><input type="checkbox" id="orderSelAll" style="width:auto;margin:0;"> 전체 선택</label>
+          <span id="orderSelCount" style="font-size:12px;color:var(--sub);">0건 선택</span>
+          <span style="flex:1;"></span>
+          <button type="button" class="miniBtn" id="orderBulkDone" style="font-weight:800;color:#1b7a3a;">✔ 선택 완료처리</button>
+          <button type="button" class="miniBtn adminOnly" id="orderBulkDel" style="font-weight:800;color:var(--danger);">🗑 선택 삭제</button>
+        </div>
         <div id="orderList"></div>
       </div>
     </div>
@@ -2636,6 +2643,13 @@ function refreshProductSearch(){
 
 function statusLabel(s){return s==='done'?'완료':s==='in_progress'?'진행중':'대기';}
 let orderMachineFilter='ALL';
+let orderSel=new Set();   // 작업지시 목록에서 체크된 작업지시 id
+function updateOrderBulkBar(vis){
+  vis=vis||filteredOrders(); const ids=vis.map(o=>o.id); orderSel=new Set([...orderSel].filter(id=>ids.includes(id)));
+  const all=$('orderSelAll'); if(all){ all.checked=ids.length>0&&orderSel.size===ids.length; all.indeterminate=orderSel.size>0&&orderSel.size<ids.length; }
+  const c=$('orderSelCount'); if(c) c.textContent=`${orderSel.size}건 선택`;
+}
+
 function filteredOrders(){
   let list=[...workOrders];
   const f=$('orderFilter').value;
@@ -2654,7 +2668,7 @@ function filteredOrders(){
 }
 function renderOrderList(){
   const list=filteredOrders(),wrap=$('orderList');
-  if(!list.length){wrap.innerHTML='<div class="empty">표시할 작업지시가 없습니다.</div>';return;}
+  if(!list.length){wrap.innerHTML='<div class="empty">표시할 작업지시가 없습니다.</div>';updateOrderBulkBar(list);return;}
   wrap.innerHTML=list.map(o=>{
     const p=resolveOrderProduct(o);
     const pname=p ? (p.shortName||p.name||p.scheduleName||o.productName||'품목명 없음') : (o.productName||o.productCode||'삭제/변경된 품목');
@@ -2673,8 +2687,9 @@ function renderOrderList(){
       }catch(e){}
     }
     return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.id}">
-  <div class="top" style="padding-right:90px;"><span class="pname">${escapeHtml(pname)}${pcolor?` ${escapeHtml(pcolor)}`:''}</span></div>
-  <div class="sub" style="font-size:13px;font-weight:800;color:#16345c;">${escapeHtml(lotDisplay)}</div>
+  <label class="orderChk" style="position:absolute;top:0;left:0;bottom:0;width:38px;display:flex;align-items:center;justify-content:center;margin:0;cursor:pointer;z-index:2;"><input type="checkbox" data-osel="${o.id}" style="width:20px;height:20px;margin:0;"${orderSel.has(o.id)?' checked':''}></label>
+  <div class="top" style="padding-left:30px;padding-right:90px;"><span class="pname">${escapeHtml(pname)}${pcolor?` ${escapeHtml(pcolor)}`:''}</span></div>
+  <div class="sub" style="padding-left:30px;font-size:13px;font-weight:800;color:#16345c;">${escapeHtml(lotDisplay)}${o.status==='done'?' <span style="color:#1b7a3a;">· 완료</span>':''}</div>
   <div class="cardActions adminOnly" style="position:absolute;top:8px;right:8px;display:flex;gap:4px;align-items:center;z-index:2;">
     <button type="button" class="editOrderBtn" data-edit="${o.id}" style="font-size:11px;color:var(--navy);background:#eef2f7;border:1px solid #ccd5e0;border-radius:4px;cursor:pointer;padding:2px 7px;font-weight:700;">수정</button>
     <button type="button" class="del" data-del="${o.id}">삭제</button>
@@ -2682,7 +2697,7 @@ function renderOrderList(){
 </div>`;
   }).join('');
   wrap.querySelectorAll('.orderCard').forEach(el=>el.addEventListener('click',e=>{
-    if(!e.target.dataset.del && !e.target.dataset.edit && !e.target.closest('[data-del]') && !e.target.closest('[data-edit]') && !e.target.closest('[data-machine-quick]')){
+    if(!e.target.closest('.orderChk') && !e.target.dataset.del && !e.target.dataset.edit && !e.target.closest('[data-del]') && !e.target.closest('[data-edit]') && !e.target.closest('[data-machine-quick]')){
       selectOrder(+el.dataset.id);
     }
   }));
@@ -2703,7 +2718,35 @@ function renderOrderList(){
     if(activeOrderId===+btn.dataset.del){activeOrderId=null;generated=[];refreshActiveOrderPanel();renderPreview();}
     renderOrderList();await saveWorkOrders();flash('작업지시를 삭제했습니다');
   }));
+  wrap.querySelectorAll('[data-osel]').forEach(cb=>cb.addEventListener('change',()=>{
+    const id=+cb.dataset.osel; if(cb.checked) orderSel.add(id); else orderSel.delete(id); updateOrderBulkBar(list);
+  }));
+  updateOrderBulkBar(list);
 }
+// 전체 선택 / 선택 완료처리 / 선택 삭제 (현재 목록에 보이는 작업지시 기준)
+$('orderSelAll')?.addEventListener('change',e=>{
+  const vis=filteredOrders(); orderSel=e.target.checked?new Set(vis.map(o=>o.id)):new Set(); renderOrderList();
+});
+$('orderBulkDone')?.addEventListener('click',async()=>{
+  const ids=[...orderSel]; if(!ids.length){ flash('완료처리할 작업지시를 선택하세요',true); return; }
+  if(!confirm(`선택한 작업지시 ${ids.length}건을 완료 처리할까요?`)) return;
+  let n=0; workOrders.forEach(o=>{ if(ids.includes(o.id)&&o.status!=='done'){ o.status='done'; n++; } });
+  orderSel=new Set();
+  try{ await saveWorkOrders(); }catch(err){ console.error(err); flash('작업지시 저장에 실패했습니다',true); }
+  renderOrderList(); try{ refreshActiveOrderPanel(); }catch(_){}
+  flash(`${n}건을 완료 처리했습니다`);
+});
+$('orderBulkDel')?.addEventListener('click',async()=>{
+  if(!isAdmin){ flash('관리자 모드에서만 삭제할 수 있습니다',true); return; }
+  const ids=[...orderSel]; if(!ids.length){ flash('삭제할 작업지시를 선택하세요',true); return; }
+  if(!confirm(`선택한 작업지시 ${ids.length}건을 삭제할까요?\n\n되돌릴 수 없습니다.`)) return;
+  workOrders=workOrders.filter(o=>!ids.includes(o.id));
+  if(ids.includes(activeOrderId)){ activeOrderId=null; generated=[]; try{ refreshActiveOrderPanel(); renderPreview(); }catch(_){} }
+  orderSel=new Set();
+  try{ await saveWorkOrders(); }catch(err){ console.error(err); flash('작업지시 저장에 실패했습니다. 새로고침 후 확인하세요',true); }
+  renderOrderList();
+  flash(`${ids.length}건을 삭제했습니다`);
+});
 
 function openEditOrderModal(orderId){
   const order=workOrders.find(o=>o.id===orderId);
@@ -4801,16 +4844,16 @@ function buildPressLogRecords(from,to){
     const drums=Math.min(300,Math.max(1,Math.round(Number(o.batchDrums)||1)));
     const m=lotMetaFromOrder(o);
     const key=code+'\u0001'+lot+'\u0001'+m.d+'\u0001'+m.s;
-    if(seen.has(key)){ const q=seen.get(key); q.n+=drums; q.oids.push(o.id); return; }   // 같은 코드·LOT·날짜·주야는 한 줄로 합산
+    if(seen.has(key)){ const q=seen.get(key); q.n+=drums; q.ls+=Math.max(1,Math.ceil(drums/6)); q.oids.push(o.id); return; }   // 같은 코드·LOT·날짜·주야는 한 레코드로 합산(배치마다 칸은 아래로 추가)
     const mn=parseInt(String(m.m||'').replace(/\D/g,''),10);
     const nm=String((p&&(p.fullName||p.name||p.shortName||p.scheduleName))||o.productName||'');
-    const rec={code,lot,d:m.d,s:m.s,mn:isNaN(mn)?99:mn,mc:plMachineLabel(m.m),n:drums,pail:isPailProduct(code,nm),oid:o.id,oids:[o.id]};
+    const rec={code,lot,d:m.d,s:m.s,mn:isNaN(mn)?99:mn,mc:plMachineLabel(m.m),n:drums,ls:Math.max(1,Math.ceil(drums/6)),pail:isPailProduct(code,nm),oid:o.id,oids:[o.id]};
     seen.set(key,rec); recs.push(rec);
   });
   const ranged=recs.filter(r=>{ if(!from&&!to) return true; return r.d&&(!from||r.d>=from)&&(!to||r.d<=to); });
   ranged.sort((x,y)=>(x.d<y.d?-1:x.d>y.d?1:0)||(lotShiftRank(x.s)-lotShiftRank(y.s))||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0));
-  // 드럼 1개 = 수기 입력 1칸. 한 줄에 6칸 → 6드럼=1줄, 12드럼=2줄. 페일(Hobbock/pail)은 장수와 관계없이 1줄.
-  ranged.forEach(r=>{ r.lines=r.pail?1:Math.max(1,Math.ceil(r.n/6)); });
+  // 드럼 1개 = 수기 입력 1칸. 한 줄에 6칸 → 6드럼=1줄, 12드럼=2줄. 같은 LOT라도 배치 수만큼 줄이 아래로 늘어난다(배치당 최소 1줄). 페일(Hobbock/pail)은 배치당 1줄.
+  ranged.forEach(r=>{ r.lines=r.pail?Math.max(1,r.oids.length):Math.max(1,r.ls||Math.ceil(r.n/6)); });   // 배치 1건 = 최소 1줄(드럼 6개 초과 시 줄 추가)
   return ranged;
 }
 function pressLogBlocks(recs){
