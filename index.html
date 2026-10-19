@@ -601,6 +601,11 @@ body.workspace-open #homeView{display:none;}
 .plColChip label{display:flex;align-items:center;gap:4px;margin:0;font-size:13px;color:var(--ink);}
 .plGrip{cursor:grab;touch-action:none;padding:2px 4px;color:var(--sub);user-select:none;font-size:16px;}
 table.plTable input[readonly]{background:#f3f6fa;color:#555;}
+
+table.plTable td.h1{position:relative;}
+.plRz{position:absolute;top:0;right:-6px;width:14px;height:100%;cursor:col-resize;touch-action:none;z-index:4;}
+.plRz::after{content:'';position:absolute;top:22%;bottom:22%;left:6px;width:2px;border-radius:2px;background:rgba(255,255,255,.6);}
+.plRz:hover::after,.plRz.on::after{background:#ffd27a;width:3px;}
 .plDelJob{display:block;width:100%;margin:6px 0 0;border:1px solid #d9534f;background:#fff;color:#c0392b;border-radius:7px;padding:4px;font-size:11px;font-weight:800;cursor:pointer;}
 
 .plAddJob{display:block;width:100%;margin:-6px 0 18px;padding:11px;border:2px dashed #2c4e75;background:#f4f8fd;color:#2c4e75;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;}
@@ -687,6 +692,7 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
       <button type="button" class="btn btn-ghost auto" id="plClear">입력값 지우기</button>
       <button type="button" class="btn btn-ghost auto adminOnly" id="plColsBtn">⚙ 컬럼 설정</button>
       <button type="button" class="btn btn-ghost auto adminOnly" id="plPlanBtn">📋 생산계획</button>
+      <button type="button" class="btn btn-ghost auto" id="plColWReset" title="끌어서 조절한 열 너비를 처음 상태로">↔ 열 너비 초기화</button>
       <button type="button" class="btn btn-primary auto" id="plExport">📥 프레스일지 엑셀(xlsx) 내보내기</button>
     </div>
     <div class="lockednote" style="margin:0 0 10px;"><b>작업지시</b> 기준으로(라벨 출력 이력과 별개) 날짜별 주간 → 야간, 설비 M1 → M5 순서로 표시합니다. 작업지시의 총 드럼 수 6개 = 1줄(6칸), 12개 = 2줄(12칸)이며, 페일(Hobbock/pail) 제품은 1줄이며 <b>⚖ 계산</b> 버튼으로 개당 중량 × 개수(+잔량)를 합계에 넣을 수 있습니다. 날짜는 작업지시가 있는 날만 선택됩니다. 칸에 <b>드럼 무게를 직접 입력</b>하면 맨 오른쪽 <b>합계</b>에 LOT별 합이 바로 계산됩니다(<code>24kg x 12</code>처럼 쓰면 24×12로 계산, 엑셀 복사·붙여넣기 가능, 방향키·Enter로 이동).</div>
@@ -4845,14 +4851,44 @@ $('exportBtn')?.addEventListener('click',()=>{
    ③ LOT마다: 코드 | (품목명 빈칸) | LOT | D~I 수기 입력 6칸. 6장=1줄, 12장=2줄 …(페일 제품은 1줄)
       2줄 이상이면 코드·품목명·LOT 칸을 세로로 병합. */
 const PRESS_COLS=['설비명','코드명','품목명','LOT번호'];
-function buildPressLogSheetRows(blocks){
+// 엑셀 컬럼 = 작업자 모드 화면에 보이는 컬럼(컬럼 설정 순서 그대로, 관리자 전용 입력 컬럼 제외)
+function plExportCols(){ return PL_COLS.filter(c=>PL_COLDEFS[c]); }
+function plBatchText(it){
+  let tot=0,dr=0,w0=0;
+  (it.oids&&it.oids.length?it.oids:[it.oid]).forEach(id=>{
+    const o=(workOrders||[]).find(x=>String(x.id)===String(id)); if(!o) return;
+    let p=null; try{ p=resolveOrderProduct(o); }catch(e){}
+    const w=Number(o.batchWeight)>0?Number(o.batchWeight):(Number(p&&p.kg)||0), n=Math.round(Number(o.batchDrums)||0);
+    tot+=w*n; dr+=n; if(!w0) w0=w;
+  });
+  return tot>0?`${plFmt(Math.round(tot*100)/100)}kg (${plFmt(w0)}kg × ${dr})`:'-';
+}
+function plExportInfo(c,it,rec){
+  const pi=plProdInfo(it);
+  switch(c){
+    case 'mc': return it.mc||'-';
+    case 'code': return String(it.code||'');
+    case 'short': return pi.short||'-';
+    case 'color': return pi.color||'-';
+    case 'name': return rec.name||'';
+    case 'lot': return String(it.lot);
+    case 'batch': return plBatchText(it);
+    default: return '';
+  }
+}
+function plSummaryRows(recs){
+  const g=new Map();
+  recs.forEach(it=>{ const pi=plProdInfo(it); let e=g.get(it.code); if(!e){ e={code:it.code,short:pi.short||'-',color:pi.color||'-',b:0}; g.set(it.code,e); } e.b+=(it.oids&&it.oids.length)||1; });
+  return [...g.values()];
+}
+function buildPressLogSheetRows(blocks,EXC){
   const rows=[];
   blocks.forEach(bl=>{
     rows.push({t:'h1',title:bl.title});
     rows.push({t:'h2',label:`${bl.s} 작업지시`});
     bl.items.forEach(it=>{
       const rec=plRecord(bl.d,bl.s,it.code,it.lot);
-      rows.push({t:'item',mc:it.mc||'',code:it.code,lot:String(it.lot),span:it.lines,name:rec.name||'',cells:rec.cells||[]});
+      rows.push({t:'item',info:EXC.map(c=>plExportInfo(c,it,rec)),span:it.lines,cells:rec.cells||[]});
       for(let i=1;i<it.lines;i++) rows.push({t:'cont'});
     });
   });
@@ -4874,46 +4910,60 @@ async function exportPressLogXlsx(from,to,machine='',shift=''){
   plApplyOverrides(recs);
   const recsF=plFilterMachine(plFilterShift(recs,shift),machine);
   if(!recsF.length){flash('선택한 주야/설비에 해당하는 프레스일지 데이터가 없습니다',true);return false;}
-  const rowsModel=buildPressLogSheetRows(pressLogBlocks(recsF)), name=`프레스일지${exportFileSuffix(from,to)}${shift?'_'+shift:''}${machine&&machine!=='__none'?'_'+machine:''}.xlsx`;
+  const EXC=plExportCols(), n=EXC.length, TC=n+7;        // 정보 n칸 + 입력 6칸 + 합계
+  const rowsModel=buildPressLogSheetRows(pressLogBlocks(recsF),EXC), name=`프레스일지${exportFileSuffix(from,to)}${shift?'_'+shift:''}${machine&&machine!=='__none'?'_'+machine:''}.xlsx`;
+  const sumRows=plSummaryRows(recsF), sumTot=sumRows.reduce((a,e)=>a+e.b,0);
   const cellVal=v=>{ const t=String(v??'').trim(); return (t!==''&&/^-?\d+(\.\d+)?$/.test(t))?Number(t):t; };
+  // 열 너비: 화면에서 조절한 너비(있으면)를 따르고, 없으면 기본 너비
+  const wch=(k,defPx,div)=>{ const v=Number(plColW[k]); return Math.max(6,Math.round((v>0?v:defPx)/(v>0?7:div))); };
+  const widths=[...EXC.map(c=>wch(c,plDef(c).px,5.2)),...Array(6).fill(wch('wr',46,3.8)),wch('sm',84,6)];
   try{
     if(window.ExcelJS){
       const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('프레스일지',{pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
-      ws.columns=[{width:10},{width:22},{width:24},{width:20},...Array(6).fill({width:12}),{width:14}];
+      ws.columns=widths.map(w=>({width:w}));
       const line={style:'thin',color:{argb:'FF8A94A3'}}, box={top:line,left:line,bottom:line,right:line};
       const fill=argb=>({type:'pattern',pattern:'solid',fgColor:{argb}});
       const NAVY='FF2C4E75', BLUE='FFDCE9F7', GRAY='FFEDF2F7', SUMBG='FFFFF4D6';
       const style=(cell,bg,fg,bold,size)=>{ cell.font={bold,size,color:{argb:fg}}; cell.fill=fill(bg); cell.alignment={horizontal:'center',vertical:'middle',wrapText:true}; };
+      const L1=ws.getColumn(n+1).letter, L6=ws.getColumn(n+6).letter;
       rowsModel.forEach((m,i)=>{
         const r=i+1, row=ws.getRow(r);
-        for(let c=1;c<=11;c++) row.getCell(c).border=box;
+        for(let c=1;c<=TC;c++) row.getCell(c).border=box;
         if(m.t==='cont'){ row.height=28; return; }
         if(m.t==='h1'||m.t==='h2'){
-          ws.mergeCells(r,5,r,10);
+          ws.mergeCells(r,n+1,r,n+6);
           const h1=m.t==='h1', bg=h1?NAVY:BLUE, fg=h1?'FFFFFFFF':'FF2C4E75', size=h1?13:11;
           row.height=h1?30:22;
-          PRESS_COLS.forEach((t,k)=>{ const c=row.getCell(k+1); c.value=t; style(c,bg,fg,true,size); });
-          const tc=row.getCell(5); tc.value=h1?m.title:m.label; style(tc,bg,fg,true,size);
-          for(let c=6;c<=10;c++) row.getCell(c).fill=fill(bg);
-          const sc=row.getCell(11); sc.value='합계'; style(sc,bg,fg,true,size);
+          EXC.forEach((c,k)=>{ const cc=row.getCell(k+1); cc.value=plDef(c).l; style(cc,bg,fg,true,size); });
+          const tc=row.getCell(n+1); tc.value=h1?m.title:m.label; style(tc,bg,fg,true,size);
+          for(let c=n+2;c<=n+6;c++) row.getCell(c).fill=fill(bg);
+          const sc=row.getCell(TC); sc.value='합계'; style(sc,bg,fg,true,size);
           return;
         }
         row.height=28;
-        [m.mc,m.code,m.name,m.lot].forEach((v,k)=>{ const c=row.getCell(k+1); c.value=String(v??''); c.numFmt='@'; style(c,GRAY,'FF1F2933',true,11); });
+        m.info.forEach((v,k)=>{ const c=row.getCell(k+1); c.value=String(v??''); c.numFmt='@'; style(c,GRAY,'FF1F2933',true,11); });
         // 수기 입력 칸(6칸 × 줄 수): 웹에서 입력한 값
         let hasText=false;
         for(let li=0;li<m.span;li++) for(let ci=0;ci<6;ci++){
           const raw=m.cells[li*6+ci]; const v=cellVal(raw);
-          const c=ws.getCell(r+li,5+ci); if(v!==''){ c.value=v; if(typeof v==='string') hasText=true; }
+          const c=ws.getCell(r+li,n+1+ci); if(v!==''){ c.value=v; if(typeof v==='string') hasText=true; }
           c.alignment={horizontal:'center',vertical:'middle'}; if(typeof v==='number') c.numFmt='General';
         }
         // 합계: 문자 입력(예: 24kg x 12)이 섞이면 앱 계산값을 숫자로, 아니면 SUM 수식
         const total=plSum(m.cells);
-        const sumCell=ws.getCell(r,11);
-        sumCell.value=hasText?total:{formula:`SUM(E${r}:J${r+m.span-1})`,result:total};
+        const sumCell=ws.getCell(r,TC);
+        sumCell.value=hasText?total:{formula:`SUM(${L1}${r}:${L6}${r+m.span-1})`,result:total};
         style(sumCell,SUMBG,'FF1F2933',true,12); sumCell.numFmt='#,##0.##';
-        if(m.span>1){ for(let k=1;k<=4;k++) ws.mergeCells(r,k,r+m.span-1,k); ws.mergeCells(r,11,r+m.span-1,11); }
+        if(m.span>1){ for(let k=1;k<=n;k++) ws.mergeCells(r,k,r+m.span-1,k); ws.mergeCells(r,TC,r+m.span-1,TC); }
       });
+      // 화면 하단 요약(품목코드 · 약어명 · 색상 · 배치수)
+      let r0=rowsModel.length+2;
+      const sh=ws.getRow(r0); sh.getCell(1).value=`▣ 요약 · ${[from===to?from:`${from}~${to}`,shift||'주·야 전체',machine?(machine==='__none'?'미지정':machine):'설비 전체'].join(' · ')}`; sh.getCell(1).font={bold:true,size:12,color:{argb:NAVY}};
+      r0++;
+      ['품목코드','약어명','색상','배치수'].forEach((t,k)=>{ const c=ws.getCell(r0,k+1); c.value=t; style(c,NAVY,'FFFFFFFF',true,11); c.border=box; });
+      sumRows.forEach(e=>{ r0++; [e.code,e.short,e.color,e.b].forEach((v,k)=>{ const c=ws.getCell(r0,k+1); c.value=v; style(c,'FFFFFFFF','FF1F2933',k===3,11); c.border=box; if(k<3) c.numFmt='@'; }); });
+      r0++; ws.mergeCells(r0,1,r0,3); const tl=ws.getCell(r0,1); tl.value='합계'; style(tl,SUMBG,'FF1F2933',true,11); const tv=ws.getCell(r0,4); tv.value=sumTot; style(tv,SUMBG,'FF1F2933',true,11);
+      for(let k=1;k<=4;k++) ws.getCell(r0,k).border=box;
       const buf=await wb.xlsx.writeBuffer();
       downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
     }else{
@@ -4921,17 +4971,19 @@ async function exportPressLogXlsx(from,to,machine='',shift=''){
       const aoa=[], merges=[];
       rowsModel.forEach(m=>{
         const r=aoa.length;
-        if(m.t==='cont'){ aoa.push(Array(11).fill('')); return; }
-        if(m.t==='h1'||m.t==='h2'){ merges.push({s:{r,c:4},e:{r,c:9}}); aoa.push([...PRESS_COLS,m.t==='h1'?m.title:m.label,'','','','','','합계']); return; }
+        if(m.t==='cont'){ aoa.push(Array(TC).fill('')); return; }
+        if(m.t==='h1'||m.t==='h2'){ merges.push({s:{r,c:n},e:{r,c:n+5}}); aoa.push([...EXC.map(c=>plDef(c).l),m.t==='h1'?m.title:m.label,'','','','','','합계']); return; }
         const grid=[]; for(let li=0;li<m.span;li++) grid.push(Array.from({length:6},(_,ci)=>cellVal(m.cells[li*6+ci])));
-        aoa.push([m.mc,m.code,m.name,m.lot,...grid[0],plSum(m.cells)]);
-        for(let li=1;li<m.span;li++) aoa.push(['','','','',...grid[li],'']);
-        if(m.span>1) [0,1,2,3,10].forEach(k=>merges.push({s:{r,c:k},e:{r:r+m.span-1,c:k}}));
+        aoa.push([...m.info,...grid[0],plSum(m.cells)]);
+        for(let li=1;li<m.span;li++) aoa.push([...Array(n).fill(''),...grid[li],'']);
+        if(m.span>1) [...Array(n).keys(),TC-1].forEach(k=>merges.push({s:{r,c:k},e:{r:r+m.span-1,c:k}}));
       });
+      aoa.push([]); aoa.push([`▣ 요약 · ${[from===to?from:`${from}~${to}`,shift||'주·야 전체',machine?(machine==='__none'?'미지정':machine):'설비 전체'].join(' · ')}`]);
+      aoa.push(['품목코드','약어명','색상','배치수']); sumRows.forEach(e=>aoa.push([e.code,e.short,e.color,e.b])); aoa.push(['합계','','',sumTot]);
       const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:false});
-      ws['!merges']=merges; ws['!cols']=[{wch:10},{wch:22},{wch:24},{wch:20},...Array(6).fill({wch:12}),{wch:14}];
-      // 코드·품목명·LOT는 텍스트 고정(1-2가 날짜로 바뀌지 않게)
-      Object.keys(ws).forEach(k=>{ if(k[0]!=='!' && /^[ABCD]\d+$/.test(k) && ws[k].t==='n'){ ws[k].t='s'; ws[k].v=String(ws[k].v); } });
+      ws['!merges']=merges; ws['!cols']=widths.map(w=>({wch:w}));
+      // 정보 칸은 텍스트 고정(1-2가 날짜로 바뀌지 않게)
+      Object.keys(ws).forEach(k=>{ const m=/^([A-Z]+)\d+$/.exec(k); if(k[0]!=='!'&&m&&m[1].length===1&&m[1].charCodeAt(0)-65<n&&ws[k].t==='n'){ ws[k].t='s'; ws[k].v=String(ws[k].v); } });
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'프레스일지'); XLSX.writeFile(wb,name);
     }
     flash(`프레스일지 엑셀 내보내기 완료 (LOT ${recsF.length}건${machine?' · '+(machine==='__none'?'설비 미지정':machine):''})`);
@@ -7970,15 +8022,17 @@ async function renderPressLogView(){
     }).join('');
     const EC=plEffCols();
     const tot=EC.reduce((a,c)=>a+plDef(c).w,0)+42+11+9, pct=w=>(w*100/tot).toFixed(2)+'%';
-    const colgroup=EC.map(c=>`<col style="width:${pct(plDef(c).w)}">`).join('')+`<col style="width:${pct(7)}">`.repeat(6)+`<col style="width:${pct(11)}"><col style="width:${pct(9)}">`;
+    const custW=plHasColW(), widthsPx=plColKeys(EC).map(plColPx), totPx=widthsPx.reduce((a,v)=>a+v,0);
+    const colgroup=custW?widthsPx.map(w=>`<col style="width:${w}px">`).join('')
+      :EC.map(c=>`<col style="width:${pct(plDef(c).w)}">`).join('')+`<col style="width:${pct(7)}">`.repeat(6)+`<col style="width:${pct(11)}"><col style="width:${pct(9)}">`;
     const minPx=EC.reduce((a,c)=>a+plDef(c).px,0)+6*46+84+70;
-    const hd=cls=>EC.map(c=>`<td class="${cls}">${plDef(c).l}</td>`).join('');
+    const hd=cls=>EC.map(c=>`<td class="${cls}">${plDef(c).l}${cls==='h1'?`<span class="plRz" data-rz="${c}" title="끌어서 열 너비 조절"></span>`:''}</td>`).join('');
     const cf=plConfirmOf(bl.d,bl.s);
     const bar=`<div class="plConfirm${cf?' done':''}" data-d="${bl.d}" data-s="${bl.s}">`+(cf
       ?`<span>🔒 ${escapeHtml(bl.s)} 일지 확정됨 · ${escapeHtml(cf.by||'')} · ${escapeHtml(cf.at||'')}</span>${isAdmin?'<button type="button" class="btn btn-ghost auto" data-plunconfirm="1">확정 취소</button>':''}`
       :`<span>${escapeHtml(bl.s)} 일지 작성이 끝나면 확정하세요. 확정하면 수정할 수 없습니다.</span><button type="button" class="btn btn-ok auto" data-plconfirm="1">✔ 확정</button>`)+`</div>`;
-    return `${bar}<div class="plScroll"><table class="plTable" data-d="${bl.d}" style="min-width:${minPx}px"><colgroup>${colgroup}</colgroup>
-      <tr>${hd('h1')}<td class="h1" colspan="6">${escapeHtml(bl.title)}</td><td class="h1">합계</td><td class="h1">라벨 출력</td></tr>
+    return `${bar}<div class="plScroll"><table class="plTable" data-d="${bl.d}" style="${custW?`width:${totPx}px;min-width:${totPx}px`:`min-width:${minPx}px`}"><colgroup>${colgroup}</colgroup>
+      <tr>${hd('h1')}<td class="h1" colspan="6">${escapeHtml(bl.title)}<span class="plRz" data-rz="wr" title="끌어서 입력칸 너비 조절"></span></td><td class="h1">합계<span class="plRz" data-rz="sm" title="끌어서 열 너비 조절"></span></td><td class="h1">라벨 출력<span class="plRz" data-rz="lb" title="끌어서 열 너비 조절"></span></td></tr>
       <tr>${hd('h2')}<td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td><td class="h2"></td><td class="h2"></td></tr>${body}</table></div>${isAdmin?`<button type="button" class="plAddJob" data-pladdjob="1" data-d="${bl.d}" data-s="${bl.s}">＋ ${bl.s} 작업 추가</button>`:''}`;
   }).join('')+plSummaryHtml(recs,[plDate,effShift||'주·야 전체',plMachine?(plMachine==='__none'?'미지정':plMachine):'설비 전체'].join(' · '));
   plSetStatus('칸을 눌러 바로 입력하세요. 자동 저장됩니다.');
@@ -8556,6 +8610,49 @@ async function plDeleteJob(oid){
   renderPressLogView();
 }
 $('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-pldel]'); if(b) plDeleteJob(b.dataset.pldel); });
+
+/* ===== 프레스일지 열 너비 조절(이 기기에 저장) ===== */
+const PL_COLW_KEY='ksa-pl-colw-v1', PL_FIXED_PX={wr:46,sm:84,lb:70};
+let plColW=(()=>{ try{ const o=JSON.parse(localStorage.getItem(PL_COLW_KEY)||'{}'); return o&&typeof o==='object'?o:{}; }catch(e){ return {}; } })();
+function plHasColW(){ return Object.keys(plColW).length>0; }
+function plColKeys(EC){ return [...EC,'wr','wr','wr','wr','wr','wr','sm','lb']; }
+function plColPx(k){ const v=Number(plColW[k]); if(v>0) return v; if(PL_FIXED_PX[k]) return PL_FIXED_PX[k]; const d=plDef(k); return d?d.px:62; }
+function plApplyColW(){
+  const px=plColKeys(plEffCols()).map(plColPx), tot=px.reduce((a,v)=>a+v,0);
+  document.querySelectorAll('#plBody table.plTable').forEach(t=>{
+    const cg=t.querySelector('colgroup'); if(!cg) return;
+    [...cg.children].forEach((c,i)=>{ if(px[i]) c.style.width=px[i]+'px'; });
+    t.style.width=tot+'px'; t.style.minWidth=tot+'px';
+  });
+}
+let plRzState=null;
+$('plBody')?.addEventListener('pointerdown',e=>{
+  const h=e.target.closest&&e.target.closest('.plRz'); if(!h) return;
+  e.preventDefault(); e.stopPropagation();
+  const table=h.closest('table'), key=h.dataset.rz;
+  if(!plHasColW()){
+    // 처음 조절할 때는 지금 화면에 보이는 너비를 그대로 고정한 뒤 그 값에서 시작한다
+    const EC=plEffCols(), cells=[...table.rows[0].cells];
+    EC.forEach((c,i)=>{ plColW[c]=Math.round(cells[i].getBoundingClientRect().width); });
+    plColW.wr=Math.round(cells[EC.length].getBoundingClientRect().width/6);
+    plColW.sm=Math.round(cells[EC.length+1].getBoundingClientRect().width);
+    plColW.lb=Math.round(cells[EC.length+2].getBoundingClientRect().width);
+    plApplyColW();
+  }
+  plRzState={key,x:e.clientX,w:plColPx(key),div:key==='wr'?6:1,h};
+  h.classList.add('on'); try{ h.setPointerCapture(e.pointerId); }catch(_){}
+});
+window.addEventListener('pointermove',e=>{
+  if(!plRzState) return;
+  const w=Math.max(30,Math.round(plRzState.w+(e.clientX-plRzState.x)/plRzState.div));
+  plColW[plRzState.key]=w; plApplyColW();
+});
+window.addEventListener('pointerup',()=>{
+  if(!plRzState) return;
+  plRzState.h.classList.remove('on'); plRzState=null;
+  try{ localStorage.setItem(PL_COLW_KEY,JSON.stringify(plColW)); }catch(_){}
+});
+$('plColWReset')?.addEventListener('click',()=>{ plColW={}; try{ localStorage.removeItem(PL_COLW_KEY); }catch(_){} renderPressLogView(); flash('열 너비를 초기화했습니다'); });
 
 /* 출력 모드 정리: 일괄 출력 화면은 프린터 설정·역순출력·라벨 미리보기·출력만 남기고, 관리 패널은 ⚙ 버튼으로 표시 */
 document.body.classList.add('simpleOp','opBatch');
