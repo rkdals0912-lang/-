@@ -4844,16 +4844,16 @@ function buildPressLogRecords(from,to){
     const drums=Math.min(300,Math.max(1,Math.round(Number(o.batchDrums)||1)));
     const m=lotMetaFromOrder(o);
     const key=code+'\u0001'+lot+'\u0001'+m.d+'\u0001'+m.s;
-    if(seen.has(key)){ const q=seen.get(key); q.n+=drums; q.ls+=Math.max(1,Math.ceil(drums/6)); q.oids.push(o.id); return; }   // 같은 코드·LOT·날짜·주야는 한 레코드로 합산(배치마다 칸은 아래로 추가)
+    if(seen.has(key)){ const q=seen.get(key); q.n+=drums; q.ls+=Math.max(1,Math.ceil(drums/6)); q.oids.push(o.id); q.segs.push({oid:o.id,drums}); return; }   // 같은 코드·LOT·날짜·주야는 한 레코드로 합산(배치마다 칸은 아래로 추가)
     const mn=parseInt(String(m.m||'').replace(/\D/g,''),10);
     const nm=String((p&&(p.fullName||p.name||p.shortName||p.scheduleName))||o.productName||'');
-    const rec={code,lot,d:m.d,s:m.s,mn:isNaN(mn)?99:mn,mc:plMachineLabel(m.m),n:drums,ls:Math.max(1,Math.ceil(drums/6)),pail:isPailProduct(code,nm),oid:o.id,oids:[o.id]};
+    const rec={code,lot,d:m.d,s:m.s,mn:isNaN(mn)?99:mn,mc:plMachineLabel(m.m),n:drums,ls:Math.max(1,Math.ceil(drums/6)),pail:isPailProduct(code,nm),oid:o.id,oids:[o.id],segs:[{oid:o.id,drums}]};
     seen.set(key,rec); recs.push(rec);
   });
   const ranged=recs.filter(r=>{ if(!from&&!to) return true; return r.d&&(!from||r.d>=from)&&(!to||r.d<=to); });
   ranged.sort((x,y)=>(x.d<y.d?-1:x.d>y.d?1:0)||(lotShiftRank(x.s)-lotShiftRank(y.s))||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0));
   // 드럼 1개 = 수기 입력 1칸. 한 줄에 6칸 → 6드럼=1줄, 12드럼=2줄. 같은 LOT라도 배치 수만큼 줄이 아래로 늘어난다(배치당 최소 1줄). 페일(Hobbock/pail)은 배치당 1줄.
-  ranged.forEach(r=>{ r.lines=r.pail?Math.max(1,r.oids.length):Math.max(1,r.ls||Math.ceil(r.n/6)); });   // 배치 1건 = 최소 1줄(드럼 6개 초과 시 줄 추가)
+  ranged.forEach(r=>{ r.segs.forEach(g=>{ g.lines=r.pail?1:Math.max(1,Math.ceil(g.drums/6)); }); r.lines=r.segs.reduce((a,g)=>a+g.lines,0)||1; });   // 배치(작업지시)별 구간: 배치 1건 = 최소 1줄   // 배치 1건 = 최소 1줄(드럼 6개 초과 시 줄 추가)
   return ranged;
 }
 function pressLogBlocks(recs){
@@ -8056,12 +8056,13 @@ async function renderPressLogView(){
     const body=bl.items.map(it=>{
       const key=plKey(bl.d,bl.s,it.code,it.lot), rec=plRecord(bl.d,bl.s,it.code,it.lot), cells=rec.cells||[];
       const sum=plSum(cells), filled=cells.filter(v=>String(v??'').trim()!=='').length;
-      let h='';
+      let h=''; const segStart={}; { let acc=0; (it.segs||[]).forEach((g,k)=>{ segStart[acc]=k; acc+=g.lines; }); }
       for(let li=0;li<it.lines;li++){
         const r=gr++;
         let tds='';
         for(let ci=0;ci<6;ci++){ const i=li*6+ci; tds+=inp(key,i,cells[i]??'',r,ci); }
         if(li===0) h+=`<tr data-pk="${escapeHtml(key)}">${plInfoTds(it,rec,key)}${tds}<td class="sm" rowspan="${it.lines}"><b class="smv">${plFmt(sum)}</b><span class="smc">입력 ${filled}${it.pail?'':` / ${it.n}`}</span>${it.pail&&!plLockNow?`<button type="button" class="plPailBtn" data-plpail="${escapeHtml(key)}">⚖ 계산</button>`:''}</td>${plLabelTd(it)}</tr>`;
+        else if(segStart[li]!=null) h+=`<tr>${plInfoTds(it,rec,key,segStart[li],true)}${tds}</tr>`;
         else h+=`<tr>${tds}</tr>`;
       }
       return h;
@@ -8747,11 +8748,12 @@ function plProdInfo(it){
   if(!p) p=(ALL_PRODUCTS||[]).find(x=>String(x.code||'')===String(it.code))||null;
   return {short:p?String(p.shortName||p.name||p.scheduleName||''):'',color:p?String(p.color||''):'',p,mid:p?String(p.masterId||''):''};
 }
-function plInfoTds(it,rec,key){
+function plInfoTds(it,rec,key,segIdx,onlyBatch){
+  segIdx=segIdx||0; const seg=(it.segs&&it.segs[segIdx])||{oid:it.oid,drums:it.n,lines:it.lines}, soid=seg.oid, srs=`rowspan="${seg.lines}"`;
   const rs=`rowspan="${it.lines}"`, ek=escapeHtml(key), pi=plProdInfo(it), lk=plLockNow;
   const opts=['','M1','M2','M3','M4','M5',...(it.mc&&!/^M[1-5]$/.test(it.mc)?[it.mc]:[])].map(o=>`<option value="${o}"${o===(it.mc||'')?' selected':''}>${o||'-'}</option>`).join('');
-  const o0=(workOrders||[]).find(x=>String(x.id)===String(it.oid));
-  const sin=(f,v,t)=>`<td class="it pin" ${rs}><input type="number" min="1" step="1" inputmode="numeric" class="plSeqIn" data-oid="${escapeHtml(String(it.oid??''))}" data-f="${f}" value="${v}" title="${t}"${lk?' readonly':''}></td>`;
+  const o0=(workOrders||[]).find(x=>String(x.id)===String(soid));
+  const sin=(f,v,t)=>`<td class="it pin" ${srs}><input type="number" min="1" step="1" inputmode="numeric" class="plSeqIn" data-oid="${escapeHtml(String(soid??''))}" data-f="${f}" value="${v}" title="${t}"${lk?' readonly':''}></td>`;
   const T={
     mc:(isAdmin
       ?`<td class="it mc" ${rs}><select class="mcSel" data-k="${ek}" data-oid="${escapeHtml(String(it.oid??''))}" title="설비(믹서) 선택 (관리자 전용)"${lk?' disabled':''}>${opts}</select></td>`
@@ -8764,11 +8766,12 @@ function plInfoTds(it,rec,key){
     lot:`<td class="it" ${rs}>${escapeHtml(String(it.lot))}${PL_DUP.has(String(it.lot))?'<span class="plDup">⚠ 중복 LOT</span>':''}${plPrevHtml(it)}</td>`,
     pseq:sin('batchCount',Number(o0&&o0.batchCount)||1,'제품순번'),
     bseq:sin('batchSeq',Number(o0&&o0.batchSeq)||1,'배치순번'),
-    drm:sin('batchDrums',Number(o0&&o0.batchDrums)||it.n||1,'드럼수량'),
-    lseq:(o0&&plUsesSeq(o0))?sin('lotSeq',Number(o0.lotSeq)||1,'LOT순번 (같은 날짜·같은 품목코드는 같은 번호)'):`<td class="it pin" ${rs}><span style="color:#aab;">-</span></td>`,
-    clot:`<td class="it pin" ${rs}><input type="text" class="plLotIn" autocomplete="off" spellcheck="false" style="font-size:11.5px;" placeholder="LOT 입력" data-oids="${escapeHtml((it.oids&&it.oids.length?it.oids:[it.oid]).join(','))}" title="LOT를 직접 입력하면 규칙 대신 이 값이 LOT가 됩니다. 비우면 규칙대로 돌아갑니다." value="${escapeHtml(String((o0&&o0.customLot)||''))}"${lk?' readonly':''}></td>`
+    drm:sin('batchDrums',Number(o0&&o0.batchDrums)||seg.drums||1,'드럼수량'),
+    lseq:(o0&&plUsesSeq(o0))?sin('lotSeq',Number(o0.lotSeq)||1,'LOT순번 (같은 날짜·같은 품목코드는 같은 번호)'):`<td class="it pin" ${srs}><span style="color:#aab;">-</span></td>`,
+    clot:`<td class="it pin" ${srs}><input type="text" class="plLotIn" autocomplete="off" spellcheck="false" style="font-size:11.5px;" placeholder="LOT 입력" data-oids="${escapeHtml(String(soid??''))}" title="LOT를 직접 입력하면 규칙 대신 이 값이 LOT가 됩니다. 비우면 규칙대로 돌아갑니다." value="${escapeHtml(String((o0&&o0.customLot)||''))}"${lk?' readonly':''}></td>`
   };
-  return plEffCols().map(c=>T[c]).join('');
+  const PER=['pseq','bseq','drm','lseq','clot'];   // 배치(작업지시)마다 따로 있는 칸: 배치수만큼 아래로 늘어남
+  return plEffCols().filter(c=>!onlyBatch||PER.includes(c)).map(c=>T[c]).join('');
 }
 // 확정 / 확정 취소(관리자)
 $('plBody')?.addEventListener('click',e=>{
