@@ -636,7 +636,10 @@ body.simpleOp.opBatch #featureFlagsPanel{display:none;}
 @media (min-width:1001px){ body.simpleOp.opBatch #opView .grid.opGrid{grid-template-columns:320px 1fr;} }
 /* 프레스일지: 제품순번·배치순번·드럼수량 · 중복 LOT · 요약 · 생산계획 */
 table.plTable td.pin{padding:0;background:#fff;}
-table.plTable td.pin input{width:100%;height:100%;min-height:30px;border:0;background:transparent;text-align:center;font:inherit;font-weight:800;color:#2c4e75;padding:4px;box-sizing:border-box;}
+table.plTable td.pin input{width:calc(100% - 10px);height:34px;margin:5px;border:1.5px solid #9fb3cc;border-radius:7px;background:#fff;text-align:center;font:inherit;font-weight:800;color:#2c4e75;padding:4px;box-sizing:border-box;box-shadow:inset 0 1px 2px rgba(15,37,64,.08);}
+table.plTable td.pin input.plLotIn{border:1.5px dashed #2c4e75;background:#fffdf5;font-weight:700;}
+table.plTable td.pin input::placeholder{color:#8a97a8;font-weight:600;}
+table.plTable td.pin input[readonly]{background:#f3f6fa;border-color:#d3dbe6;color:#667;}
 table.plTable td.pin input:focus{outline:2px solid var(--amber);outline-offset:-2px;background:#fffaf0;}
 .plDup{display:block;margin-top:3px;background:#fdecea;color:#c0392b;border:1px solid #d9534f;border-radius:6px;font-size:10.5px;font-weight:800;padding:1px 3px;}
 .plDupBar{margin:0 0 12px;padding:10px 12px;border-radius:10px;background:#fdecea;border:1.5px solid #d9534f;color:#c0392b;font-weight:800;font-size:13px;word-break:break-all;}
@@ -8720,7 +8723,7 @@ function plInfoTds(it,rec,key){
     bseq:sin('batchSeq',Number(o0&&o0.batchSeq)||1,'배치순번'),
     drm:sin('batchDrums',Number(o0&&o0.batchDrums)||it.n||1,'드럼수량'),
     lseq:(o0&&plUsesSeq(o0))?sin('lotSeq',Number(o0.lotSeq)||1,'LOT순번 (같은 날짜·같은 품목코드는 같은 번호)'):`<td class="it pin" ${rs}><span style="color:#aab;">-</span></td>`,
-    clot:`<td class="it pin" ${rs}><input type="text" class="plLotIn" autocomplete="off" spellcheck="false" style="font-size:11.5px;" placeholder="직접 입력" data-oids="${escapeHtml((it.oids&&it.oids.length?it.oids:[it.oid]).join(','))}" title="LOT를 직접 입력하면 규칙 대신 이 값이 LOT가 됩니다. 비우면 규칙대로 돌아갑니다." value="${escapeHtml(String((o0&&o0.customLot)||''))}"${lk?' readonly':''}></td>`
+    clot:`<td class="it pin" ${rs}><input type="text" class="plLotIn" autocomplete="off" spellcheck="false" style="font-size:11.5px;" placeholder="LOT 입력" data-oids="${escapeHtml((it.oids&&it.oids.length?it.oids:[it.oid]).join(','))}" title="LOT를 직접 입력하면 규칙 대신 이 값이 LOT가 됩니다. 비우면 규칙대로 돌아갑니다." value="${escapeHtml(String((o0&&o0.customLot)||''))}"${lk?' readonly':''}></td>`
   };
   return plEffCols().map(c=>T[c]).join('');
 }
