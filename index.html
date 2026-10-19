@@ -8240,14 +8240,14 @@ async function plOpenLabel(oid){
 $('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-pllabel]'); if(b) plOpenLabel(b.dataset.pllabel); });
 
 /* ===== 프레스일지 관리자: 제품순번·배치순번·드럼수량 + 중복 LOT + 요약 ===== */
-const PL_ADMIN_DEFS={pseq:{l:'제품순번',w:7,px:62},bseq:{l:'배치순번',w:7,px:62},drm:{l:'드럼수량',w:7,px:62},lseq:{l:'LOT순번',w:7,px:62}};
+const PL_ADMIN_DEFS={pseq:{l:'제품순번',w:7,px:62},bseq:{l:'배치순번',w:7,px:62},drm:{l:'드럼수량',w:7,px:62},lseq:{l:'LOT순번',w:7,px:62},clot:{l:'LOT 직접입력',w:14,px:124}};
 let PL_DUP=new Set();
 function plDef(c){ return PL_COLDEFS[c]||PL_ADMIN_DEFS[c]; }
 // 관리자 모드에서만 LOT 우측에 제품순번·배치순번·드럼수량 입력 컬럼을 붙인다
 function plEffCols(){
   const base=PL_COLS.slice();
   if(!isAdmin) return base;
-  const i=base.indexOf('lot'); base.splice(i>=0?i+1:base.length,0,'pseq','bseq','drm','lseq'); return base;
+  const i=base.indexOf('lot'); base.splice(i>=0?i+1:base.length,0,'pseq','bseq','drm','lseq','clot'); return base;
 }
 function plLotOf(o){ try{ return String(computeLotInfo(o,1).lot||''); }catch(e){ return ''; } }
 function plShiftOf(o){ return String(o&&o.shift||'').includes('야')?'야간':'주간'; }
@@ -8369,7 +8369,7 @@ async function plUseLot(idsStr,lot){
   const olds=targets.map(plLotOf);
   targets.forEach(t=>{ t.customLot=lot||''; });
   targets.forEach((t,i)=>plMoveCells(t,olds[i]));
-  flash(lot?`직전 LOT(${lot})와 동일하게 지정했습니다`:'LOT 규칙대로 되돌렸습니다');
+  flash(lot?`LOT를 ${lot}(으)로 지정했습니다`:'LOT 규칙대로 되돌렸습니다');
   await plAfterOrderEdit(targets,true);
 }
 $('plBody')?.addEventListener('click',e=>{
@@ -8385,6 +8385,12 @@ function plAssignLotSeq(o,pool){
   o.lotSeq=others.filter(x=>plUsesSeq(x)).reduce((a,x)=>Math.max(a,Number(x.lotSeq)||0),0)+1;
 }
 $('plBody')?.addEventListener('change',e=>{ const el=e.target; if(el.classList&&el.classList.contains('plSeqIn')) plSeqChange(el); });
+// LOT 직접입력: 입력한 값을 LOT로 고정(빈 값이면 규칙대로)
+$('plBody')?.addEventListener('change',e=>{
+  const el=e.target; if(!el.classList||!el.classList.contains('plLotIn')) return;
+  const v=String(el.value||'').trim().replace(/\s+/g,' ');
+  plUseLot(el.dataset.oids,v);
+});
 
 /* ===== 생산계획 → 프레스일지 (주간/야간 배치 배정 후 바로 이동) ===== */
 const PL_PLAN_KEY='ksa-plan-v1';
@@ -8713,7 +8719,8 @@ function plInfoTds(it,rec,key){
     pseq:sin('batchCount',Number(o0&&o0.batchCount)||1,'제품순번'),
     bseq:sin('batchSeq',Number(o0&&o0.batchSeq)||1,'배치순번'),
     drm:sin('batchDrums',Number(o0&&o0.batchDrums)||it.n||1,'드럼수량'),
-    lseq:(o0&&plUsesSeq(o0))?sin('lotSeq',Number(o0.lotSeq)||1,'LOT순번 (같은 날짜·같은 품목코드는 같은 번호)'):`<td class="it pin" ${rs}><span style="color:#aab;">-</span></td>`
+    lseq:(o0&&plUsesSeq(o0))?sin('lotSeq',Number(o0.lotSeq)||1,'LOT순번 (같은 날짜·같은 품목코드는 같은 번호)'):`<td class="it pin" ${rs}><span style="color:#aab;">-</span></td>`,
+    clot:`<td class="it pin" ${rs}><input type="text" class="plLotIn" autocomplete="off" spellcheck="false" style="font-size:11.5px;" placeholder="직접 입력" data-oids="${escapeHtml((it.oids&&it.oids.length?it.oids:[it.oid]).join(','))}" title="LOT를 직접 입력하면 규칙 대신 이 값이 LOT가 됩니다. 비우면 규칙대로 돌아갑니다." value="${escapeHtml(String((o0&&o0.customLot)||''))}"${lk?' readonly':''}></td>`
   };
   return plEffCols().map(c=>T[c]).join('');
 }
