@@ -39,13 +39,13 @@
   .modebar button{border:none;background:transparent;padding:12px 18px;font-size:13.5px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:3px solid transparent;}
   .modebar button.active{color:var(--navy);border-bottom-color:var(--amber);}
 
-  main{padding:20px 24px 60px;max-width:1460px;margin:0 auto;}
+  main{padding:20px 24px 60px;max-width:none;width:100%;margin:0 auto;box-sizing:border-box;}
   .grid{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start;}
   @media (max-width:1000px){.grid{grid-template-columns:1fr;}}
 
   /* v4.16: 작업 화면(일괄/실시간 출력) 3단 레이아웃 - 각 열이 독립적으로 스크롤되어
      전체 페이지를 길게 내리지 않아도 목록/현재작업/미리보기를 한 화면에서 볼 수 있게 함 */
-  #opView .grid.opGrid{grid-template-columns:300px 320px 1fr;align-items:start;}
+  #opView .grid.opGrid{grid-template-columns:minmax(300px,1fr) minmax(320px,1fr) 2.6fr;align-items:start;}
   #opView .opCol{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto;overflow-x:hidden;padding-right:4px;}
   #opView .opCol::-webkit-scrollbar{width:8px;}
   #opView .opCol::-webkit-scrollbar-thumb{background:#c7cedb;border-radius:8px;}
@@ -640,7 +640,7 @@ table.plTable td.h1{position:relative;}
 /* 출력 모드: 프린터 설정 · 역순출력 · 라벨 미리보기 · 출력만 남김 (관리 패널은 ⚙ 버튼으로 다시 표시) */
 body.simpleOp.opBatch #opView .opGrid>.opCol:first-child{display:none;}
 body.simpleOp.opBatch #featureFlagsPanel{display:none;}
-@media (min-width:1001px){ body.simpleOp.opBatch #opView .grid.opGrid{grid-template-columns:320px 1fr;} }
+@media (min-width:1001px){ body.simpleOp.opBatch #opView .grid.opGrid{grid-template-columns:minmax(320px,1fr) 3fr;} }
 /* 프레스일지: 제품순번·배치순번·드럼수량 · 중복 LOT · 요약 · 생산계획 */
 table.plTable td.pin{padding:0;background:#fff;}
 table.plTable td.pin input{width:calc(100% - 10px);height:34px;margin:5px;border:1.5px solid #9fb3cc;border-radius:7px;background:#fff;text-align:center;font:inherit;font-weight:800;color:#2c4e75;padding:4px;box-sizing:border-box;box-shadow:inset 0 1px 2px rgba(15,37,64,.08);}
@@ -650,10 +650,10 @@ table.plTable td.pin input[readonly]{background:#f3f6fa;border-color:#d3dbe6;col
 table.plTable td.pin input:focus{outline:2px solid var(--amber);outline-offset:-2px;background:#fffaf0;}
 .plDup{display:block;margin-top:3px;background:#fdecea;color:#c0392b;border:1px solid #d9534f;border-radius:6px;font-size:10.5px;font-weight:800;padding:1px 3px;}
 .plDupBar{margin:0 0 12px;padding:10px 12px;border-radius:10px;background:#fdecea;border:1.5px solid #d9534f;color:#c0392b;font-weight:800;font-size:13px;word-break:break-all;}
-.plSum{width:100%;max-width:520px;border-collapse:collapse;margin:6px 0 20px;font-size:13px;}
+.plSum{width:100%;max-width:760px;border-collapse:collapse;margin:6px 0 20px;font-size:13px;}
 .plSum caption{text-align:left;font-weight:800;color:var(--navy);padding:4px 0 6px;font-size:13.5px;}
 .plSum th,.plSum td{border:1px solid #8a94a3;padding:6px 8px;text-align:center;}
-.plSum th{background:#2c4e75;color:#fff;} .plSum tr.tot td{background:#fff4d6;font-weight:800;}
+.plSum th{background:#2c4e75;color:#fff;} .plSum tr.grp td{background:#2c4e75;color:#fff;font-weight:800;text-align:left;padding:7px 10px;} .plSum tr.grp.night td{background:#3b3f5c;} .plSum tr.sub td{background:#eef3fa;font-weight:800;} .plSum tr.tot td{background:#fff4d6;font-weight:800;}
 .plPlanPanel{margin:0 0 14px;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:#fafcff;}
 .plPlanPanel textarea{width:100%;box-sizing:border-box;min-height:64px;font-size:12.5px;}
 .planCard{border:1px solid var(--line);border-radius:11px;background:#fff;padding:10px 12px;margin:8px 0;}
@@ -904,8 +904,7 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
         <div class="toolbar">
           <h2 style="margin:0;">라벨 미리보기</h2>
           <span id="previewRotateHost"></span>
-          <button class="btn btn-primary auto" id="printBtn">🖨 바로 인쇄 (선택한 드럼만)</button>
-          <button class="btn btn-ghost auto" id="printAllBtn" style="display:none;">🖨 전체 드럼 인쇄</button>
+          <button class="btn btn-primary auto" id="printAllBtn" style="display:none;">🖨 전체 드럼 인쇄</button>
           <span id="printModeBadge" class="printModeBadge">인쇄 방식 확인중</span>
           <span style="font-size:11px;color:var(--sub);">Zebra ZPL 또는 브라우저 인쇄를 설정에 따라 사용합니다.</span>
         </div>
@@ -3433,7 +3432,7 @@ function renderPreview(){
   applyPreviewRotation(wrap);
   picker.innerHTML=generated.map((it,i)=>`<button class="btn ${i===selectedIdx?'btn-primary':'btn-ghost'} auto" data-i="${i}">드럼 ${it.drumNo}</button>`).join('');
   picker.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selectedIdx=+b.dataset.i;renderPreview();}));
-  if($('printAllBtn'))$('printAllBtn').style.display=(generated.length>1)?'':'none';
+  if($('printAllBtn'))$('printAllBtn').style.display=(generated.length>=1)?'':'none';
 }
 
 async function savePrintHistory(){ await storeSet('ksa-print-history-v471',JSON.stringify(log.slice(0,5000))); }
@@ -3631,7 +3630,7 @@ $('genBatch').addEventListener('click',async()=>{
   const o=activeOrder();if(!o){flash('먼저 작업지시를 선택하세요',true);return;}
   const p=resolveOrderProduct(o),worker=$('workerName').value||'',labelCode=selectedLabelTypeBatch;if(!p){flash('현재 제품마스터에서 작업지시 품목을 찾지 못했습니다',true);return;}
   const ruleId=labelEffectiveLotRule(p,labelCode,selectedVariantBatch);
-  if(productUsesManualInput3(p,ruleId) && !validManualInput3(String(o.manualLotInput||''))){
+  if(productUsesManualInput3(p,ruleId) && !String(o.customLot||'').trim() && !validManualInput3(String(o.manualLotInput||''))){
     const v=String(prompt('이 라벨은 LOT 마지막 3자리가 필요합니다. 영문/숫자 3자리를 입력하세요.','')||'').trim().toUpperCase();
     if(!validManualInput3(v)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력해야 합니다.',true);return;}
     o.manualLotInput=v; await saveWorkOrders(); refreshActiveOrderPanel();
@@ -3669,7 +3668,7 @@ $('genLive').addEventListener('click',async()=>{
   const w=$('liveWeight').value;if(!w){flash('실측 중량을 입력하세요',true);return;}
   const p=resolveOrderProduct(o),n=liveDrumCounter,labelCode=selectedLabelTypeLive;if(!p){flash('현재 제품마스터에서 작업지시 품목을 찾지 못했습니다',true);return;}
   const ruleId=labelEffectiveLotRule(p,labelCode,selectedVariantLive);
-  if(productUsesManualInput3(p,ruleId) && !validManualInput3(String(o.manualLotInput||''))){
+  if(productUsesManualInput3(p,ruleId) && !String(o.customLot||'').trim() && !validManualInput3(String(o.manualLotInput||''))){
     const v=String(prompt('이 라벨은 LOT 마지막 3자리가 필요합니다. 영문/숫자 3자리를 입력하세요.','')||'').trim().toUpperCase();
     if(!validManualInput3(v)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력해야 합니다.',true);return;}
     o.manualLotInput=v; await saveWorkOrders(); refreshActiveOrderPanel();
@@ -4809,10 +4808,6 @@ async function smartPrint(items){
   }
   await recordPrintHistory(items); triggerPrint(items);
 }
-$('printBtn').addEventListener('click',async()=>{
-  const item=generated[selectedIdx]; if(!item){flash('먼저 라벨을 생성하고 드럼 번호를 선택하세요',true);return;}
-  await smartPrint([item]);
-});
 $('printAllBtn')?.addEventListener('click',async()=>{
   if(!generated.length){flash('먼저 라벨을 생성하세요',true);return;}
   if(!confirm(`드럼 ${generated.length}장을 전부 인쇄합니다. 계속할까요?`)) return;
@@ -8361,37 +8356,42 @@ function plDupBanner(recs){
   const d=[...new Set(recs.map(r=>String(r.lot)).filter(l=>PL_DUP.has(l)))];
   return d.length?`<div class="plDupBar">⚠ 동일한 LOT번호가 중복되어 있습니다 (${d.length}건): ${d.map(escapeHtml).join(' / ')}${isAdmin?'<br><span style="font-weight:600;">제품순번·배치순번을 수정해 LOT를 구분하세요.</span>':'<br><span style="font-weight:600;">관리자에게 알려 주세요.</span>'}</div>`:'';
 }
-let plSumR={on:false,from:'',fs:'주간',to:'',ts:'주간'};
-// 요약 표(품목코드·약어명·색상·배치수) → 엑셀
+let plSumR={on:false,from:'',fs:'주간',to:'',ts:'주간',sort:'mc'};   // sort: mc=설비(호기)순 · item=품목별 호기순
+// 요약 표(일자·주야 → 설비 → 품목 · 배치수/드럼수) → 엑셀
 async function plSumExportXlsx(){
   const S=window.PL_SUM_LAST; const ratio=S&&S.ratio;
-  if(!S||!S.list||!S.list.length){ flash('내보낼 요약 데이터가 없습니다',true); return; }
+  if(!S||!S.groups||!S.groups.length){ flash('내보낼 요약 데이터가 없습니다',true); return; }
+  const H=['설비','품목코드','약어명','색상','배치수','드럼수','배치당 드럼'], N=H.length;
   try{
     if(window.ExcelJS){
       const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('요약');
-      ws.columns=[{width:26},{width:28},{width:18},{width:12},{width:12},{width:14}];
+      ws.columns=[{width:10},{width:24},{width:26},{width:16},{width:11},{width:11},{width:14}];
       const line={style:'thin',color:{argb:'FF8A94A3'}}, box={top:line,left:line,bottom:line,right:line};
       const fill=a=>({type:'pattern',pattern:'solid',fgColor:{argb:a}});
-      ws.mergeCells(1,1,1,6); const t=ws.getCell(1,1); t.value=S.lab; t.font={bold:true,size:13,color:{argb:'FF2C4E75'}}; t.alignment={vertical:'middle'}; ws.getRow(1).height=26;
-      ['품목코드','약어명','색상','배치수','드럼수','배치당 드럼'].forEach((h,i)=>{ const c=ws.getCell(2,i+1); c.value=h; c.font={bold:true,color:{argb:'FFFFFFFF'}}; c.fill=fill('FF2C4E75'); c.alignment={horizontal:'center',vertical:'middle'}; c.border=box; });
-      S.list.forEach((e,i)=>{
-        const r=i+3;
-        [[1,String(e.code)],[2,String(e.short)],[3,String(e.color)],[4,Number(e.b)],[5,Number(e.dr)],[6,{formula:`IF(D${r}=0,0,ROUND(E${r}/D${r},1))`,result:ratio(e.dr,e.b)}]].forEach(([col,v])=>{ const c=ws.getCell(r,col); c.value=v; if(col<4) c.numFmt='@'; c.alignment={horizontal:'center',vertical:'middle'}; c.border=box; if(col>=4) c.font={bold:true}; });
+      ws.mergeCells(1,1,1,N); const t=ws.getCell(1,1); t.value=S.lab; t.font={bold:true,size:13,color:{argb:'FF2C4E75'}}; ws.getRow(1).height=26;
+      let r=2; const totRows=[];
+      const put=(row,vals,opt={})=>{ vals.forEach((v,i)=>{ const c=ws.getCell(row,i+1); if(v!=='') c.value=v; c.alignment={horizontal:'center',vertical:'middle'}; c.border=box; if(opt.bold) c.font={bold:true,color:opt.color?{argb:opt.color}:undefined}; if(opt.fill) c.fill=fill(opt.fill); if(i>=1&&i<=3&&!opt.noText) c.numFmt='@'; }); };
+      const rat=(row)=>({formula:`IF(E${row}=0,0,ROUND(F${row}/E${row},1))`});
+      S.groups.forEach(g=>{
+        ws.mergeCells(r,1,r,N); const gc=ws.getCell(r,1); gc.value=g.title; gc.font={bold:true,color:{argb:'FFFFFFFF'}}; gc.fill=fill(g.night?'FF3B3F5C':'FF2C4E75'); gc.alignment={vertical:'middle'}; for(let c=1;c<=N;c++) ws.getCell(r,c).border=box; r++;
+        put(r,H,{bold:true,fill:'FFDCE6F2',noText:true}); r++;
+        const first=r;
+        g.rows.forEach(e=>{ put(r,[e.mc,String(e.code),String(e.short),String(e.color),Number(e.b),Number(e.dr),{...rat(r),result:ratio(e.dr,e.b)}]); r++; });
+        ws.mergeCells(r,1,r,4); put(r,['소계','','','',{formula:`SUM(E${first}:E${r-1})`,result:g.b},{formula:`SUM(F${first}:F${r-1})`,result:g.dr},{...rat(r),result:ratio(g.dr,g.b)}],{bold:true,fill:'FFFFF4D6',noText:true}); totRows.push(r); r++;
+        r++;   // 빈 줄
       });
-      const tr=S.list.length+3; ws.mergeCells(tr,1,tr,3);
-      const tl=ws.getCell(tr,1); tl.value='합계'; tl.font={bold:true}; tl.alignment={horizontal:'center'}; tl.fill=fill('FFFFF4D6');
-      const tv=ws.getCell(tr,4); tv.value={formula:`SUM(D3:D${tr-1})`,result:S.tot}; tv.font={bold:true}; tv.alignment={horizontal:'center'}; tv.fill=fill('FFFFF4D6');
-      const tv3=ws.getCell(tr,6); tv3.value={formula:`IF(D${tr}=0,0,ROUND(E${tr}/D${tr},1))`,result:ratio(S.totD,S.tot)}; tv3.font={bold:true}; tv3.alignment={horizontal:'center'}; tv3.fill=fill('FFFFF4D6');
-      const tv2=ws.getCell(tr,5); tv2.value={formula:`SUM(E3:E${tr-1})`,result:S.totD}; tv2.font={bold:true}; tv2.alignment={horizontal:'center'}; tv2.fill=fill('FFFFF4D6');
-      for(let c=1;c<=6;c++) ws.getCell(tr,c).border=box;
+      ws.mergeCells(r,1,r,4); const sum=col=>({formula:totRows.map(x=>col+x).join('+')||'0'});
+      put(r,['총합계','','','',{...sum('E'),result:S.tot},{...sum('F'),result:S.totD},{...rat(r),result:ratio(S.totD,S.tot)}],{bold:true,fill:'FFFFE08A',noText:true});
       const buf=await wb.xlsx.writeBuffer();
       downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),S.file);
     }else{
-      const aoa=[[S.lab],['품목코드','약어명','색상','배치수','드럼수','배치당 드럼'],...S.list.map(e=>[String(e.code),String(e.short),String(e.color),Number(e.b),Number(e.dr),ratio(e.dr,e.b)]),['합계','','',S.tot,S.totD,ratio(S.totD,S.tot)]];
-      const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:26},{wch:28},{wch:18},{wch:12},{wch:12},{wch:14}]; ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:5}}];
+      const aoa=[[S.lab]];
+      S.groups.forEach(g=>{ aoa.push([g.title]); aoa.push(H); g.rows.forEach(e=>aoa.push([e.mc,String(e.code),String(e.short),String(e.color),Number(e.b),Number(e.dr),ratio(e.dr,e.b)])); aoa.push(['소계','','','',g.b,g.dr,ratio(g.dr,g.b)]); aoa.push([]); });
+      aoa.push(['총합계','','','',S.tot,S.totD,ratio(S.totD,S.tot)]);
+      const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:10},{wch:24},{wch:26},{wch:16},{wch:11},{wch:11},{wch:14}];
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'요약'); XLSX.writeFile(wb,S.file);
     }
-    flash(`요약 엑셀을 내려받았습니다 (${S.list.length}개 품목 · 배치 ${S.tot})`);
+    flash(`요약 엑셀을 내려받았습니다 (${S.groups.length}개 구간 · 배치 ${S.tot})`);
   }catch(err){ console.error(err); flash('엑셀 내보내기 실패: '+(err?.message||err),true); }
 }
 function plSumKey(d,sh){ return d+'|'+(sh==='야간'?1:0); }
@@ -8402,21 +8402,26 @@ function plSummaryHtml(recs,label){
     rows=plFilterMachine(buildPressLogRecords('','').filter(r=>{ const k=plSumKey(r.d,r.s); return k>=fk&&k<=tk; }),plMachine);
     lab=`${R.from} ${R.fs} ~ ${R.to} ${R.ts} · ${plMachine?(plMachine==='__none'?'미지정':plMachine):'설비 전체'}`;
   }
-  const g=new Map();
+  // 일자 → 주간 → 야간(다음 날 주간 …) 순으로 구간을 만들고, 구간 안에서는 설비(M1→M5) → 품목코드 순
+  const gm=new Map();
   rows.forEach(it=>{
-    const pi=plProdInfo(it); let e=g.get(it.code);
-    if(!e){ e={code:it.code,short:pi.short||'-',color:pi.color||'-',b:0,dr:0}; g.set(it.code,e); }
-    e.dr+=Number(it.n)||0;
-    e.b+=(it.oids&&it.oids.length)||1;      // 동일 품목코드는 배치수 합산
+    const gk=plSumKey(it.d,it.s); let g=gm.get(gk);
+    if(!g){ g={k:gk,d:it.d,s:it.s,night:it.s==='야간',title:`${it.d||'날짜미상'} ${it.s||'주간'}`,map:new Map(),rows:[],b:0,dr:0}; gm.set(gk,g); }
+    const mk=(it.mn??99)+'|'+it.code; let e=g.map.get(mk);
+    if(!e){ const pi=plProdInfo(it); e={mn:it.mn??99,mc:it.mc||'미지정',code:it.code,short:pi.short||'-',color:pi.color||'-',b:0,dr:0}; g.map.set(mk,e); }
+    e.dr+=Number(it.n)||0; e.b+=(it.oids&&it.oids.length)||1;      // 같은 설비·품목은 배치수 합산
   });
+  const groups=[...gm.values()].sort((x,y)=>x.k<y.k?-1:x.k>y.k?1:0);
+  groups.forEach(g=>{ const cc=(x,y)=>x.code<y.code?-1:x.code>y.code?1:0; g.rows=[...g.map.values()].sort(R.sort==='item'?((x,y)=>cc(x,y)||(x.mn-y.mn)):((x,y)=>(x.mn-y.mn)||cc(x,y))); g.b=g.rows.reduce((a,e)=>a+e.b,0); g.dr=g.rows.reduce((a,e)=>a+e.dr,0); });
   const ratio=(d,b)=>b?Math.round(d/b*10)/10:0;   // 배치당 드럼수 = 드럼수 ÷ 배치수
-  const list=[...g.values()], tot=list.reduce((a,e)=>a+e.b,0), totD=list.reduce((a,e)=>a+e.dr,0);
-  // 엑셀 다운로드용: 지금 화면에 보이는 요약을 그대로 보관
-  window.PL_SUM_LAST={lab,list,tot,totD,ratio,file:`프레스일지_요약_${R.on?`${R.from}${R.fs}~${R.to}${R.ts}`:[plDate,plEffShift()||'주야전체'].join('_')}${plMachine&&plMachine!=='__none'?'_'+plMachine:''}.xlsx`};
+  const tot=groups.reduce((a,g)=>a+g.b,0), totD=groups.reduce((a,g)=>a+g.dr,0);
+  window.PL_SUM_LAST={lab,groups,tot,totD,ratio,file:`프레스일지_요약_${R.on?`${R.from}${R.fs}~${R.to}${R.ts}`:[plDate,plEffShift()||'주야전체'].join('_')}${plMachine&&plMachine!=='__none'?'_'+plMachine:''}.xlsx`};
   const v=(x,d)=>escapeHtml(x||d||''), sel=(id,val)=>`<select id="${id}"><option value="주간"${val==='야간'?'':' selected'}>주간</option><option value="야간"${val==='야간'?' selected':''}>야간</option></select>`;
-  const ctl=`<div class="plSumCtl" id="plSumCtl"><b>▣ 요약 기간</b><span><input type="date" id="plSumFrom" value="${v(R.from,plDate)}"> ${sel('plSumFs',R.fs)}</span><span>~</span><span><input type="date" id="plSumTo" value="${v(R.to,plDate)}"> ${sel('plSumTs',R.ts)}</span><button type="button" class="btn btn-primary auto" id="plSumGo">조회</button>${R.on?'<button type="button" class="btn btn-ghost auto" id="plSumReset">현재 화면 기준</button>':''}<button type="button" class="btn btn-ok auto" id="plSumXlsx" title="지금 보이는 요약 표를 엑셀로 저장">📥 엑셀 다운로드</button></div>`;
-  if(!list.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
-  return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption><tr><th>품목코드</th><th>약어명</th><th>색상</th><th>배치수</th><th>드럼수</th><th>배치당 드럼</th></tr>${list.map(e=>`<tr><td>${escapeHtml(e.code)}</td><td>${escapeHtml(e.short)}</td><td>${escapeHtml(e.color)}</td><td><b>${e.b}</b></td><td><b>${e.dr}</b></td><td>${ratio(e.dr,e.b)}</td></tr>`).join('')}<tr class="tot"><td colspan="3">합계</td><td>${tot}</td><td>${totD}</td><td>${ratio(totD,tot)}</td></tr></table>`;
+  const ctl=`<div class="plSumCtl" id="plSumCtl"><b>▣ 요약 기간</b><span><input type="date" id="plSumFrom" value="${v(R.from,plDate)}"> ${sel('plSumFs',R.fs)}</span><span>~</span><span><input type="date" id="plSumTo" value="${v(R.to,plDate)}"> ${sel('plSumTs',R.ts)}</span><button type="button" class="btn btn-primary auto" id="plSumGo">조회</button>${R.on?'<button type="button" class="btn btn-ghost auto" id="plSumReset">현재 화면 기준</button>':''}<span style="margin-left:auto;">정렬 <select id="plSumSort"><option value="mc"${R.sort==='item'?'':' selected'}>설비(호기)순</option><option value="item"${R.sort==='item'?' selected':''}>품목별 · 호기순</option></select></span><button type="button" class="btn btn-ok auto" id="plSumXlsx" title="지금 보이는 요약 표를 엑셀로 저장">📥 엑셀 다운로드</button></div>`;
+  if(!groups.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
+  const th='<tr><th>설비</th><th>품목코드</th><th>약어명</th><th>색상</th><th>배치수</th><th>드럼수</th><th>배치당 드럼</th></tr>';
+  const body=groups.map(g=>`<tr class="grp${g.night?' night':''}"><td colspan="7">${escapeHtml(g.title)}</td></tr>`+g.rows.map(e=>`<tr><td><b>${escapeHtml(e.mc)}</b></td><td>${escapeHtml(e.code)}</td><td>${escapeHtml(e.short)}</td><td>${escapeHtml(e.color)}</td><td><b>${e.b}</b></td><td><b>${e.dr}</b></td><td>${ratio(e.dr,e.b)}</td></tr>`).join('')+`<tr class="sub"><td colspan="4">소계</td><td>${g.b}</td><td>${g.dr}</td><td>${ratio(g.dr,g.b)}</td></tr>`).join('');
+  return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption>${th}${body}<tr class="tot"><td colspan="4">총합계</td><td>${tot}</td><td>${totD}</td><td>${ratio(totD,tot)}</td></tr></table>`;
 }
 $('plBody')?.addEventListener('click',async e=>{
   const t=e.target.closest&&e.target.closest('#plSumGo,#plSumReset,#plSumXlsx'); if(!t) return;
@@ -8427,6 +8432,11 @@ $('plBody')?.addEventListener('click',async e=>{
   if(plSumKey(f,fs)>plSumKey(to,ts)){ flash('시작이 종료보다 늦습니다',true); return; }
   Object.assign(plSumR,{on:true,from:f,fs,to,ts});
   await renderPressLogView(); $('plSumCtl')?.scrollIntoView({behavior:'smooth',block:'center'});
+});
+
+$('plBody')?.addEventListener('change',async e=>{
+  if(!e.target||e.target.id!=='plSumSort') return;
+  plSumR.sort=e.target.value==='item'?'item':'mc'; await renderPressLogView();
 });
 
 // LOT가 바뀐 작업지시의 입력칸 값을 새 LOT 키로 옮긴다
@@ -9072,6 +9082,9 @@ try{ KSA_I18N.add({
  '나중에 선택':['Choose later','稍后选择','පසුව තෝරන්න','Выбрать позже'],
  '작업 없음':['No jobs','无作业','කාර්ය නැත','Нет заданий'],
  '드럼수':['Drums','桶数','බැරල් ගණන','Кол-во бочек'],
+ '정렬':['Sort','排序','පිළිවෙල','Сортировка'],
+ '설비(호기)순':['By machine','按设备号','යන්ත්‍ර අනුව','По номеру линии'],
+ '품목별 · 호기순':['By item, then machine','按品目、设备号','අයිතමය අනුව, පසු යන්ත්‍රය','По товару, затем линии'],
  '배치당 드럼':['Drums / batch','每批桶数','කණ්ඩායමකට බැරල්','Бочек на замес'],
  '📥 엑셀 다운로드':['📥 Download Excel','📥 下载Excel','📥 Excel බාගන්න','📥 Скачать Excel'],
  '지금 보이는 요약 표를 엑셀로 저장':['Save the summary shown as Excel','将当前汇总表保存为Excel','දැන් පෙනෙන සාරාංශය Excel ලෙස සුරකින්න','Сохранить показанную сводку в Excel']
