@@ -653,6 +653,7 @@ table.plTable td.pin input:focus{outline:2px solid var(--amber);outline-offset:-
 .plSum{width:100%;max-width:760px;border-collapse:collapse;margin:6px 0 20px;font-size:13px;}
 .plSum caption{text-align:left;font-weight:800;color:var(--navy);padding:4px 0 6px;font-size:13.5px;}
 .plSum th,.plSum td{border:1px solid #8a94a3;padding:6px 8px;text-align:center;}
+.plSum td.dcell{background:#fff;font-weight:800;} .plSum td.nm{text-align:left;} .plSum tr.dv td{background:#fff;font-size:20px;font-weight:900;padding:12px 6px;}
 .plSum th{background:#2c4e75;color:#fff;} .plSum tr.grp td{background:#2c4e75;color:#fff;font-weight:800;text-align:left;padding:7px 10px;} .plSum tr.grp.night td{background:#3b3f5c;} .plSum tr.sub td{background:#eef3fa;font-weight:800;} .plSum tr.tot td{background:#fff4d6;font-weight:800;}
 .plPlanPanel{margin:0 0 14px;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:#fafcff;}
 .plPlanPanel textarea{width:100%;box-sizing:border-box;min-height:64px;font-size:12.5px;}
@@ -8358,40 +8359,55 @@ function plDupBanner(recs){
 }
 let plSumR={on:false,from:'',fs:'주간',to:'',ts:'주간',sort:'mc'};   // sort: mc=설비(호기)순 · item=품목별 호기순
 // 요약 표(일자·주야 → 설비 → 품목 · 배치수/드럼수) → 엑셀
+// 요약 표 → 엑셀 (일자·요일 | 호기 | 품목 | 배치수 …, 일자 안에서 주간 → 'N대' 구분줄 → 야간)
+const PL_MC_COLOR={0:['#ffffff','#ffffff'],1:['#ffffcc','#ffffcc'],2:['#ccffff','#ccffff'],3:['#d9d9d9','#d9d9d9'],4:['#ffd966','#ccccff'],5:['#ffff00','#e2efda'],99:['#ffffff','#ffffff']};
+const plMcColor=(mn,night)=>(PL_MC_COLOR[mn]||PL_MC_COLOR[0])[night?1:0];
+const PL_WD=['일','월','화','수','목','금','토'];
+const plWeekday=d=>{ const t=new Date(d+'T00:00:00'); return isNaN(t)?'':PL_WD[t.getDay()]; };
+const plMD=d=>{ const m=String(d||'').match(/^\d{4}-(\d{2})-(\d{2})$/); return m?`${m[1]}/${m[2]}`:(d||'날짜미상'); };
 async function plSumExportXlsx(){
   const S=window.PL_SUM_LAST; const ratio=S&&S.ratio;
-  if(!S||!S.groups||!S.groups.length){ flash('내보낼 요약 데이터가 없습니다',true); return; }
-  const H=['설비','품목코드','약어명','색상','배치수','드럼수','배치당 드럼'], N=H.length;
+  if(!S||!S.days||!S.days.length){ flash('내보낼 요약 데이터가 없습니다',true); return; }
+  const H=['일자','요일','호기','품목코드','품목명','배치수','드럼수','배치당 드럼'], N=H.length;
   try{
     if(window.ExcelJS){
       const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('요약');
-      ws.columns=[{width:10},{width:24},{width:26},{width:16},{width:11},{width:11},{width:14}];
+      ws.columns=[{width:9},{width:6},{width:8},{width:20},{width:34},{width:9},{width:9},{width:12}];
       const line={style:'thin',color:{argb:'FF8A94A3'}}, box={top:line,left:line,bottom:line,right:line};
-      const fill=a=>({type:'pattern',pattern:'solid',fgColor:{argb:a}});
+      const fill=h=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+h.replace('#','').toUpperCase()}});
       ws.mergeCells(1,1,1,N); const t=ws.getCell(1,1); t.value=S.lab; t.font={bold:true,size:13,color:{argb:'FF2C4E75'}}; ws.getRow(1).height=26;
-      let r=2; const totRows=[];
-      const put=(row,vals,opt={})=>{ vals.forEach((v,i)=>{ const c=ws.getCell(row,i+1); if(v!=='') c.value=v; c.alignment={horizontal:'center',vertical:'middle'}; c.border=box; if(opt.bold) c.font={bold:true,color:opt.color?{argb:opt.color}:undefined}; if(opt.fill) c.fill=fill(opt.fill); if(i>=1&&i<=3&&!opt.noText) c.numFmt='@'; }); };
-      const rat=(row)=>({formula:`IF(E${row}=0,0,ROUND(F${row}/E${row},1))`});
-      S.groups.forEach(g=>{
-        ws.mergeCells(r,1,r,N); const gc=ws.getCell(r,1); gc.value=g.title; gc.font={bold:true,color:{argb:'FFFFFFFF'}}; gc.fill=fill(g.night?'FF3B3F5C':'FF2C4E75'); gc.alignment={vertical:'middle'}; for(let c=1;c<=N;c++) ws.getCell(r,c).border=box; r++;
-        put(r,H,{bold:true,fill:'FFDCE6F2',noText:true}); r++;
-        const first=r;
-        g.rows.forEach(e=>{ put(r,[e.mc,String(e.code),String(e.short),String(e.color),Number(e.b),Number(e.dr),{...rat(r),result:ratio(e.dr,e.b)}]); r++; });
-        ws.mergeCells(r,1,r,4); put(r,['소계','','','',{formula:`SUM(E${first}:E${r-1})`,result:g.b},{formula:`SUM(F${first}:F${r-1})`,result:g.dr},{...rat(r),result:ratio(g.dr,g.b)}],{bold:true,fill:'FFFFF4D6',noText:true}); totRows.push(r); r++;
-        r++;   // 빈 줄
+      H.forEach((h,i)=>{ const c=ws.getCell(2,i+1); c.value=h; c.font={bold:true,color:{argb:'FFFFFFFF'}}; c.fill=fill('#2c4e75'); c.alignment={horizontal:'center',vertical:'middle'}; c.border=box; });
+      let r=3;
+      S.days.forEach(day=>{
+        const r0=r;
+        day.shifts.forEach((sh,si)=>{
+          sh.rows.forEach(e=>{
+            const col=plMcColor(e.mn,sh.night);
+            [e.mc,String(e.code),String(e.name),Number(e.b),Number(e.dr),{formula:`IF(F${r}=0,0,ROUND(G${r}/F${r},1))`,result:ratio(e.dr,e.b)}].forEach((v,i)=>{ const c=ws.getCell(r,i+3); c.value=v; c.fill=fill(col); c.border=box; c.alignment={horizontal:i===2?'left':'center',vertical:'middle'}; if(i===0||i===3) c.font={bold:true}; });
+            r++;
+          });
+          if(si<day.shifts.length-1){
+            ws.mergeCells(r,3,r,N); const c=ws.getCell(r,3); c.value=day.label; c.font={bold:true,size:18}; c.alignment={horizontal:'center',vertical:'middle'}; ws.getRow(r).height=38; r++;
+          }
+        });
+        ws.mergeCells(r0,1,r-1,1); ws.mergeCells(r0,2,r-1,2);
+        [[1,plMD(day.d)],[2,plWeekday(day.d)]].forEach(([ci,v])=>{ const c=ws.getCell(r0,ci); c.value=v; c.alignment={horizontal:'center',vertical:'middle'}; c.font={bold:true}; });
+        for(let rr=r0;rr<r;rr++){ ws.getCell(rr,1).border=box; ws.getCell(rr,2).border=box; }
       });
-      ws.mergeCells(r,1,r,4); const sum=col=>({formula:totRows.map(x=>col+x).join('+')||'0'});
-      put(r,['총합계','','','',{...sum('E'),result:S.tot},{...sum('F'),result:S.totD},{...rat(r),result:ratio(S.totD,S.tot)}],{bold:true,fill:'FFFFE08A',noText:true});
+      ws.mergeCells(r,1,r,5); const tl=ws.getCell(r,1); tl.value=`총합계 (${S.dayLabel})`; tl.font={bold:true}; tl.alignment={horizontal:'center'};
+      [[6,{formula:`SUM(F3:F${r-1})`,result:S.tot}],[7,{formula:`SUM(G3:G${r-1})`,result:S.totD}],[8,{formula:`IF(F${r}=0,0,ROUND(G${r}/F${r},1))`,result:ratio(S.totD,S.tot)}]].forEach(([ci,v])=>{ const c=ws.getCell(r,ci); c.value=v; c.font={bold:true}; c.alignment={horizontal:'center'}; });
+      for(let c=1;c<=N;c++){ const x=ws.getCell(r,c); x.border=box; x.fill=fill('#ffe08a'); }
+      ws.views=[{state:'frozen',ySplit:2}];
       const buf=await wb.xlsx.writeBuffer();
       downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),S.file);
     }else{
-      const aoa=[[S.lab]];
-      S.groups.forEach(g=>{ aoa.push([g.title]); aoa.push(H); g.rows.forEach(e=>aoa.push([e.mc,String(e.code),String(e.short),String(e.color),Number(e.b),Number(e.dr),ratio(e.dr,e.b)])); aoa.push(['소계','','','',g.b,g.dr,ratio(g.dr,g.b)]); aoa.push([]); });
-      aoa.push(['총합계','','','',S.tot,S.totD,ratio(S.totD,S.tot)]);
-      const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:10},{wch:24},{wch:26},{wch:16},{wch:11},{wch:11},{wch:14}];
+      const aoa=[[S.lab],H];
+      S.days.forEach(day=>day.shifts.forEach((sh,si)=>{ sh.rows.forEach((e,i)=>aoa.push([si===0&&i===0?plMD(day.d):'',si===0&&i===0?plWeekday(day.d):'',e.mc,String(e.code),String(e.name),Number(e.b),Number(e.dr),ratio(e.dr,e.b)])); if(si<day.shifts.length-1) aoa.push(['','','',day.label]); }));
+      aoa.push(['총합계','','','','',S.tot,S.totD,ratio(S.totD,S.tot)]);
+      const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:9},{wch:6},{wch:8},{wch:20},{wch:34},{wch:9},{wch:9},{wch:12}];
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'요약'); XLSX.writeFile(wb,S.file);
     }
-    flash(`요약 엑셀을 내려받았습니다 (${S.groups.length}개 구간 · 배치 ${S.tot})`);
+    flash(`요약 엑셀을 내려받았습니다 (${S.days.length}일 · 배치 ${S.tot})`);
   }catch(err){ console.error(err); flash('엑셀 내보내기 실패: '+(err?.message||err),true); }
 }
 function plSumKey(d,sh){ return d+'|'+(sh==='야간'?1:0); }
@@ -8408,20 +8424,35 @@ function plSummaryHtml(recs,label){
     const gk=plSumKey(it.d,it.s); let g=gm.get(gk);
     if(!g){ g={k:gk,d:it.d,s:it.s,night:it.s==='야간',title:`${it.d||'날짜미상'} ${it.s||'주간'}`,map:new Map(),rows:[],b:0,dr:0}; gm.set(gk,g); }
     const mk=(it.mn??99)+'|'+it.code; let e=g.map.get(mk);
-    if(!e){ const pi=plProdInfo(it); e={mn:it.mn??99,mc:it.mc||'미지정',code:it.code,short:pi.short||'-',color:pi.color||'-',b:0,dr:0}; g.map.set(mk,e); }
+    if(!e){ const pi=plProdInfo(it); e={mn:it.mn??99,mc:it.mc||'미지정',code:it.code,short:pi.short||'-',color:pi.color||'-',name:[pi.short&&pi.short!=='-'?pi.short:'',pi.color&&pi.color!=='-'?pi.color:''].filter(Boolean).join(' ')||'-',b:0,dr:0}; g.map.set(mk,e); }
     e.dr+=Number(it.n)||0; e.b+=(it.oids&&it.oids.length)||1;      // 같은 설비·품목은 배치수 합산
   });
   const groups=[...gm.values()].sort((x,y)=>x.k<y.k?-1:x.k>y.k?1:0);
   groups.forEach(g=>{ const cc=(x,y)=>x.code<y.code?-1:x.code>y.code?1:0; g.rows=[...g.map.values()].sort(R.sort==='item'?((x,y)=>cc(x,y)||(x.mn-y.mn)):((x,y)=>(x.mn-y.mn)||cc(x,y))); g.b=g.rows.reduce((a,e)=>a+e.b,0); g.dr=g.rows.reduce((a,e)=>a+e.dr,0); });
   const ratio=(d,b)=>b?Math.round(d/b*10)/10:0;   // 배치당 드럼수 = 드럼수 ÷ 배치수
   const tot=groups.reduce((a,g)=>a+g.b,0), totD=groups.reduce((a,g)=>a+g.dr,0);
-  window.PL_SUM_LAST={lab,groups,tot,totD,ratio,file:`프레스일지_요약_${R.on?`${R.from}${R.fs}~${R.to}${R.ts}`:[plDate,plEffShift()||'주야전체'].join('_')}${plMachine&&plMachine!=='__none'?'_'+plMachine:''}.xlsx`};
+  // 일자별로 묶기: 주간 → ('주간 N대, 야간 M대' 구분줄) → 야간
+  const dm=new Map(); groups.forEach(g=>{ let d=dm.get(g.d); if(!d){ d={d:g.d,shifts:[]}; dm.set(g.d,d); } d.shifts.push(g); });
+  const days=[...dm.values()]; days.forEach(d=>{ d.label=d.shifts.map(sh=>`${sh.s||'주간'} ${new Set(sh.rows.map(e=>e.mc)).size}대`).join(', '); });
+  const dayLabel=days.length>1?`${days[0].d} ~ ${days[days.length-1].d}`:(days[0]?days[0].d:'');
+  window.PL_SUM_LAST={lab,days,dayLabel,tot,totD,ratio,file:`프레스일지_요약_${R.on?`${R.from}${R.fs}~${R.to}${R.ts}`:[plDate,plEffShift()||'주야전체'].join('_')}${plMachine&&plMachine!=='__none'?'_'+plMachine:''}.xlsx`};
   const v=(x,d)=>escapeHtml(x||d||''), sel=(id,val)=>`<select id="${id}"><option value="주간"${val==='야간'?'':' selected'}>주간</option><option value="야간"${val==='야간'?' selected':''}>야간</option></select>`;
   const ctl=`<div class="plSumCtl" id="plSumCtl"><b>▣ 요약 기간</b><span><input type="date" id="plSumFrom" value="${v(R.from,plDate)}"> ${sel('plSumFs',R.fs)}</span><span>~</span><span><input type="date" id="plSumTo" value="${v(R.to,plDate)}"> ${sel('plSumTs',R.ts)}</span><button type="button" class="btn btn-primary auto" id="plSumGo">조회</button>${R.on?'<button type="button" class="btn btn-ghost auto" id="plSumReset">현재 화면 기준</button>':''}<span style="margin-left:auto;">정렬 <select id="plSumSort"><option value="mc"${R.sort==='item'?'':' selected'}>설비(호기)순</option><option value="item"${R.sort==='item'?' selected':''}>품목별 · 호기순</option></select></span><button type="button" class="btn btn-ok auto" id="plSumXlsx" title="지금 보이는 요약 표를 엑셀로 저장">📥 엑셀 다운로드</button></div>`;
   if(!groups.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
-  const th='<tr><th>설비</th><th>품목코드</th><th>약어명</th><th>색상</th><th>배치수</th><th>드럼수</th><th>배치당 드럼</th></tr>';
-  const body=groups.map(g=>`<tr class="grp${g.night?' night':''}"><td colspan="7">${escapeHtml(g.title)}</td></tr>`+g.rows.map(e=>`<tr><td><b>${escapeHtml(e.mc)}</b></td><td>${escapeHtml(e.code)}</td><td>${escapeHtml(e.short)}</td><td>${escapeHtml(e.color)}</td><td><b>${e.b}</b></td><td><b>${e.dr}</b></td><td>${ratio(e.dr,e.b)}</td></tr>`).join('')+`<tr class="sub"><td colspan="4">소계</td><td>${g.b}</td><td>${g.dr}</td><td>${ratio(g.dr,g.b)}</td></tr>`).join('');
-  return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption>${th}${body}<tr class="tot"><td colspan="4">총합계</td><td>${tot}</td><td>${totD}</td><td>${ratio(totD,tot)}</td></tr></table>`;
+  if(!groups.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
+  const th='<tr><th>일자</th><th>요일</th><th>호기</th><th>품목코드</th><th>품목명</th><th>배치수</th><th>드럼수</th><th>배치당 드럼</th></tr>';
+  const body=days.map(day=>{
+    const n=day.shifts.reduce((a,sh,i)=>a+sh.rows.length+(i<day.shifts.length-1?1:0),0); let first=true, out='';
+    day.shifts.forEach((sh,si)=>{
+      sh.rows.forEach(e=>{
+        const head=first?`<td rowspan="${n}" class="dcell">${escapeHtml(plMD(day.d))}</td><td rowspan="${n}" class="dcell">${escapeHtml(plWeekday(day.d))}</td>`:''; first=false;
+        out+=`<tr style="background:${plMcColor(e.mn,sh.night)}">${head}<td><b>${escapeHtml(e.mc)}</b></td><td><b>${escapeHtml(e.code)}</b></td><td class="nm">${escapeHtml(e.name)}</td><td><b>${e.b}</b></td><td>${e.dr}</td><td>${ratio(e.dr,e.b)}</td></tr>`;
+      });
+      if(si<day.shifts.length-1) out+=`<tr class="dv"><td colspan="6">${escapeHtml(day.label)}</td></tr>`;
+    });
+    return out;
+  }).join('');
+  return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption>${th}${body}<tr class="tot"><td colspan="5">총합계 (${escapeHtml(dayLabel)})</td><td>${tot}</td><td>${totD}</td><td>${ratio(totD,tot)}</td></tr></table>`;
 }
 $('plBody')?.addEventListener('click',async e=>{
   const t=e.target.closest&&e.target.closest('#plSumGo,#plSumReset,#plSumXlsx'); if(!t) return;
