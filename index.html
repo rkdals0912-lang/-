@@ -628,6 +628,9 @@ table.plTable td.h1{position:relative;}
 #plJobModal .mcGrid button:hover{border-color:#2c4e75;background:#f4f8fd;}
 #plJobModal .mcGrid button.on{background:#2c4e75;border-color:#2c4e75;color:#fff;} #plJobModal .mcGrid button.on small{color:#cfdcec;}
 #plJobModal .mcGrid button.none span{font-size:16px;}
+#plJobModal .pjSplitLbl{display:flex;gap:6px;align-items:center;margin-top:12px;font-weight:800;cursor:pointer;} #plJobModal .pjSplitLbl input{width:auto;}
+#plJobModal .pjSeg{display:grid;grid-template-columns:1.4fr .8fr .7fr auto auto;gap:6px;align-items:center;margin:5px 0;} #plJobModal .pjSeg input,#plJobModal .pjSeg select{width:100%;padding:6px;box-sizing:border-box;} #plJobModal .pjSeg .rg{font-size:11.5px;color:#2c4e75;font-weight:800;white-space:nowrap;} #plJobModal .pjSeg button{border:0;background:#fde8e8;color:#b42318;border-radius:6px;cursor:pointer;padding:4px 8px;}
+#plJobModal .pjSplitFoot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:12px;font-weight:700;} #plJobModal .pjSplitFoot button{border:1.5px solid #2c4e75;background:#fff;color:#2c4e75;border-radius:7px;padding:4px 9px;cursor:pointer;font-weight:800;} #plJobModal .pjSplitFoot .ok{color:#1b7a3a;} #plJobModal .pjSplitFoot .bad{color:#b42318;}
 #plJobModal .acts{display:flex;gap:8px;margin-top:14px;}
 #plJobModal .acts button{flex:1;padding:11px;border-radius:9px;border:none;font-weight:800;cursor:pointer;}
 
@@ -653,6 +656,7 @@ table.plTable td.pin input:focus{outline:2px solid var(--amber);outline-offset:-
 .plSum{width:100%;max-width:760px;border-collapse:collapse;margin:6px 0 20px;font-size:13px;}
 .plSum caption{text-align:left;font-weight:800;color:var(--navy);padding:4px 0 6px;font-size:13.5px;}
 .plSum th,.plSum td{border:1px solid #8a94a3;padding:6px 8px;text-align:center;}
+.plChip{display:block;margin-top:3px;font-size:10.5px;line-height:1.35;color:#2c4e75;font-weight:600;} .plChip i{color:#b45f06;font-style:normal;font-weight:800;}
 .plSum td.dcell{background:#fff;font-weight:800;} .plSum td.nm{text-align:left;} .plSum tr.dv td{background:#fff;font-size:20px;font-weight:900;padding:12px 6px;}
 .plSum th{background:#2c4e75;color:#fff;} .plSum tr.grp td{background:#2c4e75;color:#fff;font-weight:800;text-align:left;padding:7px 10px;} .plSum tr.grp.night td{background:#3b3f5c;} .plSum tr.sub td{background:#eef3fa;font-weight:800;} .plSum tr.tot td{background:#fff4d6;font-weight:800;}
 .plPlanPanel{margin:0 0 14px;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:#fafcff;}
@@ -2270,6 +2274,7 @@ function computeExpiryDate(order,p,rule){
   return new Date(d.getTime()+Math.max(0,days)*86400000);
 }
 function computeLotInfo(order,drumNo=1,lotRuleIdOverride=''){
+  if(order&&order.lotDate&&order.lotDate!==order.date) order={...order,date:order.lotDate};   // 여러 작업일로 나뉜 이어서-작업: 생산일자·유효기간은 LOT 첫날 기준
   const p=resolveOrderProduct(order)||{};
   const d=new Date(order.date+'T00:00:00'),f=fmtDate(d);
   const expRule=getExpRuleById(getProductExpRuleId(p));
@@ -2287,6 +2292,24 @@ function computeLotInfo(order,drumNo=1,lotRuleIdOverride=''){
   const rule=getLotRuleById(lotRuleIdOverride || getProductLotRuleId(p));
   const lot=renderLotPattern(rule.pattern,order,drumNo,p);
   return {lot,exp,expDateRaw:expD?`${expD.getFullYear()}-${pad2(expD.getMonth()+1)}-${pad2(expD.getDate())}`:'',prodDateDisp:f.disp,prodDateRaw:order.date,...productionDateFormats(order.date),ruleId:rule.id,ruleName:rule.name,expRuleId:expRule.id,expRuleName:expRule.name};
+}
+// 같은 품목·같은 LOT가 여러 작업지시(배치·야간·다음날)에 걸치면 드럼번호를 앞 구간에 이어서 매긴다.
+// 예) 주간 24드럼 → 야간 작업지시는 25번부터. (LOT에 {DRUM}이 들어가 드럼마다 LOT가 다른 규칙은 이어붙이지 않음)
+function lotDrumKey(o){
+  try{
+    const a=computeLotInfo(o,1).lot, b=computeLotInfo(o,2).lot; if(a!==b) return '';
+    let p=null; try{ p=resolveOrderProduct(o); }catch(e){}
+    return String((p&&p.code)||o.productCode||'')+'\u0001'+a;
+  }catch(e){ return ''; }
+}
+function lotDrumOffset(o){
+  if(!o) return 0; const k=lotDrumKey(o); if(!k) return 0;
+  const rank=x=>[String(x.date||''),String(x.shift||'').includes('야')?1:0];
+  const list=(workOrders||[]).map((x,i)=>({x,i})).filter(e=>lotDrumKey(e.x)===k);
+  const cmp=(a,b)=>{ const ra=rank(a.x), rb=rank(b.x); return ra[0]<rb[0]?-1:ra[0]>rb[0]?1:(ra[1]-rb[1])||(a.i-b.i); };
+  list.sort(cmp); let off=0;
+  for(const e of list){ if(e.x===o||String(e.x.id)===String(o.id)) break; off+=Math.max(1,Math.round(Number(e.x.batchDrums)||1)); }
+  return off;
 }
 function computeLotFor(order,drumNo=1){ return computeLotInfo(order,drumNo); }
 function computeDongeunLot(order,drumNo){ return computeLotInfo(order,drumNo); }
@@ -3373,7 +3396,7 @@ function refreshActiveOrderPanel(){
   $('prodNameOut').textContent=`${p.shortName||p.name||p.scheduleName||''}${p.color?` ${p.color}`:''} (${o.shift})`;
   $('lotOut').textContent=info.lot;
   $('dateExpOut').textContent=`${info.prodDateDisp} → ${info.exp}`;
-  $('completeOrder').style.display='block';$('batchDrumsOut').textContent=o.batchDrums;$('batchWeightOut').textContent=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;$('nextDrumOut').textContent=liveDrumCounter;
+  $('completeOrder').style.display='block';$('batchDrumsOut').textContent=o.batchDrums+((()=>{ const f=lotDrumOffset(o); return f>0?` (No.${f+1}~${f+Math.round(Number(o.batchDrums)||0)} · 같은 LOT 이어서)`:''; })());$('batchWeightOut').textContent=(o.batchWeight==null||o.batchWeight==='')?'수기':o.batchWeight;$('nextDrumOut').textContent=liveDrumCounter;
 }
 $('batchReverseOrder')?.addEventListener('change',()=>syncBatchRange(activeOrder(),true));
 $('batchRangeReset')?.addEventListener('click',()=>syncBatchRange(activeOrder(),true));
@@ -3650,14 +3673,16 @@ $('genBatch').addEventListener('click',async()=>{
   const end = endIn;
   const reverseOrder = start>end;
   const step = reverseOrder ? -1 : 1;
+  const lotOff = lotDrumOffset(o);
 
   for(let n=start; reverseOrder ? n>=end : n<=end; n+=step){
-    const info=computeLotInfo(o,n,ruleId);
-    const ctx=contextForSelectedLabel(p,info,n,o.batchWeight,o.volume,labelCode,selectedVariantBatch);
+    const dn=n+lotOff;   // 같은 LOT의 앞 구간에 이어서 번호 매김
+    const info=computeLotInfo(o,dn,ruleId);
+    const ctx=contextForSelectedLabel(p,info,dn,o.batchWeight,o.volume,labelCode,selectedVariantBatch);
     const parts=singlePartForType(p,ctx,labelCode,selectedVariantBatch);
     if(!parts.length){flash(`선택한 라벨(${labelCode})의 저장 서식을 찾지 못했습니다. 라벨 마스터에서 서식을 저장한 뒤 다시 시도하세요.`,true);return;}
-    generated.push({drumNo:n,ctx,parts});
-    pushLog({time:new Date().toLocaleString('ko-KR'),worker,product:p.name,lot:info.lot,drumNo:n,weight:o.batchWeight,mode:'일괄'});
+    generated.push({drumNo:dn,ctx,parts});
+    pushLog({time:new Date().toLocaleString('ko-KR'),worker,product:p.name,lot:info.lot,drumNo:dn,weight:o.batchWeight,mode:'일괄'});
   }
   selectedIdx=0;renderPreview();
   const orderText = `${start}→${end}`;
@@ -3674,12 +3699,12 @@ $('genLive').addEventListener('click',async()=>{
     if(!validManualInput3(v)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력해야 합니다.',true);return;}
     o.manualLotInput=v; await saveWorkOrders(); refreshActiveOrderPanel();
   }
-  const info=computeLotInfo(o,n,ruleId);
-  const ctx=contextForSelectedLabel(p,info,n,w,o.volume,labelCode,selectedVariantLive);
+  const info=computeLotInfo(o,n+lotDrumOffset(o),ruleId);
+  const ctx=contextForSelectedLabel(p,info,n+lotDrumOffset(o),w,o.volume,labelCode,selectedVariantLive);
   const parts=singlePartForType(p,ctx,labelCode,selectedVariantLive);
   if(!parts.length){flash(`선택한 라벨(${labelCode})의 저장 서식을 찾지 못했습니다. 라벨 마스터에서 서식을 저장한 뒤 다시 시도하세요.`,true);return;}
-  generated=[{drumNo:n,ctx,parts}];selectedIdx=0;renderPreview();
-  pushLog({time:new Date().toLocaleString('ko-KR'),worker:$('workerName').value||'',product:p.name,lot:info.lot,drumNo:n,weight:w,mode:'실시간'});
+  generated=[{drumNo:n+lotDrumOffset(o),ctx,parts}];selectedIdx=0;renderPreview();
+  pushLog({time:new Date().toLocaleString('ko-KR'),worker:$('workerName').value||'',product:p.name,lot:info.lot,drumNo:n+lotDrumOffset(o),weight:w,mode:'실시간'});
   liveDrumCounter++;$('nextDrumOut').textContent=liveDrumCounter;$('liveWeight').value='';flash(`드럼 ${n} 라벨 생성 완료`);
 });
 
@@ -4932,9 +4957,14 @@ function plExportInfo(c,it,rec){
     default: return '';
   }
 }
+// 배치 수: 여러 작업일로 나뉜 '이어서 작업'(cont) 작업지시는 배치로 다시 세지 않는다
+function plBatchCount(it){
+  const ids=(it.oids&&it.oids.length?it.oids:[it.oid]);
+  return ids.reduce((a,id)=>{ const o=(workOrders||[]).find(x=>String(x.id)===String(id)); return a+((o&&o.cont)?0:1); },0);
+}
 function plSummaryRows(recs){
   const g=new Map();
-  recs.forEach(it=>{ const pi=plProdInfo(it); let e=g.get(it.code); if(!e){ e={code:it.code,short:pi.short||'-',color:pi.color||'-',b:0}; g.set(it.code,e); } e.b+=(it.oids&&it.oids.length)||1; });
+  recs.forEach(it=>{ const pi=plProdInfo(it); let e=g.get(it.code); if(!e){ e={code:it.code,short:pi.short||'-',color:pi.color||'-',b:0}; g.set(it.code,e); } e.b+=plBatchCount(it); });
   return [...g.values()];
 }
 function buildPressLogSheetRows(blocks,EXC){
@@ -8226,6 +8256,14 @@ function plPailOpen(key){
 $('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-plpail]'); if(b) plPailOpen(b.dataset.plpail); });
 
 /* ===== 프레스일지 → 일괄 라벨 출력 화면 연결 (LOT별 라벨 버튼) ===== */
+// LOT 칸 아래 표시: 배치 수·드럼 수·LOT 안 드럼번호 범위 (같은 LOT를 합쳐도 배치 수가 보이도록)
+function plLotChip(it){
+  const ids=(it.oids&&it.oids.length?it.oids:[it.oid]), os=ids.map(id=>(workOrders||[]).find(x=>String(x.id)===String(id))).filter(Boolean);
+  if(!os.length) return '';
+  const off=Math.min(...os.map(o=>lotDrumOffset(o))), n=Number(it.n)||0, nb=plBatchCount(it);
+  const rng=n>0?`No.${off+1}~${off+n}`:'';
+  return `<span class="plChip">${nb>0?`<b>${nb}배치</b> · `:''}${n}드럼${rng?`<br>${rng}`:''}${off>0?'<br><i>↳ 이어서 작업</i>':''}</span>`;
+}
 function plBatchCell(it){
   let tot=0, dr=0, w0=0;
   (it.oids&&it.oids.length?it.oids:[it.oid]).forEach(id=>{
@@ -8425,7 +8463,7 @@ function plSummaryHtml(recs,label){
     if(!g){ g={k:gk,d:it.d,s:it.s,night:it.s==='야간',title:`${it.d||'날짜미상'} ${it.s||'주간'}`,map:new Map(),rows:[],b:0,dr:0}; gm.set(gk,g); }
     const mk=(it.mn??99)+'|'+it.code; let e=g.map.get(mk);
     if(!e){ const pi=plProdInfo(it); e={mn:it.mn??99,mc:it.mc||'미지정',code:it.code,short:pi.short||'-',color:pi.color||'-',name:[pi.short&&pi.short!=='-'?pi.short:'',pi.color&&pi.color!=='-'?pi.color:''].filter(Boolean).join(' ')||'-',b:0,dr:0}; g.map.set(mk,e); }
-    e.dr+=Number(it.n)||0; e.b+=(it.oids&&it.oids.length)||1;      // 같은 설비·품목은 배치수 합산
+    e.dr+=Number(it.n)||0; e.b+=plBatchCount(it);      // 같은 설비·품목은 배치수 합산 (이어서 작업 구간은 0)
   });
   const groups=[...gm.values()].sort((x,y)=>x.k<y.k?-1:x.k>y.k?1:0);
   groups.forEach(g=>{ const cc=(x,y)=>x.code<y.code?-1:x.code>y.code?1:0; g.rows=[...g.map.values()].sort(R.sort==='item'?((x,y)=>cc(x,y)||(x.mn-y.mn)):((x,y)=>(x.mn-y.mn)||cc(x,y))); g.b=g.rows.reduce((a,e)=>a+e.b,0); g.dr=g.rows.reduce((a,e)=>a+e.dr,0); });
@@ -8689,8 +8727,29 @@ function plOpenAddJobForm(date,shift,pickedMc){
     <div class="pick" id="pjPick"></div><div class="sel" id="pjSel" style="display:none;"></div>
     <div class="row2"><div><label>배치 수</label><input type="number" id="pjN" min="1" step="1" value="1" inputmode="numeric"></div>
     <div><label>배치당 드럼수량</label><input type="number" id="pjD" min="1" step="1" value="1" inputmode="numeric"></div></div>
+    <label class="pjSplitLbl"><input type="checkbox" id="pjSplit"> 여러 작업일로 나누기 <span style="font-weight:500;color:var(--sub);">(LOT 하나로 합치고 드럼번호 이어서)</span></label>
+    <div id="pjSplitBox" style="display:none;"></div>
     <div class="acts"><button type="button" id="pjCancel" style="background:#eef2f7;color:var(--navy);">취소</button><button type="button" id="pjOk" style="background:#2c4e75;color:#fff;">추가</button></div></div>`;
   document.body.appendChild(m);
+  // ── 여러 작업일 분할: 총 드럼(배치 수 × 배치당 드럼)을 구간(날짜·주야·드럼수)으로 나눈다
+  let segs=[];
+  const total=()=>Math.max(0,Math.round(Number(m.querySelector('#pjN').value)||0))*Math.max(0,Math.round(Number(m.querySelector('#pjD').value)||0));
+  const nextShift=(d,s)=>s==='주간'?{d,s:'야간'}:{d:(()=>{ const t=new Date(d+'T00:00:00'); t.setDate(t.getDate()+1); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; })(),s:'주간'};
+  const renderSplit=()=>{
+    const box=m.querySelector('#pjSplitBox'), T=total(), sum=segs.reduce((a,x)=>a+(Number(x.n)||0),0), left=T-sum;
+    let no=0;
+    box.innerHTML=`<div class="pjSegs">`+segs.map((x,i)=>{ const a=no+1; no+=Number(x.n)||0; return `<div class="pjSeg" data-i="${i}"><input type="date" data-f="d" value="${escapeHtml(x.d)}"><select data-f="s"><option${x.s==='주간'?' selected':''}>주간</option><option${x.s==='야간'?' selected':''}>야간</option></select><input type="number" min="1" step="1" data-f="n" value="${x.n}" inputmode="numeric"><span class="rg">No.${a}~${no}</span>${segs.length>1?'<button type="button" data-rm="1">✕</button>':'<span></span>'}</div>`; }).join('')+`</div>
+      <div class="pjSplitFoot"><button type="button" id="pjSegAdd">＋ 다음 구간</button><span class="${left===0?'ok':'bad'}">총 ${T}드럼 중 배정 ${sum} · ${left===0?'맞음':(left>0?`남음 ${left}`:`초과 ${-left}`)}</span></div>`;
+  };
+  const startSplit=()=>{ const T=total(); segs=[{d:m.querySelector('#pjDate').value||todayISO(),s:sh,n:T||1}]; renderSplit(); };
+  m.querySelector('#pjSplit').addEventListener('change',e=>{ const on=e.target.checked; m.querySelector('#pjSplitBox').style.display=on?'block':'none'; if(on) startSplit(); });
+  m.querySelector('#pjSplitBox').addEventListener('input',e=>{ const row=e.target.closest('.pjSeg'); if(!row) return; const x=segs[+row.dataset.i], f=e.target.dataset.f; if(!x||!f) return; x[f]=f==='n'?Math.max(0,Math.round(Number(e.target.value)||0)):e.target.value; if(f==='n'){ const pos=e.target.selectionStart; renderSplit(); const ne=m.querySelector(`.pjSeg[data-i="${row.dataset.i}"] [data-f=n]`); if(ne){ ne.focus(); try{ ne.setSelectionRange(pos,pos); }catch(_){} } } });
+  m.querySelector('#pjSplitBox').addEventListener('change',e=>{ const row=e.target.closest('.pjSeg'); if(!row) return; const x=segs[+row.dataset.i], f=e.target.dataset.f; if(x&&(f==='d'||f==='s')) x[f]=e.target.value; });
+  m.querySelector('#pjSplitBox').addEventListener('click',e=>{
+    if(e.target.id==='pjSegAdd'){ const last=segs[segs.length-1], nx=nextShift(last.d,last.s), left=total()-segs.reduce((a,x)=>a+(Number(x.n)||0),0); segs.push({d:nx.d,s:nx.s,n:Math.max(1,left)}); renderSplit(); return; }
+    const rm=e.target.closest('[data-rm]'); if(rm){ segs.splice(+rm.closest('.pjSeg').dataset.i,1); renderSplit(); }
+  });
+  ['#pjN','#pjD'].forEach(q=>m.querySelector(q).addEventListener('input',()=>{ if(m.querySelector('#pjSplit').checked){ const T=total(); if(segs.length===1) segs[0].n=T||1; renderSplit(); } }));
   const label=x=>`${x.code||''} · ${x.shortName||x.name||x.scheduleName||x.fullName||''}${x.color?' '+x.color:''}`;
   const renderPick=()=>{
     // 다중검색: 띄어쓰기로 나눈 단어를 모두 포함하는 제품(AND). 하이픈·언더바·공백·괄호는 무시 (O200_백색 = O200 백색 = o-200백색)
@@ -8720,6 +8779,25 @@ function plOpenAddJobForm(date,shift,pickedMc){
     if(!d){ flash('작업지시일을 선택하세요',true); return; }
     if(!sel){ flash('제품을 선택하세요',true); return; }
     if(n<1||dr<1){ flash('배치 수와 드럼수량을 입력하세요',true); return; }
+    if(m.querySelector('#pjSplit')?.checked){
+      const T=n*dr, sum=segs.reduce((a,x)=>a+(Number(x.n)||0),0);
+      if(segs.some(x=>!x.d||!(Number(x.n)>0))){ flash('구간의 날짜와 드럼수를 확인하세요',true); return; }
+      if(sum!==T){ flash(`구간 드럼 합계(${sum})가 총 드럼(${T})과 다릅니다`,true); return; }
+      for(const x of segs){ await plLoadDate(x.d); if(plLocked(x.d,x.s)){ flash(`${x.d} ${x.s} 일지는 확정되어 작업을 추가할 수 없습니다`,true); return; } }
+      const made=[]; let pseq='';
+      segs.forEach((x,i)=>{
+        const r=plNewOrders(x.d,mc,sel.x,sel.i,x.s,1,Number(x.n)); const ob=r.made[0];
+        if(i===0){ made.push(ob); pseq=r.pseq; ob.splitGroup=String(ob.id); }
+        else{ const f=made[0]; ob.cont=true; ob.lotDate=f.date; ob.batchCount=f.batchCount; ob.batchSeq=f.batchSeq; ob.splitGroup=f.splitGroup; ob.customLot=computeLotInfo(f,1).lot; made.push(ob); }
+      });
+      workOrders.push(...made);
+      try{ await saveWorkOrders(); }catch(err){ console.error(err); workOrders.splice(workOrders.length-made.length,made.length); flash('작업지시 저장에 실패했습니다',true); return; }
+      try{ renderOrderList(); }catch(_){}
+      m.remove(); plDate=segs[0].d; plShift=segs[0].s; try{ localStorage.setItem(PL_SHIFT_KEY,plShift); }catch(e){}
+      if(plMachine&&plMachine!==(mc||'__none')) plMachine='';
+      flash(`${segs.length}개 구간을 추가했습니다 · LOT ${computeLotInfo(made[0],1).lot} · 총 ${T}드럼(No.1~${T})`);
+      renderPressLogView(); return;
+    }
     await plLoadDate(d);
     if(plLocked(d,sh)){ flash(`${d} ${sh} 일지는 확정되어 작업을 추가할 수 없습니다`,true); return; }
     const {made,pseq}=plNewOrders(d,mc,sel.x,sel.i,sh,n,dr);
@@ -8876,7 +8954,7 @@ function plInfoTds(it,rec,key,segIdx,onlyBatch){
     color:`<td class="it" ${rs}>${pi.color?escapeHtml(pi.color):plAddBtn('product',pi,it)}</td>`,
     batch:`<td class="it" ${rs}>${plBatchCell(it)}</td>`,
     name:`<td class="it nm" ${rs}><input type="text" class="nmIn" autocomplete="off" data-k="${ek}" data-name="1" placeholder="품목명" value="${escapeHtml(rec.name||'')}"${lk?' readonly':''}></td>`,
-    lot:`<td class="it" ${rs}>${escapeHtml(String(it.lot))}${PL_DUP.has(String(it.lot))?'<span class="plDup">⚠ 중복 LOT</span>':''}${plPrevHtml(it)}</td>`,
+    lot:`<td class="it" ${rs}>${escapeHtml(String(it.lot))}${plLotChip(it)}${PL_DUP.has(String(it.lot))?'<span class="plDup">⚠ 중복 LOT</span>':''}${plPrevHtml(it)}</td>`,
     pseq:sin('batchCount',Number(o0&&o0.batchCount)||1,'제품순번'),
     bseq:sin('batchSeq',Number(o0&&o0.batchSeq)||1,'배치순번'),
     drm:sin('batchDrums',Number(o0&&o0.batchDrums)||seg.drums||1,'드럼수량'),
@@ -9116,6 +9194,9 @@ try{ KSA_I18N.add({
  '정렬':['Sort','排序','පිළිවෙල','Сортировка'],
  '설비(호기)순':['By machine','按设备号','යන්ත්‍ර අනුව','По номеру линии'],
  '품목별 · 호기순':['By item, then machine','按品目、设备号','අයිතමය අනුව, පසු යන්ත්‍රය','По товару, затем линии'],
+ '여러 작업일로 나누기':['Split across work days','分多个工作日','වැඩ දින කිහිපයකට බෙදන්න','Разделить на несколько рабочих дней'],
+ '＋ 다음 구간':['＋ Next segment','＋ 下一段','＋ ඊළඟ කොටස','＋ Следующий участок'],
+ '이어서 작업':['↳ Continued','↳ 接续作业','↳ දිගටම කරගෙන යාම','↳ Продолжение'],
  '배치당 드럼':['Drums / batch','每批桶数','කණ්ඩායමකට බැරල්','Бочек на замес'],
  '📥 엑셀 다운로드':['📥 Download Excel','📥 下载Excel','📥 Excel බාගන්න','📥 Скачать Excel'],
  '지금 보이는 요약 표를 엑셀로 저장':['Save the summary shown as Excel','将当前汇总表保存为Excel','දැන් පෙනෙන සාරාංශය Excel ලෙස සුරකින්න','Сохранить показанную сводку в Excel']
