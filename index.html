@@ -631,6 +631,7 @@ table.plTable td.h1{position:relative;}
 #plJobModal .pjSplitLbl{display:flex;gap:6px;align-items:center;margin-top:12px;font-weight:800;cursor:pointer;} #plJobModal .pjSplitLbl input{width:auto;}
 #plJobModal .pjSeg{display:grid;grid-template-columns:1.4fr .8fr .7fr auto auto;gap:6px;align-items:center;margin:5px 0;} #plJobModal .pjSeg input,#plJobModal .pjSeg select{width:100%;padding:6px;box-sizing:border-box;} #plJobModal .pjSeg .rg{font-size:11.5px;color:#2c4e75;font-weight:800;white-space:nowrap;} #plJobModal .pjSeg button{border:0;background:#fde8e8;color:#b42318;border-radius:6px;cursor:pointer;padding:4px 8px;}
 #plJobModal .pjSplitFoot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:12px;font-weight:700;} #plJobModal .pjSplitFoot button{border:1.5px solid #2c4e75;background:#fff;color:#2c4e75;border-radius:7px;padding:4px 9px;cursor:pointer;font-weight:800;} #plJobModal .pjSplitFoot .ok{color:#1b7a3a;} #plJobModal .pjSplitFoot .bad{color:#b42318;}
+#plJobModal .alRow{display:grid;grid-template-columns:1.2fr 1.2fr .6fr auto auto;gap:6px;align-items:center;margin:5px 0;} #plJobModal .alRow input,#plJobModal .alRow select{width:100%;padding:6px;box-sizing:border-box;} #plJobModal .alRow .rg{font-size:11.5px;color:#2c4e75;font-weight:800;white-space:nowrap;} #plJobModal .alRow button{border:0;background:#fde8e8;color:#b42318;border-radius:6px;cursor:pointer;padding:4px 8px;}
 #plJobModal .acts{display:flex;gap:8px;margin-top:14px;}
 #plJobModal .acts button{flex:1;padding:11px;border-radius:9px;border:none;font-weight:800;cursor:pointer;}
 
@@ -656,7 +657,7 @@ table.plTable td.pin input:focus{outline:2px solid var(--amber);outline-offset:-
 .plSum{width:100%;max-width:760px;border-collapse:collapse;margin:6px 0 20px;font-size:13px;}
 .plSum caption{text-align:left;font-weight:800;color:var(--navy);padding:4px 0 6px;font-size:13.5px;}
 .plSum th,.plSum td{border:1px solid #8a94a3;padding:6px 8px;text-align:center;}
-.plChip{display:block;margin-top:3px;font-size:10.5px;line-height:1.35;color:#2c4e75;font-weight:600;} .plChip i{color:#b45f06;font-style:normal;font-weight:800;}
+.plChip{display:block;margin-top:3px;font-size:10.5px;line-height:1.35;color:#2c4e75;font-weight:600;} .plChip .plAl{display:inline-block;margin-top:2px;background:#eef6ee;border-radius:5px;padding:1px 5px;color:#1b5e20;font-weight:700;} .plChip i{color:#b45f06;font-style:normal;font-weight:800;}
 .plSum td.dcell{background:#fff;font-weight:800;} .plSum td.nm{text-align:left;} .plSum tr.dv td{background:#fff;font-size:20px;font-weight:900;padding:12px 6px;}
 .plSum th{background:#2c4e75;color:#fff;} .plSum tr.grp td{background:#2c4e75;color:#fff;font-weight:800;text-align:left;padding:7px 10px;} .plSum tr.grp.night td{background:#3b3f5c;} .plSum tr.sub td{background:#eef3fa;font-weight:800;} .plSum tr.tot td{background:#fff4d6;font-weight:800;}
 .plPlanPanel{margin:0 0 14px;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:#fafcff;}
@@ -2311,6 +2312,28 @@ function lotDrumOffset(o){
   for(const e of list){ if(e.x===o||String(e.x.id)===String(o.id)) break; off+=Math.max(1,Math.round(Number(e.x.batchDrums)||1)); }
   return off;
 }
+// ── 판매/재고 배정: 한 LOT(여러 구간 포함)의 총 드럼 중 앞쪽 번호는 판매용(브랜드·라벨 지정), 남은 번호는 재고 반제품.
+//    재고 드럼은 '재고 생성일(= 마지막 구간의 날짜)' 기준의 새 LOT를 받고 번호는 1부터 다시 매긴다.
+function lotGroup(o){
+  const k=lotDrumKey(o); if(!k) return [o];
+  const rank=x=>[String(x.date||''),String(x.shift||'').includes('야')?1:0];
+  return (workOrders||[]).map((x,i)=>({x,i})).filter(e=>lotDrumKey(e.x)===k)
+    .sort((a,b)=>{ const ra=rank(a.x), rb=rank(b.x); return ra[0]<rb[0]?-1:ra[0]>rb[0]?1:(ra[1]-rb[1])||(a.i-b.i); }).map(e=>e.x);
+}
+function lotAlloc(o){
+  if(!o) return null; const g=lotGroup(o);
+  const own=g.find(x=>x.alloc&&Array.isArray(x.alloc.sales)&&x.alloc.sales.length); if(!own) return null;
+  const total=g.reduce((a,x)=>a+Math.max(1,Math.round(Number(x.batchDrums)||1)),0);
+  const sales=own.alloc.sales.map(x=>({name:String(x.name||''),labelCode:String(x.labelCode||''),drums:Math.max(0,Math.round(Number(x.drums)||0))}));
+  const S=sales.reduce((a,x)=>a+x.drums,0); if(S<=0) return null;
+  return {own,g,total,sales,S,stock:Math.max(0,total-S),stockLabel:String(own.alloc.stockLabel||''),last:g[g.length-1]};
+}
+function stockOrderOf(A){ return {...A.last,customLot:'',lotDate:'',cont:false}; }
+function drumPlan(o,dn){
+  const A=lotAlloc(o); if(!A) return null;
+  if(dn<=A.S){ let acc=0; for(const x of A.sales){ acc+=x.drums; if(dn<=acc) return {kind:'sale',name:x.name,labelCode:x.labelCode,num:dn,order:o}; } }
+  return {kind:'stock',name:'재고',labelCode:A.stockLabel,num:dn-A.S,order:stockOrderOf(A)};
+}
 function computeLotFor(order,drumNo=1){ return computeLotInfo(order,drumNo); }
 function computeDongeunLot(order,drumNo){ return computeLotInfo(order,drumNo); }
 
@@ -3454,7 +3477,7 @@ function renderPreview(){
   wrap.innerHTML=g.parts.map(part=>`<div><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:6px;">${escapeHtml(part.labelName||names[part.key]||part.key)}${part.labelCode?` · ${escapeHtml(part.labelCode)}`:''}${part.sizeText?` · ${escapeHtml(part.sizeText)}`:''}</div>${renderLabelHtml(part.key,part.ctx)}</div>`).join('');
   applyAutoFitFields(wrap);
   applyPreviewRotation(wrap);
-  picker.innerHTML=generated.map((it,i)=>`<button class="btn ${i===selectedIdx?'btn-primary':'btn-ghost'} auto" data-i="${i}">드럼 ${it.drumNo}</button>`).join('');
+  picker.innerHTML=generated.map((it,i)=>`<button class="btn ${i===selectedIdx?'btn-primary':'btn-ghost'} auto" data-i="${i}">드럼 ${it.drumNo}${it.tag?` · ${escapeHtml(it.tag)}`:''}</button>`).join('');
   picker.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selectedIdx=+b.dataset.i;renderPreview();}));
   if($('printAllBtn'))$('printAllBtn').style.display=(generated.length>=1)?'':'none';
 }
@@ -3677,12 +3700,14 @@ $('genBatch').addEventListener('click',async()=>{
 
   for(let n=start; reverseOrder ? n>=end : n<=end; n+=step){
     const dn=n+lotOff;   // 같은 LOT의 앞 구간에 이어서 번호 매김
-    const info=computeLotInfo(o,dn,ruleId);
-    const ctx=contextForSelectedLabel(p,info,dn,o.batchWeight,o.volume,labelCode,selectedVariantBatch);
-    const parts=singlePartForType(p,ctx,labelCode,selectedVariantBatch);
-    if(!parts.length){flash(`선택한 라벨(${labelCode})의 저장 서식을 찾지 못했습니다. 라벨 마스터에서 서식을 저장한 뒤 다시 시도하세요.`,true);return;}
-    generated.push({drumNo:dn,ctx,parts});
-    pushLog({time:new Date().toLocaleString('ko-KR'),worker,product:p.name,lot:info.lot,drumNo:dn,weight:o.batchWeight,mode:'일괄'});
+    const plan=drumPlan(o,dn);   // 판매/재고 배정이 있으면 번호 범위별로 라벨·LOT가 달라진다
+    const lc=(plan&&plan.labelCode)||labelCode, rid=plan?(labelEffectiveLotRule(p,lc,selectedVariantBatch)||ruleId):ruleId, num=plan?plan.num:dn;
+    const info=computeLotInfo(plan?plan.order:o,num,rid);
+    const ctx=contextForSelectedLabel(p,info,num,o.batchWeight,o.volume,lc,selectedVariantBatch);
+    const parts=singlePartForType(p,ctx,lc,selectedVariantBatch);
+    if(!parts.length){flash(`선택한 라벨(${lc})의 저장 서식을 찾지 못했습니다. 라벨 마스터에서 서식을 저장한 뒤 다시 시도하세요.`,true);return;}
+    generated.push({drumNo:num,tag:plan?(plan.kind==='stock'?'재고':(plan.name||'판매')):'',ctx,parts});
+    pushLog({time:new Date().toLocaleString('ko-KR'),worker,product:p.name,lot:info.lot,drumNo:num,weight:o.batchWeight,mode:'일괄'});
   }
   selectedIdx=0;renderPreview();
   const orderText = `${start}→${end}`;
@@ -8262,7 +8287,14 @@ function plLotChip(it){
   if(!os.length) return '';
   const off=Math.min(...os.map(o=>lotDrumOffset(o))), n=Number(it.n)||0, nb=plBatchCount(it);
   const rng=n>0?`No.${off+1}~${off+n}`:'';
-  return `<span class="plChip">${nb>0?`<b>${nb}배치</b> · `:''}${n}드럼${rng?`<br>${rng}`:''}${off>0?'<br><i>↳ 이어서 작업</i>':''}</span>`;
+  const A=lotAlloc(os[0]);
+  let al='';
+  if(A){
+    let stk=''; if(A.stock>0){ try{ stk=` → LOT ${computeLotInfo(stockOrderOf(A),1).lot}`; }catch(e){} }
+    al=`<br><span class="plAl">판매 ${A.S}${A.sales.length>1?` (${A.sales.map(x=>escapeHtml(x.name||'-')+' '+x.drums).join(' / ')})`:(A.sales[0].name?' · '+escapeHtml(A.sales[0].name):'')} · 재고 ${A.stock}${escapeHtml(stk)}</span>`;
+  }
+  const btn=(isAdmin&&!plLockNow)?`<br><button type="button" class="plSame" data-plalloc="${escapeHtml(String(os[0].id))}">${A?'✎ 판매/재고 배정':'＋ 판매/재고 배정'}</button>`:'';
+  return `<span class="plChip">${nb>0?`<b>${nb}배치</b> · `:''}${n}드럼${rng?`<br>${rng}`:''}${off>0?'<br><i>↳ 이어서 작업</i>':''}${al}${btn}</span>`;
 }
 function plBatchCell(it){
   let tot=0, dr=0, w0=0;
@@ -8406,11 +8438,11 @@ const plMD=d=>{ const m=String(d||'').match(/^\d{4}-(\d{2})-(\d{2})$/); return m
 async function plSumExportXlsx(){
   const S=window.PL_SUM_LAST; const ratio=S&&S.ratio;
   if(!S||!S.days||!S.days.length){ flash('내보낼 요약 데이터가 없습니다',true); return; }
-  const H=['일자','요일','호기','품목코드','품목명','배치수','드럼수','배치당 드럼'], N=H.length;
+  const H=['일자','요일','호기','품목코드','품목명','배치수','LOT수','드럼수','배치당 드럼'], N=H.length;
   try{
     if(window.ExcelJS){
       const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('요약');
-      ws.columns=[{width:9},{width:6},{width:8},{width:20},{width:34},{width:9},{width:9},{width:12}];
+      ws.columns=[{width:9},{width:6},{width:8},{width:20},{width:34},{width:9},{width:9},{width:9},{width:12}];
       const line={style:'thin',color:{argb:'FF8A94A3'}}, box={top:line,left:line,bottom:line,right:line};
       const fill=h=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+h.replace('#','').toUpperCase()}});
       ws.mergeCells(1,1,1,N); const t=ws.getCell(1,1); t.value=S.lab; t.font={bold:true,size:13,color:{argb:'FF2C4E75'}}; ws.getRow(1).height=26;
@@ -8421,7 +8453,7 @@ async function plSumExportXlsx(){
         day.shifts.forEach((sh,si)=>{
           sh.rows.forEach(e=>{
             const col=plMcColor(e.mn,sh.night);
-            [e.mc,String(e.code),String(e.name),Number(e.b),Number(e.dr),{formula:`IF(F${r}=0,0,ROUND(G${r}/F${r},1))`,result:ratio(e.dr,e.b)}].forEach((v,i)=>{ const c=ws.getCell(r,i+3); c.value=v; c.fill=fill(col); c.border=box; c.alignment={horizontal:i===2?'left':'center',vertical:'middle'}; if(i===0||i===3) c.font={bold:true}; });
+            [e.mc,String(e.code),String(e.name),Number(e.b),Number(e.lots?e.lots.size:0),Number(e.dr),{formula:`IF(F${r}=0,0,ROUND(H${r}/F${r},1))`,result:ratio(e.dr,e.b)}].forEach((v,i)=>{ const c=ws.getCell(r,i+3); c.value=v; c.fill=fill(col); c.border=box; c.alignment={horizontal:i===2?'left':'center',vertical:'middle'}; if(i===0||i===3) c.font={bold:true}; });
             r++;
           });
           if(si<day.shifts.length-1){
@@ -8433,16 +8465,16 @@ async function plSumExportXlsx(){
         for(let rr=r0;rr<r;rr++){ ws.getCell(rr,1).border=box; ws.getCell(rr,2).border=box; }
       });
       ws.mergeCells(r,1,r,5); const tl=ws.getCell(r,1); tl.value=`총합계 (${S.dayLabel})`; tl.font={bold:true}; tl.alignment={horizontal:'center'};
-      [[6,{formula:`SUM(F3:F${r-1})`,result:S.tot}],[7,{formula:`SUM(G3:G${r-1})`,result:S.totD}],[8,{formula:`IF(F${r}=0,0,ROUND(G${r}/F${r},1))`,result:ratio(S.totD,S.tot)}]].forEach(([ci,v])=>{ const c=ws.getCell(r,ci); c.value=v; c.font={bold:true}; c.alignment={horizontal:'center'}; });
+      [[6,{formula:`SUM(F3:F${r-1})`,result:S.tot}],[7,{formula:`SUM(G3:G${r-1})`,result:S.totL}],[8,{formula:`SUM(H3:H${r-1})`,result:S.totD}],[9,{formula:`IF(F${r}=0,0,ROUND(H${r}/F${r},1))`,result:ratio(S.totD,S.tot)}]].forEach(([ci,v])=>{ const c=ws.getCell(r,ci); c.value=v; c.font={bold:true}; c.alignment={horizontal:'center'}; });
       for(let c=1;c<=N;c++){ const x=ws.getCell(r,c); x.border=box; x.fill=fill('#ffe08a'); }
       ws.views=[{state:'frozen',ySplit:2}];
       const buf=await wb.xlsx.writeBuffer();
       downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),S.file);
     }else{
       const aoa=[[S.lab],H];
-      S.days.forEach(day=>day.shifts.forEach((sh,si)=>{ sh.rows.forEach((e,i)=>aoa.push([si===0&&i===0?plMD(day.d):'',si===0&&i===0?plWeekday(day.d):'',e.mc,String(e.code),String(e.name),Number(e.b),Number(e.dr),ratio(e.dr,e.b)])); if(si<day.shifts.length-1) aoa.push(['','','',day.label]); }));
-      aoa.push(['총합계','','','','',S.tot,S.totD,ratio(S.totD,S.tot)]);
-      const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:9},{wch:6},{wch:8},{wch:20},{wch:34},{wch:9},{wch:9},{wch:12}];
+      S.days.forEach(day=>day.shifts.forEach((sh,si)=>{ sh.rows.forEach((e,i)=>aoa.push([si===0&&i===0?plMD(day.d):'',si===0&&i===0?plWeekday(day.d):'',e.mc,String(e.code),String(e.name),Number(e.b),Number(e.lots?e.lots.size:0),Number(e.dr),ratio(e.dr,e.b)])); if(si<day.shifts.length-1) aoa.push(['','','',day.label]); }));
+      aoa.push(['총합계','','','','',S.tot,S.totL,S.totD,ratio(S.totD,S.tot)]);
+      const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:9},{wch:6},{wch:8},{wch:20},{wch:34},{wch:9},{wch:9},{wch:9},{wch:12}];
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'요약'); XLSX.writeFile(wb,S.file);
     }
     flash(`요약 엑셀을 내려받았습니다 (${S.days.length}일 · 배치 ${S.tot})`);
@@ -8463,7 +8495,7 @@ function plSummaryHtml(recs,label){
     if(!g){ g={k:gk,d:it.d,s:it.s,night:it.s==='야간',title:`${it.d||'날짜미상'} ${it.s||'주간'}`,map:new Map(),rows:[],b:0,dr:0}; gm.set(gk,g); }
     const mk=(it.mn??99)+'|'+it.code; let e=g.map.get(mk);
     if(!e){ const pi=plProdInfo(it); e={mn:it.mn??99,mc:it.mc||'미지정',code:it.code,short:pi.short||'-',color:pi.color||'-',name:[pi.short&&pi.short!=='-'?pi.short:'',pi.color&&pi.color!=='-'?pi.color:''].filter(Boolean).join(' ')||'-',b:0,dr:0}; g.map.set(mk,e); }
-    e.dr+=Number(it.n)||0; e.b+=plBatchCount(it);      // 같은 설비·품목은 배치수 합산 (이어서 작업 구간은 0)
+    e.dr+=Number(it.n)||0; e.b+=plBatchCount(it); if(plBatchCount(it)>0) (e.lots=e.lots||new Set()).add(String(it.lot));   // LOT수: 이어서 작업 구간은 세지 않음      // 같은 설비·품목은 배치수 합산 (이어서 작업 구간은 0)
   });
   const groups=[...gm.values()].sort((x,y)=>x.k<y.k?-1:x.k>y.k?1:0);
   groups.forEach(g=>{ const cc=(x,y)=>x.code<y.code?-1:x.code>y.code?1:0; g.rows=[...g.map.values()].sort(R.sort==='item'?((x,y)=>cc(x,y)||(x.mn-y.mn)):((x,y)=>(x.mn-y.mn)||cc(x,y))); g.b=g.rows.reduce((a,e)=>a+e.b,0); g.dr=g.rows.reduce((a,e)=>a+e.dr,0); });
@@ -8473,24 +8505,24 @@ function plSummaryHtml(recs,label){
   const dm=new Map(); groups.forEach(g=>{ let d=dm.get(g.d); if(!d){ d={d:g.d,shifts:[]}; dm.set(g.d,d); } d.shifts.push(g); });
   const days=[...dm.values()]; days.forEach(d=>{ d.label=d.shifts.map(sh=>`${sh.s||'주간'} ${new Set(sh.rows.map(e=>e.mc)).size}대`).join(', '); });
   const dayLabel=days.length>1?`${days[0].d} ~ ${days[days.length-1].d}`:(days[0]?days[0].d:'');
-  window.PL_SUM_LAST={lab,days,dayLabel,tot,totD,ratio,file:`프레스일지_요약_${R.on?`${R.from}${R.fs}~${R.to}${R.ts}`:[plDate,plEffShift()||'주야전체'].join('_')}${plMachine&&plMachine!=='__none'?'_'+plMachine:''}.xlsx`};
+  const lotN=e=>e.lots?e.lots.size:0, totL=groups.reduce((a,g)=>a+g.rows.reduce((b,e)=>b+lotN(e),0),0); window.PL_SUM_LAST={lab,days,dayLabel,tot,totD,totL,ratio,file:`프레스일지_요약_${R.on?`${R.from}${R.fs}~${R.to}${R.ts}`:[plDate,plEffShift()||'주야전체'].join('_')}${plMachine&&plMachine!=='__none'?'_'+plMachine:''}.xlsx`};
   const v=(x,d)=>escapeHtml(x||d||''), sel=(id,val)=>`<select id="${id}"><option value="주간"${val==='야간'?'':' selected'}>주간</option><option value="야간"${val==='야간'?' selected':''}>야간</option></select>`;
   const ctl=`<div class="plSumCtl" id="plSumCtl"><b>▣ 요약 기간</b><span><input type="date" id="plSumFrom" value="${v(R.from,plDate)}"> ${sel('plSumFs',R.fs)}</span><span>~</span><span><input type="date" id="plSumTo" value="${v(R.to,plDate)}"> ${sel('plSumTs',R.ts)}</span><button type="button" class="btn btn-primary auto" id="plSumGo">조회</button>${R.on?'<button type="button" class="btn btn-ghost auto" id="plSumReset">현재 화면 기준</button>':''}<span style="margin-left:auto;">정렬 <select id="plSumSort"><option value="mc"${R.sort==='item'?'':' selected'}>설비(호기)순</option><option value="item"${R.sort==='item'?' selected':''}>품목별 · 호기순</option></select></span><button type="button" class="btn btn-ok auto" id="plSumXlsx" title="지금 보이는 요약 표를 엑셀로 저장">📥 엑셀 다운로드</button></div>`;
   if(!groups.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
   if(!groups.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
-  const th='<tr><th>일자</th><th>요일</th><th>호기</th><th>품목코드</th><th>품목명</th><th>배치수</th><th>드럼수</th><th>배치당 드럼</th></tr>';
+  const th='<tr><th>일자</th><th>요일</th><th>호기</th><th>품목코드</th><th>품목명</th><th>배치수</th><th>LOT수</th><th>드럼수</th><th>배치당 드럼</th></tr>';
   const body=days.map(day=>{
     const n=day.shifts.reduce((a,sh,i)=>a+sh.rows.length+(i<day.shifts.length-1?1:0),0); let first=true, out='';
     day.shifts.forEach((sh,si)=>{
       sh.rows.forEach(e=>{
         const head=first?`<td rowspan="${n}" class="dcell">${escapeHtml(plMD(day.d))}</td><td rowspan="${n}" class="dcell">${escapeHtml(plWeekday(day.d))}</td>`:''; first=false;
-        out+=`<tr style="background:${plMcColor(e.mn,sh.night)}">${head}<td><b>${escapeHtml(e.mc)}</b></td><td><b>${escapeHtml(e.code)}</b></td><td class="nm">${escapeHtml(e.name)}</td><td><b>${e.b}</b></td><td>${e.dr}</td><td>${ratio(e.dr,e.b)}</td></tr>`;
+        out+=`<tr style="background:${plMcColor(e.mn,sh.night)}">${head}<td><b>${escapeHtml(e.mc)}</b></td><td><b>${escapeHtml(e.code)}</b></td><td class="nm">${escapeHtml(e.name)}</td><td><b>${e.b}</b></td><td>${lotN(e)}</td><td>${e.dr}</td><td>${ratio(e.dr,e.b)}</td></tr>`;
       });
-      if(si<day.shifts.length-1) out+=`<tr class="dv"><td colspan="6">${escapeHtml(day.label)}</td></tr>`;
+      if(si<day.shifts.length-1) out+=`<tr class="dv"><td colspan="7">${escapeHtml(day.label)}</td></tr>`;
     });
     return out;
   }).join('');
-  return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption>${th}${body}<tr class="tot"><td colspan="5">총합계 (${escapeHtml(dayLabel)})</td><td>${tot}</td><td>${totD}</td><td>${ratio(totD,tot)}</td></tr></table>`;
+  return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption>${th}${body}<tr class="tot"><td colspan="5">총합계 (${escapeHtml(dayLabel)})</td><td>${tot}</td><td>${totL}</td><td>${totD}</td><td>${ratio(totD,tot)}</td></tr></table>`;
 }
 $('plBody')?.addEventListener('click',async e=>{
   const t=e.target.closest&&e.target.closest('#plSumGo,#plSumReset,#plSumXlsx'); if(!t) return;
@@ -8672,6 +8704,47 @@ async function plPlanMove(id){
 }
 
 /* ===== 프레스일지 관리자: ＋ 작업 추가 (작업지시일에 작업이 없어도 날짜를 골라 추가) ===== */
+// 판매/재고 배정 창
+function plOpenAlloc(oid){
+  if(!isAdmin){ flash('관리자 모드에서만 배정할 수 있습니다',true); return; }
+  const o=(workOrders||[]).find(x=>String(x.id)===String(oid)); if(!o) return;
+  const g=lotGroup(o), total=g.reduce((a,x)=>a+Math.max(1,Math.round(Number(x.batchDrums)||1)),0), last=g[g.length-1];
+  const p=resolveOrderProduct(o)||{}, types=(()=>{ try{ return availableLabelTypes(p).filter(t=>t.enabled); }catch(e){ return []; } })();
+  const cur=lotAlloc(o), own=cur?cur.own:o;
+  let sales=cur?cur.sales.map(x=>({...x})):[{name:'',labelCode:'',drums:Math.min(total,60)}], stockLabel=cur?cur.stockLabel:'';
+  const opt=(v)=>`<option value="">(기본 선택 라벨)</option>`+types.map(t=>`<option value="${escapeHtml(t.key)}"${t.key===v?' selected':''}>${escapeHtml(t.label||t.code)}</option>`).join('');
+  $('plJobModal')?.remove();
+  const m=document.createElement('div'); m.id='plJobModal';
+  const draw=()=>{
+    const S=sales.reduce((a,x)=>a+(Number(x.drums)||0),0), left=total-S; let no=0, stk='';
+    if(left>0){ try{ stk=computeLotInfo({...last,customLot:'',lotDate:'',cont:false},1).lot; }catch(e){} }
+    m.innerHTML=`<div class="card"><h3>판매 / 재고 배정</h3>
+      <div style="font-size:12.5px;color:var(--sub);margin-bottom:8px;">LOT <b style="color:var(--navy);">${escapeHtml(plLotOf(o))}</b> · 총 <b>${total}</b>드럼. 판매용을 먼저 배정하고 남은 번호는 <b>재고 반제품</b>이 됩니다. 재고는 마지막 작업일(${escapeHtml(last.date)}) 기준 새 LOT를 받고 번호는 1부터 시작합니다.</div>
+      ${sales.map((x,i)=>{ const a=no+1; no+=Number(x.drums)||0; return `<div class="alRow" data-i="${i}"><input type="text" data-f="name" placeholder="판매처/브랜드" value="${escapeHtml(x.name)}"><select data-f="labelCode">${opt(x.labelCode)}</select><input type="number" min="0" step="1" data-f="drums" value="${x.drums}"><span class="rg">No.${a}~${no}</span>${sales.length>1?'<button type="button" data-rm="1">✕</button>':'<span></span>'}</div>`; }).join('')}
+      <div class="pjSplitFoot"><button type="button" id="alAdd">＋ 판매 항목 추가</button><span class="${left>=0?'ok':'bad'}">${left>=0?`재고 ${left}드럼`:`초과 ${-left}드럼`}</span></div>
+      <div class="alRow" style="margin-top:8px;"><span style="font-weight:800;">재고 라벨</span><select id="alStockLbl">${opt(stockLabel)}</select><span></span><span class="rg">${left>0?`No.1~${left}`:'-'}</span><span></span></div>
+      ${left>0&&stk?`<div style="font-size:12px;margin-top:6px;color:#1b5e20;font-weight:700;">재고 LOT: ${escapeHtml(stk)}</div>`:''}
+      <div class="acts"><button type="button" id="alCancel" style="background:#eef2f7;color:var(--navy);">취소</button><button type="button" id="alClear" style="background:#fde8e8;color:#b42318;">배정 해제</button><button type="button" id="alOk" style="background:#2c4e75;color:#fff;">저장</button></div></div>`;
+  };
+  document.body.appendChild(m); draw();
+  m.addEventListener('click',async e=>{
+    if(e.target===m){ m.remove(); return; }
+    if(e.target.id==='alCancel'){ m.remove(); return; }
+    if(e.target.id==='alAdd'){ sales.push({name:'',labelCode:'',drums:Math.max(0,total-sales.reduce((a,x)=>a+(Number(x.drums)||0),0))}); draw(); return; }
+    const rm=e.target.closest('[data-rm]'); if(rm){ sales.splice(+rm.closest('.alRow').dataset.i,1); draw(); return; }
+    if(e.target.id==='alClear'||e.target.id==='alOk'){
+      const S=sales.reduce((a,x)=>a+(Number(x.drums)||0),0);
+      if(e.target.id==='alOk'&&(S<1||S>total)){ flash(S<1?'판매 드럼수를 입력하세요':`판매 합계(${S})가 총 드럼(${total})을 넘었습니다`,true); return; }
+      g.forEach(x=>{ delete x.alloc; });
+      if(e.target.id==='alOk') own.alloc={sales:sales.map(x=>({name:String(x.name||'').trim(),labelCode:x.labelCode||'',drums:Math.round(Number(x.drums)||0)})),stockLabel:m.querySelector('#alStockLbl')?.value||stockLabel};
+      try{ await saveWorkOrders(); }catch(err){ console.error(err); flash('저장에 실패했습니다',true); return; }
+      m.remove(); flash(e.target.id==='alOk'?`판매 ${S} · 재고 ${total-S}드럼으로 배정했습니다`:'배정을 해제했습니다'); renderPressLogView();
+    }
+  });
+  m.addEventListener('input',e=>{ const row=e.target.closest('.alRow'); if(!row||row.dataset.i==null) return; const x=sales[+row.dataset.i], f=e.target.dataset.f; if(!x||!f) return; x[f]=f==='drums'?Math.max(0,Math.round(Number(e.target.value)||0)):e.target.value; if(f==='drums'){ const pos=e.target.selectionStart, i=row.dataset.i; stockLabel=m.querySelector('#alStockLbl')?.value||stockLabel; draw(); const ne=m.querySelector(`.alRow[data-i="${i}"] [data-f=drums]`); if(ne){ ne.focus(); try{ ne.setSelectionRange(pos,pos); }catch(_){} } } });
+  m.addEventListener('change',e=>{ if(e.target.id==='alStockLbl') stockLabel=e.target.value; });
+}
+$('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-plalloc]'); if(b) plOpenAlloc(b.dataset.plalloc); });
 function plNewOrders(date,machine,p,pIdx,shift,count,drums){
   // 제품순번: 같은 날짜·설비에 같은 제품이 있으면 그 순번, 없으면 다음 순번 / 배치순번은 이어서 부여
   const same=(workOrders||[]).filter(o=>o.date===date&&String(o.machine||'')===String(machine||''));
@@ -8729,6 +8802,13 @@ function plOpenAddJobForm(date,shift,pickedMc){
     <div><label>배치당 드럼수량</label><input type="number" id="pjD" min="1" step="1" value="1" inputmode="numeric"></div></div>
     <label class="pjSplitLbl"><input type="checkbox" id="pjSplit"> 여러 작업일로 나누기 <span style="font-weight:500;color:var(--sub);">(LOT 하나로 합치고 드럼번호 이어서)</span></label>
     <div id="pjSplitBox" style="display:none;"></div>
+    <label class="pjSplitLbl"><input type="checkbox" id="pjStock"> 판매용 우선 배정 · 남는 수량은 재고 반제품 <span style="font-weight:500;color:var(--sub);">(재고는 새 LOT)</span></label>
+    <div id="pjStockBox" style="display:none;">
+      <div class="row2"><div><label>판매용 드럼수</label><input type="number" id="pjSale" min="1" step="1" inputmode="numeric" value="1"></div>
+      <div><label>재고 반제품 드럼수</label><input type="number" id="pjRest" readonly style="background:#f3f6fa;"></div></div>
+      <label>재고 반제품 품목 (비우면 위에서 고른 제품과 동일)</label><input type="text" id="pjQ2" autocomplete="off" placeholder="예: O410 투명">
+      <div class="pick" id="pjPick2"></div><div class="sel" id="pjSel2" style="display:none;"></div>
+    </div>
     <div class="acts"><button type="button" id="pjCancel" style="background:#eef2f7;color:var(--navy);">취소</button><button type="button" id="pjOk" style="background:#2c4e75;color:#fff;">추가</button></div></div>`;
   document.body.appendChild(m);
   // ── 여러 작업일 분할: 총 드럼(배치 수 × 배치당 드럼)을 구간(날짜·주야·드럼수)으로 나눈다
@@ -9196,7 +9276,9 @@ try{ KSA_I18N.add({
  '품목별 · 호기순':['By item, then machine','按品目、设备号','අයිතමය අනුව, පසු යන්ත්‍රය','По товару, затем линии'],
  '여러 작업일로 나누기':['Split across work days','分多个工作日','වැඩ දින කිහිපයකට බෙදන්න','Разделить на несколько рабочих дней'],
  '＋ 다음 구간':['＋ Next segment','＋ 下一段','＋ ඊළඟ කොටස','＋ Следующий участок'],
+ '판매/재고 배정':['Sale / stock allocation','销售/库存分配','විකිණීම / තොග වෙන් කිරීම','Продажа / склад'],
  '이어서 작업':['↳ Continued','↳ 接续作业','↳ දිගටම කරගෙන යාම','↳ Продолжение'],
+ 'LOT수':['LOTs','LOT数','LOT ගණන','Кол-во LOT'],
  '배치당 드럼':['Drums / batch','每批桶数','කණ්ඩායමකට බැරල්','Бочек на замес'],
  '📥 엑셀 다운로드':['📥 Download Excel','📥 下载Excel','📥 Excel බාගන්න','📥 Скачать Excel'],
  '지금 보이는 요약 표를 엑셀로 저장':['Save the summary shown as Excel','将当前汇总表保存为Excel','දැන් පෙනෙන සාරාංශය Excel ලෙස සුරකින්න','Сохранить показанную сводку в Excel']
