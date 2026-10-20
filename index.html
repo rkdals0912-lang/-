@@ -621,6 +621,13 @@ table.plTable td.h1{position:relative;}
 #plJobModal .pick button{display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-bottom:1px solid #eef1f6;background:#fff;cursor:pointer;font-size:12.5px;}
 #plJobModal .pick button.on{background:#e7f0fb;font-weight:800;}
 #plJobModal .sel{margin-top:6px;padding:8px 10px;border-radius:9px;background:#fff4d6;font-weight:800;font-size:13px;color:#1f2933;word-break:break-all;}
+#plJobModal .mcGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0;}
+#plJobModal .mcGrid button{padding:14px 6px;border-radius:11px;border:2px solid var(--line);background:#fff;cursor:pointer;color:var(--navy);display:flex;flex-direction:column;align-items:center;gap:3px;}
+#plJobModal .mcGrid button span{font-size:22px;font-weight:900;}
+#plJobModal .mcGrid button small{font-size:11px;color:var(--sub);font-weight:600;}
+#plJobModal .mcGrid button:hover{border-color:#2c4e75;background:#f4f8fd;}
+#plJobModal .mcGrid button.on{background:#2c4e75;border-color:#2c4e75;color:#fff;} #plJobModal .mcGrid button.on small{color:#cfdcec;}
+#plJobModal .mcGrid button.none span{font-size:16px;}
 #plJobModal .acts{display:flex;gap:8px;margin-top:14px;}
 #plJobModal .acts button{flex:1;padding:11px;border-radius:9px;border:none;font-weight:800;cursor:pointer;}
 
@@ -3179,6 +3186,11 @@ if($('toggleManualOrderBtn')) $('toggleManualOrderBtn').addEventListener('click'
   const open=body.style.display==='none'||!body.style.display;
   body.style.display=open?'block':'none';
   $('toggleManualOrderBtn').textContent=open?'▲ 직접 등록 닫기':'✍ 직접 등록';
+});
+if($('toggleManualOrderBtn')) $('toggleManualOrderBtn').addEventListener('click',()=>{
+  const body=$('manualOrderFormBody'); if(!body||body.style.display!=='block'||!isAdmin) return;   // 열릴 때만
+  plPickMachine({title:'✍ 직접 등록',machines:['M1','M2','M3','M4','M5','M6'],allowNone:false,date:$('prodDate')?.value||todayISO(),shift:$('shift')?.value||'',current:$('machine')?.value||'',
+    onPick:mc=>{ const sel=$('machine'); if(!sel||!mc) return; sel.value=mc; ['input','change'].forEach(ev=>sel.dispatchEvent(new Event(ev,{bubbles:true}))); try{ sel.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }});
 });
 if($('jumpOrderListBtn')) $('jumpOrderListBtn').addEventListener('click',()=>{
   const list=$('orderList'); if(list) list.scrollIntoView({behavior:'smooth',block:'start'});
@@ -8348,6 +8360,38 @@ function plDupBanner(recs){
   return d.length?`<div class="plDupBar">⚠ 동일한 LOT번호가 중복되어 있습니다 (${d.length}건): ${d.map(escapeHtml).join(' / ')}${isAdmin?'<br><span style="font-weight:600;">제품순번·배치순번을 수정해 LOT를 구분하세요.</span>':'<br><span style="font-weight:600;">관리자에게 알려 주세요.</span>'}</div>`:'';
 }
 let plSumR={on:false,from:'',fs:'주간',to:'',ts:'주간'};
+// 요약 표(품목코드·약어명·색상·배치수) → 엑셀
+async function plSumExportXlsx(){
+  const S=window.PL_SUM_LAST; const ratio=S&&S.ratio;
+  if(!S||!S.list||!S.list.length){ flash('내보낼 요약 데이터가 없습니다',true); return; }
+  try{
+    if(window.ExcelJS){
+      const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('요약');
+      ws.columns=[{width:26},{width:28},{width:18},{width:12},{width:12},{width:14}];
+      const line={style:'thin',color:{argb:'FF8A94A3'}}, box={top:line,left:line,bottom:line,right:line};
+      const fill=a=>({type:'pattern',pattern:'solid',fgColor:{argb:a}});
+      ws.mergeCells(1,1,1,6); const t=ws.getCell(1,1); t.value=S.lab; t.font={bold:true,size:13,color:{argb:'FF2C4E75'}}; t.alignment={vertical:'middle'}; ws.getRow(1).height=26;
+      ['품목코드','약어명','색상','배치수','드럼수','배치당 드럼'].forEach((h,i)=>{ const c=ws.getCell(2,i+1); c.value=h; c.font={bold:true,color:{argb:'FFFFFFFF'}}; c.fill=fill('FF2C4E75'); c.alignment={horizontal:'center',vertical:'middle'}; c.border=box; });
+      S.list.forEach((e,i)=>{
+        const r=i+3;
+        [[1,String(e.code)],[2,String(e.short)],[3,String(e.color)],[4,Number(e.b)],[5,Number(e.dr)],[6,{formula:`IF(D${r}=0,0,ROUND(E${r}/D${r},1))`,result:ratio(e.dr,e.b)}]].forEach(([col,v])=>{ const c=ws.getCell(r,col); c.value=v; if(col<4) c.numFmt='@'; c.alignment={horizontal:'center',vertical:'middle'}; c.border=box; if(col>=4) c.font={bold:true}; });
+      });
+      const tr=S.list.length+3; ws.mergeCells(tr,1,tr,3);
+      const tl=ws.getCell(tr,1); tl.value='합계'; tl.font={bold:true}; tl.alignment={horizontal:'center'}; tl.fill=fill('FFFFF4D6');
+      const tv=ws.getCell(tr,4); tv.value={formula:`SUM(D3:D${tr-1})`,result:S.tot}; tv.font={bold:true}; tv.alignment={horizontal:'center'}; tv.fill=fill('FFFFF4D6');
+      const tv3=ws.getCell(tr,6); tv3.value={formula:`IF(D${tr}=0,0,ROUND(E${tr}/D${tr},1))`,result:ratio(S.totD,S.tot)}; tv3.font={bold:true}; tv3.alignment={horizontal:'center'}; tv3.fill=fill('FFFFF4D6');
+      const tv2=ws.getCell(tr,5); tv2.value={formula:`SUM(E3:E${tr-1})`,result:S.totD}; tv2.font={bold:true}; tv2.alignment={horizontal:'center'}; tv2.fill=fill('FFFFF4D6');
+      for(let c=1;c<=6;c++) ws.getCell(tr,c).border=box;
+      const buf=await wb.xlsx.writeBuffer();
+      downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),S.file);
+    }else{
+      const aoa=[[S.lab],['품목코드','약어명','색상','배치수','드럼수','배치당 드럼'],...S.list.map(e=>[String(e.code),String(e.short),String(e.color),Number(e.b),Number(e.dr),ratio(e.dr,e.b)]),['합계','','',S.tot,S.totD,ratio(S.totD,S.tot)]];
+      const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:26},{wch:28},{wch:18},{wch:12},{wch:12},{wch:14}]; ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:5}}];
+      const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'요약'); XLSX.writeFile(wb,S.file);
+    }
+    flash(`요약 엑셀을 내려받았습니다 (${S.list.length}개 품목 · 배치 ${S.tot})`);
+  }catch(err){ console.error(err); flash('엑셀 내보내기 실패: '+(err?.message||err),true); }
+}
 function plSumKey(d,sh){ return d+'|'+(sh==='야간'?1:0); }
 function plSummaryHtml(recs,label){
   const R=plSumR; let rows=recs, lab=label;
@@ -8359,17 +8403,22 @@ function plSummaryHtml(recs,label){
   const g=new Map();
   rows.forEach(it=>{
     const pi=plProdInfo(it); let e=g.get(it.code);
-    if(!e){ e={code:it.code,short:pi.short||'-',color:pi.color||'-',b:0}; g.set(it.code,e); }
+    if(!e){ e={code:it.code,short:pi.short||'-',color:pi.color||'-',b:0,dr:0}; g.set(it.code,e); }
+    e.dr+=Number(it.n)||0;
     e.b+=(it.oids&&it.oids.length)||1;      // 동일 품목코드는 배치수 합산
   });
-  const list=[...g.values()], tot=list.reduce((a,e)=>a+e.b,0);
+  const ratio=(d,b)=>b?Math.round(d/b*10)/10:0;   // 배치당 드럼수 = 드럼수 ÷ 배치수
+  const list=[...g.values()], tot=list.reduce((a,e)=>a+e.b,0), totD=list.reduce((a,e)=>a+e.dr,0);
+  // 엑셀 다운로드용: 지금 화면에 보이는 요약을 그대로 보관
+  window.PL_SUM_LAST={lab,list,tot,totD,ratio,file:`프레스일지_요약_${R.on?`${R.from}${R.fs}~${R.to}${R.ts}`:[plDate,plEffShift()||'주야전체'].join('_')}${plMachine&&plMachine!=='__none'?'_'+plMachine:''}.xlsx`};
   const v=(x,d)=>escapeHtml(x||d||''), sel=(id,val)=>`<select id="${id}"><option value="주간"${val==='야간'?'':' selected'}>주간</option><option value="야간"${val==='야간'?' selected':''}>야간</option></select>`;
-  const ctl=`<div class="plSumCtl" id="plSumCtl"><b>▣ 요약 기간</b><span><input type="date" id="plSumFrom" value="${v(R.from,plDate)}"> ${sel('plSumFs',R.fs)}</span><span>~</span><span><input type="date" id="plSumTo" value="${v(R.to,plDate)}"> ${sel('plSumTs',R.ts)}</span><button type="button" class="btn btn-primary auto" id="plSumGo">조회</button>${R.on?'<button type="button" class="btn btn-ghost auto" id="plSumReset">현재 화면 기준</button>':''}</div>`;
+  const ctl=`<div class="plSumCtl" id="plSumCtl"><b>▣ 요약 기간</b><span><input type="date" id="plSumFrom" value="${v(R.from,plDate)}"> ${sel('plSumFs',R.fs)}</span><span>~</span><span><input type="date" id="plSumTo" value="${v(R.to,plDate)}"> ${sel('plSumTs',R.ts)}</span><button type="button" class="btn btn-primary auto" id="plSumGo">조회</button>${R.on?'<button type="button" class="btn btn-ghost auto" id="plSumReset">현재 화면 기준</button>':''}<button type="button" class="btn btn-ok auto" id="plSumXlsx" title="지금 보이는 요약 표를 엑셀로 저장">📥 엑셀 다운로드</button></div>`;
   if(!list.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
-  return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption><tr><th>품목코드</th><th>약어명</th><th>색상</th><th>배치수</th></tr>${list.map(e=>`<tr><td>${escapeHtml(e.code)}</td><td>${escapeHtml(e.short)}</td><td>${escapeHtml(e.color)}</td><td><b>${e.b}</b></td></tr>`).join('')}<tr class="tot"><td colspan="3">합계</td><td>${tot}</td></tr></table>`;
+  return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption><tr><th>품목코드</th><th>약어명</th><th>색상</th><th>배치수</th><th>드럼수</th><th>배치당 드럼</th></tr>${list.map(e=>`<tr><td>${escapeHtml(e.code)}</td><td>${escapeHtml(e.short)}</td><td>${escapeHtml(e.color)}</td><td><b>${e.b}</b></td><td><b>${e.dr}</b></td><td>${ratio(e.dr,e.b)}</td></tr>`).join('')}<tr class="tot"><td colspan="3">합계</td><td>${tot}</td><td>${totD}</td><td>${ratio(totD,tot)}</td></tr></table>`;
 }
 $('plBody')?.addEventListener('click',async e=>{
-  const t=e.target.closest&&e.target.closest('#plSumGo,#plSumReset'); if(!t) return;
+  const t=e.target.closest&&e.target.closest('#plSumGo,#plSumReset,#plSumXlsx'); if(!t) return;
+  if(t.id==='plSumXlsx'){ await plSumExportXlsx(); return; }
   if(t.id==='plSumReset'){ plSumR.on=false; await renderPressLogView(); return; }
   const f=$('plSumFrom').value, fs=$('plSumFs').value, to=$('plSumTo').value, ts=$('plSumTs').value;
   if(!f||!to){ flash('시작일과 종료일을 선택하세요',true); return; }
@@ -8562,11 +8611,32 @@ function plNewOrders(date,machine,p,pIdx,shift,count,drums){
   }
   return {made,pseq};
 }
+// 설비 선택 창(공용): 작업을 추가하기 전에 가장 먼저 설비(믹서)를 고른다
+function plPickMachine(opt){
+  $('plJobModal')?.remove();
+  const ms=opt.machines||['M1','M2','M3','M4','M5'];
+  const cnt=m=>(workOrders||[]).filter(o=>(!opt.date||o.date===opt.date)&&(!opt.shift||plShiftOf(o)===opt.shift)&&String(o.machine||'')===m).length;
+  const m=document.createElement('div'); m.id='plJobModal';
+  m.innerHTML=`<div class="card"><h3>${escapeHtml(opt.title||'＋ 작업 추가')}</h3>
+    <div style="font-size:13px;color:var(--sub);margin:2px 0 10px;">먼저 <b style="color:var(--navy);">설비(믹서)</b>를 선택하세요.${opt.date?`<br>${escapeHtml(opt.date)}${opt.shift?' '+escapeHtml(opt.shift):''} 기준 등록된 작업 수가 표시됩니다.`:''}</div>
+    <div class="mcGrid">${ms.map(x=>`<button type="button" data-mc="${x}" class="${x===opt.current?'on':''}"><span>${x}</span><small>${cnt(x)?cnt(x)+'건':'작업 없음'}</small></button>`).join('')}${opt.allowNone===false?'':`<button type="button" data-mc="" class="none ${opt.current===''?'on':''}"><span>미지정</span><small>나중에 선택</small></button>`}</div>
+    <div class="acts"><button type="button" id="pmCancel" style="background:#eef2f7;color:var(--navy);">취소</button></div></div>`;
+  document.body.appendChild(m);
+  const done=mc=>{ m.remove(); opt.onPick(mc); };
+  m.querySelectorAll('[data-mc]').forEach(b=>b.addEventListener('click',()=>done(b.dataset.mc)));
+  m.querySelector('#pmCancel').addEventListener('click',()=>m.remove());
+  m.addEventListener('click',e=>{ if(e.target===m) m.remove(); });
+}
 function plOpenAddJob(date,shift){
+  if(!isAdmin){ flash('관리자 모드에서만 작업을 추가할 수 있습니다',true); return; }
+  const sh0=shift==='야간'?'야간':'주간', d0=date||plDate||todayISO();
+  plPickMachine({title:'＋ 작업 추가',date:d0,shift:sh0,current:/^M[1-5]$/.test(plMachine||'')?plMachine:'',onPick:mc=>plOpenAddJobForm(d0,sh0,mc)});
+}
+function plOpenAddJobForm(date,shift,pickedMc){
   if(!isAdmin){ flash('관리자 모드에서만 작업을 추가할 수 있습니다',true); return; }
   $('plJobModal')?.remove();
   let sh=shift==='야간'?'야간':'주간', sel=null;
-  const mdef=/^M[1-5]$/.test(plMachine||'')?plMachine:'';
+  const mdef=(pickedMc!==undefined)?pickedMc:(/^M[1-5]$/.test(plMachine||'')?plMachine:'');
   const m=document.createElement('div'); m.id='plJobModal';
   m.innerHTML=`<div class="card"><h3>＋ 작업 추가</h3>
     <div class="row2"><div><label>작업지시일</label><input type="date" id="pjDate" value="${escapeHtml(date||plDate||todayISO())}"></div>
@@ -8993,6 +9063,17 @@ function mount(){
 window.KSA_I18N={t:tr,set:setLang,get:function(){return cur;},add:function(d){ for(var k in d) D[k]=d[k]; walk(document.body,true); }};
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mount); else mount();
 })();
+try{ KSA_I18N.add({
+ '＋ 작업 추가':['＋ Add job','＋ 添加作业','＋ කාර්යයක් එක් කරන්න','＋ Добавить задание'],
+ '✍ 직접 등록':['✍ Manual entry','✍ 手动登记','✍ අතින් ඇතුළත් කිරීම','✍ Ручной ввод'],
+ '미지정':['Unassigned','未指定','නියම නොකළ','Не назначено'],
+ '나중에 선택':['Choose later','稍后选择','පසුව තෝරන්න','Выбрать позже'],
+ '작업 없음':['No jobs','无作业','කාර්ය නැත','Нет заданий'],
+ '드럼수':['Drums','桶数','බැරල් ගණන','Кол-во бочек'],
+ '배치당 드럼':['Drums / batch','每批桶数','කණ්ඩායමකට බැරල්','Бочек на замес'],
+ '📥 엑셀 다운로드':['📥 Download Excel','📥 下载Excel','📥 Excel බාගන්න','📥 Скачать Excel'],
+ '지금 보이는 요약 표를 엑셀로 저장':['Save the summary shown as Excel','将当前汇总表保存为Excel','දැන් පෙනෙන සාරාංශය Excel ලෙස සුරකින්න','Сохранить показанную сводку в Excel']
+}); }catch(e){}
 
 </script>
 </body>
