@@ -1448,6 +1448,7 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
 <div id="expRuleView" class="adminOnly" style="display:none;">
@@ -8431,6 +8432,52 @@ function plDupBanner(recs){
 }
 let plSumR={on:false,from:'',fs:'주간',to:'',ts:'주간',sort:'mc'};   // sort: mc=설비(호기)순 · item=품목별 호기순
 // 요약 표(일자·주야 → 설비 → 품목 · 배치수/드럼수) → 엑셀
+// 요약 표 → PDF (타 부서 공유용). 모든 페이지 상단에 PDF 생성 일자·시간을 넣어 변경 여부를 확인할 수 있게 한다.
+async function plSumExportPdf(){
+  const S=window.PL_SUM_LAST, tbl=document.querySelector('table.plSum');
+  if(!S||!tbl){ flash('내보낼 요약 데이터가 없습니다',true); return; }
+  if(!window.html2canvas){ flash('PDF 라이브러리를 불러오지 못했습니다 (인터넷 연결 확인)',true); return; }
+  if(!(window.jspdf&&window.jspdf.jsPDF)){
+    try{ await new Promise((ok,no)=>{ const sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'; sc.onload=ok; sc.onerror=no; document.head.appendChild(sc); }); }catch(e){}
+    if(!(window.jspdf&&window.jspdf.jsPDF)){ flash('PDF 라이브러리를 불러오지 못했습니다 (인터넷 연결 확인)',true); return; }
+  }
+  const pad=n=>String(n).padStart(2,'0'), now=new Date();
+  const stamp=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const W=1000, host=document.createElement('div');
+  host.style.cssText=`position:fixed;left:-12000px;top:0;width:${W}px;background:#fff;color:#111;`;
+  const clone=tbl.cloneNode(true); clone.querySelector('caption')?.remove(); clone.style.cssText='width:100%;max-width:none;margin:0;font-size:15px;border-collapse:collapse;';
+  clone.querySelectorAll('td,th').forEach(c=>{ c.style.padding='7px 8px'; });
+  host.appendChild(clone); document.body.appendChild(host);
+  try{
+    const hostTop=host.getBoundingClientRect().top, bounds=[...clone.querySelectorAll('tr')].map(tr=>{ const r=tr.getBoundingClientRect(); return {t:r.top-hostTop,b:r.bottom-hostTop}; });
+    const canvas=await html2canvas(host,{scale:2,backgroundColor:'#ffffff',logging:false}), k=canvas.width/W, totalH=host.offsetHeight;
+    const jsPDF=window.jspdf.jsPDF, pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+    const M=8, imgW=210-M*2, mmPx=imgW/W, headMm=20, usable=297-M-headMm-10, hdrH=bounds[0]?bounds[0].b:0, pxPage=usable/mmPx-hdrH;   // 2쪽부터는 표 머리줄을 다시 그린다
+    const pages=[]; let y0=hdrH;   // 첫 쪽은 머리줄 포함, 이후 쪽은 본문부터
+    while(y0<totalH-1){
+      let end=y0+pxPage; if(end>=totalH) end=totalH; else { const cand=bounds.filter(b=>b.b<=end&&b.b>y0+20).map(b=>b.b); if(cand.length) end=Math.max(...cand); }
+      pages.push([pages.length?y0:0,end]); y0=end;
+    }
+    const mkHead=async(i,N)=>{
+      const h=document.createElement('div'); h.style.cssText=`position:fixed;left:-12000px;top:0;width:${W}px;background:#fff;color:#111;padding:6px 2px 8px;box-sizing:border-box;`;
+      h.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-end;"><div style="font-size:24px;font-weight:900;color:#1f3a5f;">프레스일지 요약</div><div style="text-align:right;font-size:14px;line-height:1.45;"><b>PDF 생성</b> ${stamp}<br><span style="color:#555;">${i}/${N} 페이지</span></div></div><div style="font-size:15px;font-weight:700;margin-top:4px;">${escapeHtml(S.lab||'')}</div>`;
+      document.body.appendChild(h); const c=await html2canvas(h,{scale:2,backgroundColor:'#ffffff',logging:false}); h.remove(); return c;
+    };
+    for(let i=0;i<pages.length;i++){
+      if(i>0) pdf.addPage();
+      const hc=await mkHead(i+1,pages.length);
+      pdf.addImage(hc.toDataURL('image/jpeg',0.95),'JPEG',M,M,imgW,hc.height/hc.width*imgW);
+      const [a,b]=pages[i], sh=Math.max(1,Math.round((b-a)*k)), tmp=document.createElement('canvas'); tmp.width=canvas.width; tmp.height=sh;
+      const cx=tmp.getContext('2d'); cx.fillStyle='#fff'; cx.fillRect(0,0,tmp.width,tmp.height); cx.drawImage(canvas,0,Math.round(a*k),canvas.width,sh,0,0,canvas.width,sh);
+      let yy=M+headMm;
+      if(i>0&&hdrH>0){ const hh=Math.round(hdrH*k), t2=document.createElement('canvas'); t2.width=canvas.width; t2.height=hh; t2.getContext('2d').drawImage(canvas,0,0,canvas.width,hh,0,0,canvas.width,hh); pdf.addImage(t2.toDataURL('image/jpeg',0.95),'JPEG',M,yy,imgW,hh/canvas.width*imgW); yy+=hh/canvas.width*imgW; }
+      pdf.addImage(tmp.toDataURL('image/jpeg',0.95),'JPEG',M,yy,imgW,sh/canvas.width*imgW);
+    }
+    pdf.save(String(S.file||'프레스일지_요약.xlsx').replace(/\.xlsx$/i,'')+`_${stamp.replace(/[- :]/g,'').slice(0,12)}.pdf`);
+    flash(`PDF를 내려받았습니다 (생성 ${stamp})`);
+  }catch(err){ console.error(err); flash('PDF 내보내기 실패: '+(err?.message||err),true); }
+  finally{ host.remove(); }
+}
 // 요약 표 → 엑셀 (일자·요일 | 호기 | 품목 | 배치수 …, 일자 안에서 주간 → 'N대' 구분줄 → 야간)
 const PL_MC_COLOR={0:['#ffffff','#ffffff'],1:['#ffffcc','#ffffcc'],2:['#ccffff','#ccffff'],3:['#d9d9d9','#d9d9d9'],4:['#ffd966','#ccccff'],5:['#ffff00','#e2efda'],99:['#ffffff','#ffffff']};
 const plMcColor=(mn,night)=>(PL_MC_COLOR[mn]||PL_MC_COLOR[0])[night?1:0];
@@ -8509,7 +8556,7 @@ function plSummaryHtml(recs,label){
   const dayLabel=days.length>1?`${days[0].d} ~ ${days[days.length-1].d}`:(days[0]?days[0].d:'');
   const lotN=e=>e.lots?e.lots.size:0, totL=groups.reduce((a,g)=>a+g.rows.reduce((b,e)=>b+lotN(e),0),0); window.PL_SUM_LAST={lab,days,dayLabel,tot,totD,totL,ratio,file:`프레스일지_요약_${R.on?`${R.from}${R.fs}~${R.to}${R.ts}`:[plDate,plEffShift()||'주야전체'].join('_')}${plMachine&&plMachine!=='__none'?'_'+plMachine:''}.xlsx`};
   const v=(x,d)=>escapeHtml(x||d||''), sel=(id,val)=>`<select id="${id}"><option value="주간"${val==='야간'?'':' selected'}>주간</option><option value="야간"${val==='야간'?' selected':''}>야간</option></select>`;
-  const ctl=`<div class="plSumCtl" id="plSumCtl"><b>▣ 요약 기간</b><span><input type="date" id="plSumFrom" value="${v(R.from,plDate)}"> ${sel('plSumFs',R.fs)}</span><span>~</span><span><input type="date" id="plSumTo" value="${v(R.to,plDate)}"> ${sel('plSumTs',R.ts)}</span><button type="button" class="btn btn-primary auto" id="plSumGo">조회</button>${R.on?'<button type="button" class="btn btn-ghost auto" id="plSumReset">현재 화면 기준</button>':''}<span style="margin-left:auto;">정렬 <select id="plSumSort"><option value="mc"${R.sort==='item'?'':' selected'}>설비(호기)순</option><option value="item"${R.sort==='item'?' selected':''}>품목별 · 호기순</option></select></span><button type="button" class="btn btn-ok auto" id="plSumXlsx" title="지금 보이는 요약 표를 엑셀로 저장">📥 엑셀 다운로드</button></div>`;
+  const ctl=`<div class="plSumCtl" id="plSumCtl"><b>▣ 요약 기간</b><span><input type="date" id="plSumFrom" value="${v(R.from,plDate)}"> ${sel('plSumFs',R.fs)}</span><span>~</span><span><input type="date" id="plSumTo" value="${v(R.to,plDate)}"> ${sel('plSumTs',R.ts)}</span><button type="button" class="btn btn-primary auto" id="plSumGo">조회</button>${R.on?'<button type="button" class="btn btn-ghost auto" id="plSumReset">현재 화면 기준</button>':''}<span style="margin-left:auto;">정렬 <select id="plSumSort"><option value="mc"${R.sort==='item'?'':' selected'}>설비(호기)순</option><option value="item"${R.sort==='item'?' selected':''}>품목별 · 호기순</option></select></span><button type="button" class="btn btn-ok auto" id="plSumXlsx" title="지금 보이는 요약 표를 엑셀로 저장">📥 엑셀 다운로드</button><button type="button" class="btn btn-ok auto" id="plSumPdf" title="다른 부서 공유용 PDF (생성 일시 표시)">📄 PDF 다운로드</button></div>`;
   if(!groups.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
   if(!groups.length) return ctl+'<div class="empty">해당 기간에 작업지시가 없습니다.</div>';
   const th='<tr><th>일자</th><th>요일</th><th>호기</th><th>품목코드</th><th>품목명</th><th>배치수</th><th>LOT수</th><th>드럼수</th><th>배치당 드럼</th></tr>';
@@ -8527,8 +8574,9 @@ function plSummaryHtml(recs,label){
   return ctl+`<table class="plSum"><caption>${escapeHtml(lab)}</caption>${th}${body}<tr class="tot"><td colspan="5">총합계 (${escapeHtml(dayLabel)})</td><td>${tot}</td><td>${totL}</td><td>${totD}</td><td>${ratio(totD,tot)}</td></tr></table>`;
 }
 $('plBody')?.addEventListener('click',async e=>{
-  const t=e.target.closest&&e.target.closest('#plSumGo,#plSumReset,#plSumXlsx'); if(!t) return;
+  const t=e.target.closest&&e.target.closest('#plSumGo,#plSumReset,#plSumXlsx,#plSumPdf'); if(!t) return;
   if(t.id==='plSumXlsx'){ await plSumExportXlsx(); return; }
+  if(t.id==='plSumPdf'){ await plSumExportPdf(); return; }
   if(t.id==='plSumReset'){ plSumR.on=false; await renderPressLogView(); return; }
   const f=$('plSumFrom').value, fs=$('plSumFs').value, to=$('plSumTo').value, ts=$('plSumTs').value;
   if(!f||!to){ flash('시작일과 종료일을 선택하세요',true); return; }
@@ -9365,6 +9413,7 @@ try{ KSA_I18N.add({
  '＋ 다음 구간':['＋ Next segment','＋ 下一段','＋ ඊළඟ කොටස','＋ Следующий участок'],
  '판매/재고 배정':['Sale / stock allocation','销售/库存分配','විකිණීම / තොග වෙන් කිරීම','Продажа / склад'],
  '이어서 작업':['↳ Continued','↳ 接续作业','↳ දිගටම කරගෙන යාම','↳ Продолжение'],
+ '📄 PDF 다운로드':['📄 Download PDF','📄 下载PDF','📄 PDF බාගන්න','📄 Скачать PDF'],
  'LOT수':['LOTs','LOT数','LOT ගණන','Кол-во LOT'],
  '배치당 드럼':['Drums / batch','每批桶数','කණ්ඩායමකට බැරල්','Бочек на замес'],
  '📥 엑셀 다운로드':['📥 Download Excel','📥 下载Excel','📥 Excel බාගන්න','📥 Скачать Excel'],
