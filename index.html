@@ -2667,10 +2667,12 @@ function filteredOrders(){
     list = d ? list.filter(o=>o.date===d) : [];
   }
   if(orderMachineFilter!=='ALL') list=list.filter(o=>String(o.machine||'').trim()===orderMachineFilter);
+  // 프레스일지와 같은 순서: 일자 → 주간/야간 → 설비번호(M1→M5, 미지정은 맨 뒤) → LOT → 배치순번
+  const k=o=>{ const m=lotMetaFromOrder(o); const mn=parseInt(String(m.m||'').replace(/\D/g,''),10); let lot=''; try{ lot=String(computeLotInfo(o,1).lot||''); }catch(e){} return {d:m.d,s:lotShiftRank(m.s),mn:isNaN(mn)?99:mn,lot}; };
+  const keyed=new Map(list.map(o=>[o,k(o)]));
   return list.sort((a,b)=>{
-    if(a.date!==b.date) return b.date.localeCompare(a.date);
-    if(a.shift!==b.shift) return a.shift==='주간'?-1:1;
-    return a.batchSeq-b.batchSeq;
+    const x=keyed.get(a), y=keyed.get(b);
+    return (x.d<y.d?-1:x.d>y.d?1:0)||(x.s-y.s)||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0)||((a.batchSeq||0)-(b.batchSeq||0));
   });
 }
 function renderOrderList(){
