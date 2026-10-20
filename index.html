@@ -657,7 +657,8 @@ table.plTable td.pin input:focus{outline:2px solid var(--amber);outline-offset:-
 .plSum{width:100%;max-width:760px;border-collapse:collapse;margin:6px 0 20px;font-size:13px;}
 .plSum caption{text-align:left;font-weight:800;color:var(--navy);padding:4px 0 6px;font-size:13.5px;}
 .plSum th,.plSum td{border:1px solid #8a94a3;padding:6px 8px;text-align:center;}
-.plChip{display:block;margin-top:3px;font-size:10.5px;line-height:1.35;color:#2c4e75;font-weight:600;} .plChip .plAl{display:inline-block;margin-top:2px;background:#eef6ee;border-radius:5px;padding:1px 5px;color:#1b5e20;font-weight:700;} .plChip i{color:#b45f06;font-style:normal;font-weight:800;}
+.plChip{display:block;margin-top:3px;font-size:10.5px;line-height:1.35;color:#2c4e75;font-weight:600;} .plChip .plAl{display:inline-block;margin-top:2px;background:#eef6ee;border-radius:5px;padding:1px 5px;color:#1b5e20;font-weight:700;} td.it.pcode{cursor:pointer;text-decoration:underline dotted #2c4e75;} td.it.pcode:hover{background:#eef4fb;}
+.plChip em{font-style:normal;font-weight:800;color:#1b7a3a;} .plChip i{color:#b45f06;font-style:normal;font-weight:800;}
 .plSum td.dcell{background:#fff;font-weight:800;} .plSum td.nm{text-align:left;} .plSum tr.dv td{background:#fff;font-size:20px;font-weight:900;padding:12px 6px;}
 .plSum th{background:#2c4e75;color:#fff;} .plSum tr.grp td{background:#2c4e75;color:#fff;font-weight:800;text-align:left;padding:7px 10px;} .plSum tr.grp.night td{background:#3b3f5c;} .plSum tr.sub td{background:#eef3fa;font-weight:800;} .plSum tr.tot td{background:#fff4d6;font-weight:800;}
 .plPlanPanel{margin:0 0 14px;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:#fafcff;}
@@ -4985,7 +4986,7 @@ function plExportInfo(c,it,rec){
 // 배치 수: 여러 작업일로 나뉜 '이어서 작업'(cont) 작업지시는 배치로 다시 세지 않는다
 function plBatchCount(it){
   const ids=(it.oids&&it.oids.length?it.oids:[it.oid]);
-  return ids.reduce((a,id)=>{ const o=(workOrders||[]).find(x=>String(x.id)===String(id)); return a+((o&&o.cont)?0:1); },0);
+  return ids.reduce((a,id)=>{ const o=(workOrders||[]).find(x=>String(x.id)===String(id)); return a+((o&&o.cont)?0:(Math.max(1,Math.round(Number(o&&o.batches)||1)))); },0);
 }
 function plSummaryRows(recs){
   const g=new Map();
@@ -8288,13 +8289,14 @@ function plLotChip(it){
   const off=Math.min(...os.map(o=>lotDrumOffset(o))), n=Number(it.n)||0, nb=plBatchCount(it);
   const rng=n>0?`No.${off+1}~${off+n}`:'';
   const A=lotAlloc(os[0]);
+  const pu=os.some(o=>o.purpose==='재고')?'<br><em>재고 반제품</em>':(os.some(o=>o.purpose==='판매')?'<br><em>판매용</em>':'');
   let al='';
   if(A){
     let stk=''; if(A.stock>0){ try{ stk=` → LOT ${computeLotInfo(stockOrderOf(A),1).lot}`; }catch(e){} }
     al=`<br><span class="plAl">판매 ${A.S}${A.sales.length>1?` (${A.sales.map(x=>escapeHtml(x.name||'-')+' '+x.drums).join(' / ')})`:(A.sales[0].name?' · '+escapeHtml(A.sales[0].name):'')} · 재고 ${A.stock}${escapeHtml(stk)}</span>`;
   }
   const btn=(isAdmin&&!plLockNow)?`<br><button type="button" class="plSame" data-plalloc="${escapeHtml(String(os[0].id))}">${A?'✎ 판매/재고 배정':'＋ 판매/재고 배정'}</button>`:'';
-  return `<span class="plChip">${nb>0?`<b>${nb}배치</b> · `:''}${n}드럼${rng?`<br>${rng}`:''}${off>0?'<br><i>↳ 이어서 작업</i>':''}${al}${btn}</span>`;
+  return `<span class="plChip">${nb>0?`<b>${nb}배치</b> · `:''}${n}드럼${rng?`<br>${rng}`:''}${off>0?'<br><i>↳ 이어서 작업</i>':''}${pu}${al}${btn}</span>`;
 }
 function plBatchCell(it){
   let tot=0, dr=0, w0=0;
@@ -8745,6 +8747,51 @@ function plOpenAlloc(oid){
   m.addEventListener('change',e=>{ if(e.target.id==='alStockLbl') stockLabel=e.target.value; });
 }
 $('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-plalloc]'); if(b) plOpenAlloc(b.dataset.plalloc); });
+// 코드명을 눌러 다른 품목으로 변경 (같은 LOT·구간의 모든 작업지시에 적용, 수기 입력값은 새 코드로 옮김)
+function plOpenChangeProduct(idsStr){
+  if(!isAdmin) return;
+  const targets=String(idsStr).split(',').map(id=>(workOrders||[]).find(o=>String(o.id)===id)).filter(Boolean); if(!targets.length) return;
+  if(plLockedAny(targets)){ flash('확정된 일지는 수정할 수 없습니다',true); return; }
+  $('plJobModal')?.remove(); let pick=null;
+  const m=document.createElement('div'); m.id='plJobModal';
+  m.innerHTML=`<div class="card"><h3>품목 변경</h3><div style="font-size:12.5px;color:var(--sub);margin-bottom:8px;">현재 <b style="color:var(--navy);">${escapeHtml(plCodeOf(targets[0]))}</b> · ${targets.length}배치 · 드럼·설비·날짜는 그대로 두고 품목만 바꿉니다.</div>
+    <label>변경할 품목 검색 (품목코드 · 제품명 · 색상)</label><input type="text" id="pcQ" autocomplete="off" placeholder="예: O410 투명"><div class="pick" id="pcPick"></div><div class="sel" id="pcSel" style="display:none;"></div>
+    <label class="pjSplitLbl"><input type="checkbox" id="pcKeepLot"> LOT번호를 지금 값 그대로 유지 <span style="font-weight:500;color:var(--sub);">(체크 안 하면 새 품목의 LOT 규칙대로)</span></label>
+    <div class="acts"><button type="button" id="pcCancel" style="background:#eef2f7;color:var(--navy);">취소</button><button type="button" id="pcOk" style="background:#2c4e75;color:#fff;">변경</button></div></div>`;
+  document.body.appendChild(m);
+  const lab=x=>`${x.code||''} · ${x.shortName||x.name||x.scheduleName||x.fullName||''}${x.color?' '+x.color:''}`;
+  const draw=()=>{
+    const toks=String(m.querySelector('#pcQ').value||'').split(/\s+/).map(normalizeProductSearch).filter(Boolean), box=m.querySelector('#pcPick');
+    if(!toks.length){ box.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--sub);">검색어를 입력하세요</div>'; return; }
+    const hits=(ALL_PRODUCTS||[]).map((x,i)=>({x,i})).filter(({x})=>x.active!==false&&toks.every(t=>[x.code,x.fullName,x.shortName,x.name,x.scheduleName,x.color,`${x.shortName||x.name||''}${x.color||''}`].map(normalizeProductSearch).join('|').includes(t))).slice(0,40);
+    box.innerHTML=hits.length?hits.map(h=>`<button type="button" data-pi="${h.i}" class="${pick&&pick.i===h.i?'on':''}">${escapeHtml(lab(h.x))}</button>`).join(''):'<div style="padding:8px 10px;font-size:12px;color:var(--sub);">검색 결과가 없습니다</div>';
+  };
+  draw(); m.querySelector('#pcQ').addEventListener('input',draw); m.querySelector('#pcQ').focus();
+  m.querySelector('#pcPick').addEventListener('click',e=>{ const b=e.target.closest('[data-pi]'); if(!b) return; const i=+b.dataset.pi; pick={i,x:ALL_PRODUCTS[i]}; const bx=m.querySelector('#pcSel'); bx.style.display='block'; bx.textContent='선택: '+lab(pick.x); draw(); });
+  m.addEventListener('click',e=>{ if(e.target===m) m.remove(); });
+  m.querySelector('#pcCancel').addEventListener('click',()=>m.remove());
+  m.querySelector('#pcOk').addEventListener('click',async()=>{
+    if(!pick){ flash('변경할 품목을 선택하세요',true); return; }
+    const keep=m.querySelector('#pcKeepLot').checked, p=pick.x;
+    const olds=targets.map(t=>({code:plCodeOf(t),lot:plLotOf(t)}));
+    if(keep) targets.forEach((t,i)=>{ if(!String(t.customLot||'').trim()) t.customLot=olds[i].lot; });
+    const variants=availableVariants(p), variant=variants[0]||'', labelCode=normalizeSelectedLabelType(p,'',variant);
+    const ruleId=labelEffectiveLotRule(p,labelCode,variant)||getProductLotRuleId(p);
+    targets.forEach(t=>{
+      t.productIdx=pick.i; t.productMasterId=p.masterId||''; t.productProfileKey=p.importProfileKey||''; t.productCode=p.code||'';
+      t.productName=p.shortName||p.name||p.scheduleName||''; t.labelCode=labelCode||''; t.variant=variant||''; t.lotRuleId=ruleId||'';
+      t.batchWeight=(p.kg==null||p.kg==='')?null:Number(p.kg); t.volume=(p.volume==null||p.volume==='')?null:Number(p.volume);
+    });
+    targets.forEach((t,i)=>{
+      const d=t.date, sh=plShiftOf(t), day=PL_CACHE[d]; if(!day) return;
+      const shared=(workOrders||[]).some(x=>!targets.includes(x)&&x.date===d&&plShiftOf(x)===sh&&plCodeOf(x)===olds[i].code&&plLotOf(x)===olds[i].lot);
+      const ok=plKey(d,sh,olds[i].code,olds[i].lot), nk=plKey(d,sh,plCodeOf(t),plLotOf(t));
+      if(ok!==nk&&day[ok]&&!day[nk]&&!shared){ day[nk]=day[ok]; delete day[ok]; plScheduleSave(d); }
+    });
+    m.remove(); flash(`품목을 ${lab(p)}(으)로 변경했습니다`); await plAfterOrderEdit(targets,true);
+  });
+}
+$('plBody')?.addEventListener('click',e=>{ const c=e.target.closest&&e.target.closest('[data-plchg]'); if(c&&!e.target.closest('button,input,select')) plOpenChangeProduct(c.dataset.plchg); });
 function plNewOrders(date,machine,p,pIdx,shift,count,drums){
   // 제품순번: 같은 날짜·설비에 같은 제품이 있으면 그 순번, 없으면 다음 순번 / 배치순번은 이어서 부여
   const same=(workOrders||[]).filter(o=>o.date===date&&String(o.machine||'')===String(machine||''));
@@ -8813,7 +8860,9 @@ function plOpenAddJobForm(date,shift,pickedMc){
   document.body.appendChild(m);
   // ── 여러 작업일 분할: 총 드럼(배치 수 × 배치당 드럼)을 구간(날짜·주야·드럼수)으로 나눈다
   let segs=[];
-  const total=()=>Math.max(0,Math.round(Number(m.querySelector('#pjN').value)||0))*Math.max(0,Math.round(Number(m.querySelector('#pjD').value)||0));
+  const gross=()=>Math.max(0,Math.round(Number(m.querySelector('#pjN').value)||0))*Math.max(0,Math.round(Number(m.querySelector('#pjD').value)||0));
+  // 판매용 우선 배정을 켜면 '나눌 총량'은 판매용 드럼수(남는 만큼은 재고 반제품 작업지시로 따로 생성)
+  const total=()=>m.querySelector('#pjStock')?.checked?Math.min(gross(),Math.max(0,Math.round(Number(m.querySelector('#pjSale').value)||0))):gross();
   const nextShift=(d,s)=>s==='주간'?{d,s:'야간'}:{d:(()=>{ const t=new Date(d+'T00:00:00'); t.setDate(t.getDate()+1); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; })(),s:'주간'};
   const renderSplit=()=>{
     const box=m.querySelector('#pjSplitBox'), T=total(), sum=segs.reduce((a,x)=>a+(Number(x.n)||0),0), left=T-sum;
@@ -8829,6 +8878,31 @@ function plOpenAddJobForm(date,shift,pickedMc){
     if(e.target.id==='pjSegAdd'){ const last=segs[segs.length-1], nx=nextShift(last.d,last.s), left=total()-segs.reduce((a,x)=>a+(Number(x.n)||0),0); segs.push({d:nx.d,s:nx.s,n:Math.max(1,left)}); renderSplit(); return; }
     const rm=e.target.closest('[data-rm]'); if(rm){ segs.splice(+rm.closest('.pjSeg').dataset.i,1); renderSplit(); }
   });
+  // ── 재고 반제품 선택/표시
+  let stk=null;
+  const restTxt=()=>{ const G=gross(), S=Math.round(Number(m.querySelector('#pjSale').value)||0); m.querySelector('#pjRest').value=G>0?String(Math.max(0,G-S)):''; };
+  m.querySelector('#pjStock').addEventListener('change',e=>{
+    const on=e.target.checked; m.querySelector('#pjStockBox').style.display=on?'block':'none';
+    if(on){ const G=gross(), cur=Math.round(Number(m.querySelector('#pjSale').value)||0); if(!(cur>=1&&cur<G)) m.querySelector('#pjSale').value=G>1?G-1:1; restTxt(); }
+    if(m.querySelector('#pjSplit').checked){ const T=total(); segs=[{d:segs[0]?segs[0].d:(m.querySelector('#pjDate').value||todayISO()),s:segs[0]?segs[0].s:sh,n:T||1}]; renderSplit(); }
+  });
+  m.querySelector('#pjSale').addEventListener('input',()=>{ restTxt(); if(m.querySelector('#pjSplit').checked&&segs.length===1){ segs[0].n=total()||1; } if(m.querySelector('#pjSplit').checked) renderSplit(); });
+  const renderPick2=()=>{
+    const toks=String(m.querySelector('#pjQ2').value||'').split(/\s+/).map(normalizeProductSearch).filter(Boolean), box=m.querySelector('#pjPick2');
+    if(!toks.length){ box.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--sub);">재고로 쌓을 반제품을 검색해 고르세요 (비우면 위에서 고른 제품과 동일)</div>'; return; }
+    const hits=(ALL_PRODUCTS||[]).map((x,i)=>({x,i})).filter(({x})=>x.active!==false&&toks.every(t=>[x.code,x.fullName,x.shortName,x.name,x.scheduleName,x.color,`${x.shortName||x.name||''}${x.color||''}`].map(normalizeProductSearch).join('|').includes(t))).slice(0,40);
+    box.innerHTML=hits.length?hits.map(h=>`<button type="button" data-pi2="${h.i}" class="${stk&&stk.i===h.i?'on':''}">${escapeHtml(`${h.x.code||''} · ${h.x.shortName||h.x.name||h.x.scheduleName||h.x.fullName||''}${h.x.color?' '+h.x.color:''}`)}</button>`).join(''):'<div style="padding:8px 10px;font-size:12px;color:var(--sub);">검색 결과가 없습니다</div>';
+  };
+  m.querySelector('#pjQ2').addEventListener('input',renderPick2); renderPick2();
+  m.querySelector('#pjPick2').addEventListener('click',e=>{ const b=e.target.closest('[data-pi2]'); if(!b) return; const i=+b.dataset.pi2, x=ALL_PRODUCTS[i]; if(!x) return; stk={i,x}; const bx=m.querySelector('#pjSel2'); bx.style.display='block'; bx.textContent='재고 반제품: '+`${x.code||''} · ${x.shortName||x.name||x.scheduleName||''}${x.color?' '+x.color:''}`; renderPick2(); });
+  ['#pjN','#pjD'].forEach(q=>m.querySelector(q).addEventListener('input',restTxt));
+  // 재고 반제품 작업지시를 만든다(새 LOT). 판매 구간의 마지막 날짜·주야에 생성
+  const makeStock=async(ld,lsh,mc,rest,saleMade)=>{
+    const sp=stk||sel; await plLoadDate(ld);
+    const r=plNewOrders(ld,mc,sp.x,sp.i,lsh,1,rest), ob=r.made[0], pid='pair'+Date.now(); ob.purpose='재고'; ob.pairId=pid;
+    saleMade.forEach(o=>{ o.purpose='판매'; o.pairId=pid; });
+    return ob;
+  };
   ['#pjN','#pjD'].forEach(q=>m.querySelector(q).addEventListener('input',()=>{ if(m.querySelector('#pjSplit').checked){ const T=total(); if(segs.length===1) segs[0].n=T||1; renderSplit(); } }));
   const label=x=>`${x.code||''} · ${x.shortName||x.name||x.scheduleName||x.fullName||''}${x.color?' '+x.color:''}`;
   const renderPick=()=>{
@@ -8860,34 +8934,47 @@ function plOpenAddJobForm(date,shift,pickedMc){
     if(!sel){ flash('제품을 선택하세요',true); return; }
     if(n<1||dr<1){ flash('배치 수와 드럼수량을 입력하세요',true); return; }
     if(m.querySelector('#pjSplit')?.checked){
-      const T=n*dr, sum=segs.reduce((a,x)=>a+(Number(x.n)||0),0);
+      const stockOn=m.querySelector('#pjStock')?.checked, G=n*dr, T=total(), restN=stockOn?G-T:0;
+      if(stockOn&&(T<1||restN<1)){ flash(`판매용(${T})은 1 이상, 총 ${G}드럼보다 작아야 잔량이 재고로 남습니다`,true); return; }
+      const sum=segs.reduce((a,x)=>a+(Number(x.n)||0),0);
       if(segs.some(x=>!x.d||!(Number(x.n)>0))){ flash('구간의 날짜와 드럼수를 확인하세요',true); return; }
       if(sum!==T){ flash(`구간 드럼 합계(${sum})가 총 드럼(${T})과 다릅니다`,true); return; }
       for(const x of segs){ await plLoadDate(x.d); if(plLocked(x.d,x.s)){ flash(`${x.d} ${x.s} 일지는 확정되어 작업을 추가할 수 없습니다`,true); return; } }
       const made=[]; let pseq='';
       segs.forEach((x,i)=>{
         const r=plNewOrders(x.d,mc,sel.x,sel.i,x.s,1,Number(x.n)); const ob=r.made[0];
-        if(i===0){ made.push(ob); pseq=r.pseq; ob.splitGroup=String(ob.id); }
+        if(i===0){ made.push(ob); pseq=r.pseq; ob.splitGroup=String(ob.id); ob.batches=n; }
         else{ const f=made[0]; ob.cont=true; ob.lotDate=f.date; ob.batchCount=f.batchCount; ob.batchSeq=f.batchSeq; ob.splitGroup=f.splitGroup; ob.customLot=computeLotInfo(f,1).lot; made.push(ob); }
       });
       workOrders.push(...made);
+      if(stockOn){ const lastS=segs[segs.length-1]; await plLoadDate(lastS.d); if(plLocked(lastS.d,lastS.s)){ workOrders.splice(workOrders.length-made.length,made.length); flash(`${lastS.d} ${lastS.s} 일지는 확정되어 재고 작업을 추가할 수 없습니다`,true); return; } const so=await makeStock(lastS.d,lastS.s,mc,restN,made); workOrders.push(so); made.push(so); }
       try{ await saveWorkOrders(); }catch(err){ console.error(err); workOrders.splice(workOrders.length-made.length,made.length); flash('작업지시 저장에 실패했습니다',true); return; }
       try{ renderOrderList(); }catch(_){}
       m.remove(); plDate=segs[0].d; plShift=segs[0].s; try{ localStorage.setItem(PL_SHIFT_KEY,plShift); }catch(e){}
       if(plMachine&&plMachine!==(mc||'__none')) plMachine='';
-      flash(`${segs.length}개 구간을 추가했습니다 · LOT ${computeLotInfo(made[0],1).lot} · 총 ${T}드럼(No.1~${T})`);
+      flash(`${segs.length}개 구간을 추가했습니다 · LOT ${computeLotInfo(made[0],1).lot} · ${stockOn?'판매 ':'총 '}${T}드럼(No.1~${T})${stockOn?` + 재고 반제품 ${restN}드럼(새 LOT ${plLotOf(made[made.length-1])})`:''}`);
       renderPressLogView(); return;
     }
     await plLoadDate(d);
     if(plLocked(d,sh)){ flash(`${d} ${sh} 일지는 확정되어 작업을 추가할 수 없습니다`,true); return; }
-    const {made,pseq}=plNewOrders(d,mc,sel.x,sel.i,sh,n,dr);
+    let made, pseq;
+    if(m.querySelector('#pjStock')?.checked){
+      // 판매용 우선: 배치(드럼수량)대로 채우고 마지막 배치가 모자라면 그 배치만 줄인다. 남은 드럼은 재고 반제품(새 LOT)
+      const G=n*dr, S=Math.round(Number(m.querySelector('#pjSale').value)||0), rest=G-S;
+      if(S<1||rest<1){ flash(`판매용(${S})은 1 이상, 총 ${G}드럼보다 작아야 잔량이 재고로 남습니다`,true); return; }
+      const full=Math.floor(S/dr), remN=S-full*dr; let all=[];
+      if(full>0){ const r1=plNewOrders(d,mc,sel.x,sel.i,sh,full,dr); pseq=r1.pseq; all=[...r1.made]; workOrders.push(...r1.made); }
+      if(remN>0){ const r2=plNewOrders(d,mc,sel.x,sel.i,sh,1,remN); if(pseq==null) pseq=r2.pseq; all.push(...r2.made); workOrders.push(...r2.made); }
+      const so=await makeStock(d,sh,mc,rest,all); workOrders.splice(workOrders.length-all.length,all.length);   // 아래 공통 push로 한 번에 넣는다
+      made=[...all,so];
+    }else{ ({made,pseq}=plNewOrders(d,mc,sel.x,sel.i,sh,n,dr)); }
     workOrders.push(...made);
     try{ await saveWorkOrders(); }catch(err){ console.error(err); workOrders.splice(workOrders.length-made.length,made.length); flash('작업지시 저장에 실패했습니다',true); return; }
     try{ renderOrderList(); }catch(_){}
     m.remove();
     plDate=d; plShift=sh; try{ localStorage.setItem(PL_SHIFT_KEY,plShift); }catch(e){}
     if(plMachine&&plMachine!==(mc||'__none')) plMachine='';
-    flash(`${made.length}배치를 추가했습니다 (제품순번 ${pseq})`);
+    flash(made.some(o=>o.purpose==='재고')?`판매 ${made.filter(o=>o.purpose==='판매').reduce((a,o)=>a+(Number(o.batchDrums)||0),0)}드럼 + 재고 반제품 ${made.filter(o=>o.purpose==='재고').reduce((a,o)=>a+(Number(o.batchDrums)||0),0)}드럼(새 LOT ${plLotOf(made[made.length-1])})을 추가했습니다`:`${made.length}배치를 추가했습니다 (제품순번 ${pseq})`);
     const ds=plDupSet(), bad=[...new Set(made.map(plLotOf).filter(l=>ds.has(l)))];
     if(bad.length) alert(`⚠ 중복 LOT 번호가 있습니다\n\n${bad.join('\n')}\n\n제품순번 / 배치순번 / LOT순번을 확인하세요.`);
     renderPressLogView();
@@ -9029,7 +9116,7 @@ function plInfoTds(it,rec,key,segIdx,onlyBatch){
     mc:(isAdmin
       ?`<td class="it mc" ${rs}><select class="mcSel" data-k="${ek}" data-oid="${escapeHtml(String(it.oid??''))}" title="설비(믹서) 선택 (관리자 전용)"${lk?' disabled':''}>${opts}</select></td>`
       :`<td class="it mc" ${rs}>${escapeHtml(it.mc||'-')}</td>`),
-    code:`<td class="it" ${rs}>${escapeHtml(it.code)}</td>`,
+    code:`<td class="it${isAdmin&&!lk?' pcode':''}" ${rs}${isAdmin&&!lk?` data-plchg="${escapeHtml((it.oids&&it.oids.length?it.oids:[it.oid]).join(','))}" title="눌러서 다른 품목으로 변경"`:''}>${escapeHtml(it.code)}</td>`,
     short:`<td class="it" ${rs}>${pi.short?escapeHtml(pi.short):plAddBtn('product',pi,it)}</td>`,
     color:`<td class="it" ${rs}>${pi.color?escapeHtml(pi.color):plAddBtn('product',pi,it)}</td>`,
     batch:`<td class="it" ${rs}>${plBatchCell(it)}</td>`,
