@@ -8853,7 +8853,7 @@ function plOpenAlloc(oid){
       m.remove(); flash(e.target.id==='alOk'?`판매 ${S} · 재고 ${total-S}드럼으로 배정했습니다`:'배정을 해제했습니다'); renderPressLogView();
     }
   });
-  m.addEventListener('input',e=>{ const row=e.target.closest('.alRow'); if(!row||row.dataset.i==null) return; const x=sales[+row.dataset.i], f=e.target.dataset.f; if(!x||!f) return; x[f]=f==='drums'?Math.max(0,Math.round(Number(e.target.value)||0)):e.target.value; if(f==='drums'){ const pos=e.target.selectionStart, i=row.dataset.i; stockLabel=m.querySelector('#alStockLbl')?.value||stockLabel; draw(); const ne=m.querySelector(`.alRow[data-i="${i}"] [data-f=drums]`); if(ne){ ne.focus(); try{ ne.setSelectionRange(pos,pos); }catch(_){} } } });
+  m.addEventListener('input',e=>{ const row=e.target.closest('.alRow'); if(!row||row.dataset.i==null) return; const x=sales[+row.dataset.i], f=e.target.dataset.f; if(!x||!f) return; x[f]=f==='drums'?Math.max(0,Math.round(Number(e.target.value)||0)):e.target.value; if(f==='drums'){ const pos=e.target.selectionStart, i=row.dataset.i; stockLabel=m.querySelector('#alStockLbl')?.value||stockLabel; draw(); const ne=m.querySelector(`.alRow[data-i="${i}"] [data-f=drums]`); if(ne){ ne.focus(); const v0=ne.value; ne.value=''; ne.value=v0; } } });   // 숫자칸은 setSelectionRange가 안 되므로 값을 다시 넣어 커서를 끝으로 (12→21 방지)
   m.addEventListener('change',e=>{ if(e.target.id==='alStockLbl') stockLabel=e.target.value; });
 }
 $('plBody')?.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-plalloc]'); if(b) plOpenAlloc(b.dataset.plalloc); });
@@ -8980,9 +8980,14 @@ function plOpenAddJobForm(date,shift,pickedMc){
     box.innerHTML=`<div class="pjSegs">`+segs.map((x,i)=>{ const a=no+1; no+=Number(x.n)||0; return `<div class="pjSeg" data-i="${i}"><input type="date" data-f="d" value="${escapeHtml(x.d)}"><select data-f="s"><option${x.s==='주간'?' selected':''}>주간</option><option${x.s==='야간'?' selected':''}>야간</option></select><input type="number" min="1" step="1" data-f="n" value="${x.n}" inputmode="numeric"><span class="rg">No.${a}~${no}</span>${segs.length>1?'<button type="button" data-rm="1">✕</button>':'<span></span>'}</div>`; }).join('')+`</div>
       <div class="pjSplitFoot"><button type="button" id="pjSegAdd">＋ 다음 구간</button><span class="${left===0?'ok':'bad'}">총 ${T}드럼 중 배정 ${sum} · ${left===0?'맞음':(left>0?`남음 ${left}`:`초과 ${-left}`)}</span></div>`;
   };
+  const refreshSplitInfo=()=>{
+    const box=m.querySelector('#pjSplitBox'), T=total(), sum=segs.reduce((a,x)=>a+(Number(x.n)||0),0), left=T-sum; let no=0;
+    box.querySelectorAll('.pjSeg').forEach((row,i)=>{ const a=no+1; no+=Number(segs[i]&&segs[i].n)||0; const rg=row.querySelector('.rg'); if(rg) rg.textContent=`No.${a}~${no}`; });
+    const ft=box.querySelector('.pjSplitFoot span'); if(ft){ ft.className=left===0?'ok':'bad'; ft.textContent=`총 ${T}드럼 중 배정 ${sum} · ${left===0?'맞음':(left>0?`남음 ${left}`:`초과 ${-left}`)}`; }
+  };
   const startSplit=()=>{ const T=total(); segs=[{d:m.querySelector('#pjDate').value||todayISO(),s:sh,n:T||1}]; renderSplit(); };
   m.querySelector('#pjSplit').addEventListener('change',e=>{ const on=e.target.checked; m.querySelector('#pjSplitBox').style.display=on?'block':'none'; if(on) startSplit(); });
-  m.querySelector('#pjSplitBox').addEventListener('input',e=>{ const row=e.target.closest('.pjSeg'); if(!row) return; const x=segs[+row.dataset.i], f=e.target.dataset.f; if(!x||!f) return; x[f]=f==='n'?Math.max(0,Math.round(Number(e.target.value)||0)):e.target.value; if(f==='n'){ const pos=e.target.selectionStart; renderSplit(); const ne=m.querySelector(`.pjSeg[data-i="${row.dataset.i}"] [data-f=n]`); if(ne){ ne.focus(); try{ ne.setSelectionRange(pos,pos); }catch(_){} } } });
+  m.querySelector('#pjSplitBox').addEventListener('input',e=>{ const row=e.target.closest('.pjSeg'); if(!row) return; const x=segs[+row.dataset.i], f=e.target.dataset.f; if(!x||!f) return; x[f]=f==='n'?Math.max(0,Math.round(Number(e.target.value)||0)):e.target.value; if(f==='n') refreshSplitInfo(); });   // 입력칸을 다시 그리면 숫자 입력칸의 커서가 맨 앞으로 가서 12가 21로 입력됨 → 칸은 그대로 두고 표시만 갱신
   m.querySelector('#pjSplitBox').addEventListener('change',e=>{ const row=e.target.closest('.pjSeg'); if(!row) return; const x=segs[+row.dataset.i], f=e.target.dataset.f; if(x&&(f==='d'||f==='s')) x[f]=e.target.value; });
   m.querySelector('#pjSplitBox').addEventListener('click',e=>{
     if(e.target.id==='pjSegAdd'){ const last=segs[segs.length-1], nx=nextShift(last.d,last.s), left=total()-segs.reduce((a,x)=>a+(Number(x.n)||0),0); segs.push({d:nx.d,s:nx.s,n:Math.max(1,left)}); renderSplit(); return; }
