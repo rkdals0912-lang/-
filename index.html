@@ -447,7 +447,7 @@ body.workspace-open #homeView{display:none;}
 .labelMasterHero p{margin:5px 0 0;color:var(--sub);font-size:12px;line-height:1.55;}
 .labelMasterSearch{min-width:280px;max-width:420px;width:40%;}
 .labelMasterScreenGrid{display:grid;grid-template-columns:minmax(300px,360px) minmax(360px,460px) minmax(460px,1fr);gap:16px;align-items:start;}
-.labelMasterFormPanel{position:sticky;top:12px;}
+.labelMasterFormPanel{position:static;}   /* 고정(sticky)하면 화면보다 길어 아래가 잘리고 다른 패널과 겹쳐 보임 */
 #labelMasterScreen #lmList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:0!important;}
 #labelMasterScreen #lmList .fieldListItem{margin:0;align-items:center;min-height:74px;}
 .labelMasterListPanel .listHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
@@ -482,14 +482,23 @@ body.workspace-open #homeView{display:none;}
 .labelEditorTopbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;padding:10px 12px;background:rgba(247,249,252,.96);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:12px;}
 .labelEditorTopbar .left{display:flex;align-items:center;gap:10px;min-width:0;}
 .labelEditorTopbar .editorTitle{font-weight:900;color:var(--navy);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.labelEditorWorkspace{display:grid;grid-template-columns:minmax(250px,310px) minmax(0,1fr);gap:16px;align-items:start;}
+.labelEditorWorkspace{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start;}   /* 왼쪽 설정열을 없애고 편집 영역을 전체 폭으로 */
+.labelEditorWorkspace>.editorSetupCol .panel{margin-bottom:0;padding:10px 14px;}
+.labelEditorWorkspace>.editorSetupCol .panel h2{margin-bottom:8px;}
+.labelEditorWorkspace>.editorSetupCol .tabsSub{margin-bottom:0;}
+.edZoomBar{display:inline-flex;gap:4px;margin-left:auto;} .edZoomBar button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer;} .edZoomBar button.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.editorPreviewHead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.editorCanvasBar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:0 0 10px;padding:7px 9px;border:1px solid var(--line);border-radius:10px;background:#f7f9fc;font-size:12px;font-weight:700;color:var(--navy);}
+.editorCanvasBar input[type=number]{width:62px;padding:5px 6px;margin:0;font-size:12.5px;}
+.editorCanvasBar .btn{width:auto;padding:5px 8px;font-size:12px;margin:0;}
+.editorCanvasBar .sep{width:1px;height:20px;background:var(--line);margin:0 2px;}
 .editorOutputPreviewPanel{margin-bottom:14px;overflow:hidden;}
 .editorOutputPreviewHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
 .editorOutputPreviewHead .meta{font-size:11px;color:var(--sub);flex:1;min-width:180px;}
 .editorOutputPreviewViewport{background:#eef2f7;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;max-height:58vh;}
 .editorOutputPreviewInner{display:inline-block;min-width:max-content;background:#fff;padding:10px;border-radius:6px;box-shadow:0 2px 8px rgba(15,37,64,.08);}
 .editorOutputPreviewNote{font-size:11px;color:var(--sub);margin-top:7px;}
-.labelEditorWorkspace>.editorSetupCol{position:sticky;top:66px;}
+.labelEditorWorkspace>.editorSetupCol{position:static;}
 #labelEditorScreen .editorRight{grid-template-columns:minmax(500px,1fr) minmax(310px,390px);}
 #labelEditorScreen #editorLayoutTabs [data-label-code]:not(.active){display:none;}
 #labelEditorScreen #editorLabelHint{font-size:11px;}
@@ -979,7 +988,7 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
 
     <div class="editorRight">
       <div class="panel editorPreviewPanel">
-        <div class="editorPreviewHead"><h2 style="margin:0;">실시간 미리보기</h2><span class="editorHint">항목을 누르면 오른쪽 편집 패널에서 바로 수정됩니다.</span></div>
+        <div class="editorPreviewHead"><h2 style="margin:0;">실시간 미리보기</h2><span class="editorHint">항목을 누르면 오른쪽 편집 패널에서 바로 수정됩니다.</span><span class="edZoomBar" id="edZoomBar"><button type="button" data-z="fit" class="on">화면 맞춤</button><button type="button" data-z="1">100%</button><button type="button" data-z="1.5">150%</button><button type="button" data-z="2">200%</button><button type="button" data-z="3">300%</button></span></div>
         <div id="editorCanvasWrap"></div>
       </div>
 
@@ -6768,6 +6777,38 @@ function renderLabelMasterSelect(){
   if([...el.options].some(o=>o.value===old)) el.value=old;
 }
 
+// 편집 캔버스 확대: 화면 맞춤(기본) 또는 고정 배율. 드래그 계산은 getBoundingClientRect 비율을 쓰므로 CSS zoom과 호환된다.
+let EDZ='fit'; try{ EDZ=localStorage.getItem('ksa-edzoom')||'fit'; }catch(e){}
+function applyEditorZoom(){
+  const wrap=$('editorCanvasWrap'); if(!wrap) return;
+  const box=wrap.querySelector('.canvasBox'); wrap.style.zoom=1; if(!box) return;
+  const r=box.getBoundingClientRect(), pw=(wrap.parentElement?wrap.parentElement.clientWidth:0)-40;
+  if(!r.width||!pw||pw<100) return;
+  let z=EDZ==='fit'?Math.min(3,Math.max(1,pw/r.width),Math.max(1,(window.innerHeight*0.78)/Math.max(1,r.height))):Math.max(0.5,Number(EDZ)||1);
+  wrap.style.zoom=String(Math.round(z*100)/100);
+  document.querySelectorAll('#edZoomBar button').forEach(b=>b.classList.toggle('on',b.dataset.z===String(EDZ)));
+}
+document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('#edZoomBar button'); if(!b) return; EDZ=b.dataset.z; try{ localStorage.setItem('ksa-edzoom',EDZ); }catch(_){} applyEditorZoom(); });
+window.addEventListener('resize',()=>{ try{ applyEditorZoom(); }catch(e){} });
+setTimeout(()=>{ try{ const _rce=renderCanvasOnly, _re=renderEditor; renderCanvasOnly=function(){ const r=_rce.apply(this,arguments); try{ applyEditorZoom(); }catch(e){} return r; }; renderEditor=function(){ const r=_re.apply(this,arguments); try{ applyEditorZoom(); }catch(e){} return r; }; }catch(e){ console.warn('zoom hook failed',e); } },0);
+// 캔버스 크기·전체 회전은 오른쪽 '항목 목록 · 추가' 패널 맨 위의 작은 막대로 옮긴다 (왼쪽 칸 제거 → 편집 영역 확대)
+function moveEditorCanvasBar(){
+  try{
+    if($('editorCanvasBar')) return;
+    const itemPanel=document.querySelector('#labelEditorScreen .editorItemPanel'), cw=$('canvasW'), ch=$('canvasH'), r1=$('rotateLayoutCCW'), r2=$('rotateLayout180'), r3=$('rotateLayoutCW');
+    if(!itemPanel||!cw||!ch||!r1||!r2||!r3) return;
+    const bar=document.createElement('div'); bar.className='editorCanvasBar'; bar.id='editorCanvasBar';
+    const mk=t=>{ const e=document.createElement('span'); e.textContent=t; return e; };
+    const sep=document.createElement('span'); sep.className='sep';
+    r1.textContent='↺ 90°'; r2.textContent='↻ 180°'; r3.textContent='↻ 90°';
+    r1.title='왼쪽으로 90° 회전 (캔버스 크기와 모든 블록 위치·각도를 함께 변환, 저장 후 실제 출력에도 적용)'; r2.title='180° 회전'; r3.title='오른쪽으로 90° 회전';
+    const cwLab=cw.previousElementSibling; 
+    bar.append(mk('캔버스 mm'),cw,mk('×'),ch,sep,mk('회전'),r1,r2,r3);
+    const h2=itemPanel.querySelector('h2'); (h2?h2.after(bar):itemPanel.prepend(bar));
+    const sp=document.querySelector('#labelEditorScreen .editorSetupCol .panel');
+    if(sp) [...sp.children].forEach(e=>{ if(e.tagName!=='H2'&&e.id!=='editorLayoutTabs'&&e.id!=='editorLabelHint') e.remove(); });
+  }catch(e){ console.warn('canvas bar move failed',e); }
+}
 function setupSeparatedLabelScreens(){
   const view=$('editorView');
   if(!view || $('labelMasterScreen')) return;
@@ -6820,6 +6861,7 @@ function setupSeparatedLabelScreens(){
   editorScreen.append(top,outputPreview,workspace);
 
   oldGrid.replaceWith(masterScreen,editorScreen);
+  moveEditorCanvasBar();
   $('labelMasterSearch')?.addEventListener('input',renderLabelMasterList);
   refreshLabelMasterPreviewLotRule('');
   $('labelMasterProductSearch')?.addEventListener('input',renderLabelMasterProductLinks);
