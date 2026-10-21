@@ -1042,6 +1042,7 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
           <div><label>정렬</label><select id="inspAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></div>
         </div>
         <label class="checkrow" id="inspAutoFitRow"><input type="checkbox" id="inspAutoFit"> 자동맞춤 (상자 크기에 맞게 글자 꽉 채우기)</label>
+        <label class="checkrow" id="inspAutoFitStretchRow" style="margin-left:18px;"><input type="checkbox" id="inspAutoFitStretch"> 비율 무시 — 상자 가로·세로에 맞춰 글자 늘리기 (세로로 길게)</label>
         <div class="inspRow">
           <div><label>회전 빠른 선택</label>
             <select id="inspRotatePreset">
@@ -2687,7 +2688,7 @@ function renderLabelHtml(layoutKey,ctx,editable=false){
     const transparentBg=f.transparentBackground!==false;
     const styles=[posStyle,rotOverflow,`font-size:${f.size}pt`,`font-weight:${f.weight||400}`,`font-family:${fontCss(f.fontFamily,f.mono)} !important`,`text-align:${f.align||'left'}`,f.color==='sub'?'color:var(--sub)':'color:var(--ink)',f.border?'border:1.5px solid var(--ink)':'',transparentBg?'background:transparent':'background:#fff'].filter(Boolean).join(';');
     const content=(f.kind==='bind'&&f.bind==='barcode') ? renderBarcodeSvg(ctx.barcode||'',ctx.barcodeType||'CODE128') : `<span class="fldTextInner">${escapeHtml(text).replace(/\n/g,'<br>')}</span>`;
-    const autoFitAttr=f.autoFit?` data-autofit="1" data-basesize="${f.size}"`:'';
+    const autoFitAttr=f.autoFit?` data-autofit="1" data-basesize="${f.size}"${f.autoFitStretch?' data-stretch="1"':''}`:'';
     return `<div class="${cls} ${fontClass(f.fontFamily||(f.mono?'system-mono':'system-sans'))}" ${dataAttr}${autoFitAttr} data-font="${escapeHtml(f.fontFamily||'system-sans')}" style="${styles};z-index:${zi+1};">${content}${resizeHandles}</div>`;
   }).join('');
   return `<div class="canvasBox ${editable?'editorCanvas':''}" id="${editable?'liveEditorCanvas':''}" style="width:${layout.w}mm;height:${layout.h}mm;">${fields}</div>`;
@@ -2701,6 +2702,15 @@ function fitTextToBox(el){
   // 상자 밖으로 살짝 튀어나온 상태로 함께 포함되어, 선택된(=핸들이 보이는) 필드에서는
   // 텍스트 크기와 무관하게 항상 '넘침'으로 오판되는 문제가 있었다.
   const measureEl=el.querySelector(':scope > .fldTextInner')||el;
+  if(el.dataset.stretch==='1' && measureEl!==el){
+    // 비율 무시 꽉채우기: 글자를 상자 가로·세로에 각각 맞춰 늘린다 (세로로 길게/가로로 넓게)
+    const sp=(k,v)=>measureEl.style.setProperty(k,v,'important');
+    sp('transform','none'); sp('display','inline-block'); sp('width','max-content'); sp('white-space','nowrap'); sp('transform-origin','0 0'); sp('line-height','1.2');
+    el.style.fontSize=(parseFloat(el.dataset.basesize)||10)+'pt';
+    const w=measureEl.offsetWidth, h=measureEl.offsetHeight, bw=el.clientWidth, bh=el.clientHeight;
+    if(w>0&&h>0&&bw>0&&bh>0) sp('transform',`scale(${(bw/w).toFixed(4)},${(bh/h).toFixed(4)})`);
+    return;
+  }
   const base=parseFloat(el.dataset.basesize)||parseFloat(el.style.fontSize)||10;
   const fits=()=>measureEl.scrollWidth<=el.clientWidth+1 && measureEl.scrollHeight<=el.clientHeight+1;
   let size=base;
@@ -5803,6 +5813,7 @@ function selectField(fid,additive=false,preserveSet=false){
   $('inspX').value=f.x; $('inspY').value=f.y; $('inspW').value=f.w; $('inspH').value=f.h;
   $('inspSize').value=f.size||12; $('inspAlign').value=f.align||'left'; $('inspRotate').value=f.rotate||0;
   if($('inspAutoFit')) $('inspAutoFit').checked=!!f.autoFit;
+  if($('inspAutoFitStretch')) $('inspAutoFitStretch').checked=!!f.autoFitStretch;
   if($('inspRotatePreset')){const rv=String(((Number(f.rotate)||0)%360+360)%360);$('inspRotatePreset').value=['0','90','180','270'].includes(rv)?rv:'custom';}
   $('inspWeight').value=String(f.weight||400);
   fillFontSelect($('inspFont'),f.fontFamily||(f.mono?'system-mono':'system-sans'));
@@ -5813,6 +5824,7 @@ function selectField(fid,additive=false,preserveSet=false){
   if($('inspSizeRow')) $('inspSizeRow').style.display=(isTable||isImage)?'none':'grid';
   if($('inspFontSizeRow')) $('inspFontSizeRow').style.display=(isTable||isImage||isShape)?'none':'grid';
   if($('inspAutoFitRow')) $('inspAutoFitRow').style.display=(isTable||isImage||isShape)?'none':'flex';
+  if($('inspAutoFitStretchRow')) $('inspAutoFitStretchRow').style.display=(isTable||isImage||isShape)?'none':'flex';
   if($('inspWeightRow')) $('inspWeightRow').style.display=(isTable||isImage||isShape)?'none':'grid';
   if($('inspFontNote')) $('inspFontNote').style.display=(isTable||isImage||isShape)?'none':'block';
   let dragHint=$('tableDragHint');
@@ -5918,6 +5930,14 @@ if($('inspAutoFit')) $('inspAutoFit').addEventListener('change',()=>{
   if(!selectedFieldId)return;
   const f=fieldById(selectedFieldId);
   f.autoFit=$('inspAutoFit').checked;
+  renderCanvasOnly();
+});
+if($('inspAutoFitStretch')) $('inspAutoFitStretch').addEventListener('change',()=>{
+  if(!selectedFieldId)return;
+  const f=fieldById(selectedFieldId);
+  f.autoFitStretch=$('inspAutoFitStretch').checked;
+  if(f.autoFitStretch) f.autoFit=true;
+  if($('inspAutoFit')) $('inspAutoFit').checked=!!f.autoFit;
   renderCanvasOnly();
 });
 if($('inspShapeType')) $('inspShapeType').addEventListener('change',()=>{
