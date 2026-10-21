@@ -9013,8 +9013,9 @@ function plSummaryHtml(recs,label){
     const n=day.shifts.reduce((a,sh,i)=>a+sh.rows.length+(i<day.shifts.length-1?1:0),0); let first=true, out='';
     day.shifts.forEach((sh,si)=>{
       sh.rows.forEach(e=>{
-        const head=first?`<td rowspan="${n}" class="dcell">${escapeHtml(plMD(day.d))}</td><td rowspan="${n}" class="dcell">${escapeHtml(plWeekday(day.d))}</td>`:''; first=false;
-        out+=`<tr style="background:${plMcColor(e.mn,sh.night)}">${head}<td><b>${escapeHtml(e.mc)}</b></td><td><b>${escapeHtml(e.code)}</b></td><td class="nm">${escapeHtml(e.name)}</td><td><b>${e.b}</b></td><td>${lotN(e)}</td><td>${e.dr}</td><td>${ratio(e.dr,e.b)}</td></tr>`;
+        const head=first?`<td rowspan="${n}" class="dcell" style="background:#fff;vertical-align:middle;">${escapeHtml(plMD(day.d))}</td><td rowspan="${n}" class="dcell" style="background:#fff;vertical-align:middle;">${escapeHtml(plWeekday(day.d))}</td>`:''; first=false;
+        const bg=`style="background:${plMcColor(e.mn,sh.night)}"`;   // 줄 배경을 tr이 아니라 각 칸에 지정 (PDF/이미지 변환 시 일자 칸이 물드는 문제 방지)
+        out+=`<tr>${head}<td ${bg}><b>${escapeHtml(e.mc)}</b></td><td ${bg}><b>${escapeHtml(e.code)}</b></td><td class="nm" ${bg}>${escapeHtml(e.name)}</td><td ${bg}><b>${e.b}</b></td><td ${bg}>${lotN(e)}</td><td ${bg}>${e.dr}</td><td ${bg}>${ratio(e.dr,e.b)}</td></tr>`;
       });
       if(si<day.shifts.length-1) out+=`<tr class="dv"><td colspan="7">${escapeHtml(day.label)}</td></tr>`;
     });
