@@ -571,6 +571,7 @@ body.workspace-open #homeView{display:none;}
   <div class="homeGrid">
     <button class="homeCard" data-go="batch"><span class="homeIcon c-blue"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg></span><b>일괄 출력</b><small>작업지시 기반 출력</small></button>
     <button class="homeCard" data-go="live"><span class="homeIcon c-green"><svg viewBox="0 0 24 24"><path d="M3 15h12V6H8"/><path d="M15 10h3l3 3v2h-6"/><circle cx="7" cy="17" r="2"/><circle cx="18" cy="17" r="2"/></svg></span><b>실시간 출력</b><small>현장 즉시 발행</small></button>
+    <button class="homeCard" data-go="noroo"><span class="homeIcon c-purple"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h4"/><path d="M16 3v4"/></svg></span><b>노루페인트 라벨</b><small>재고 생성일 · 시리얼</small></button>
     <button class="homeCard adminOnly" data-go="editor"><span class="homeIcon c-orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1-2.8 2.8-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.6V21H10v-.1A1.8 1.8 0 0 0 8.9 19a1.8 1.8 0 0 0-2 .4l-.1.1L4 16.7l.1-.1a1.8 1.8 0 0 0 .4-2A1.8 1.8 0 0 0 3 13.5H3v-4h.1A1.8 1.8 0 0 0 4.5 8a1.8 1.8 0 0 0-.4-2L4 5.9 6.8 3l.1.1a1.8 1.8 0 0 0 2 .4A1.8 1.8 0 0 0 10 2h4a1.8 1.8 0 0 0 1.1 1.5 1.8 1.8 0 0 0 2-.4l.1-.1L20 5.9l-.1.1a1.8 1.8 0 0 0-.4 2A1.8 1.8 0 0 0 21 9.5V13.5a1.8 1.8 0 0 0-1.6 1.5z"/></svg></span><b>라벨 편집</b><small>텍스트 · 표 · 회전</small></button>
     <button class="homeCard adminOnly" data-go="products"><span class="homeIcon c-red"><svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v16H4V5h4l1-2z"/><path d="M8 10h8M8 14h8M8 18h5"/></svg></span><b>제품 관리</b><small>품목 · 라벨 연결</small></button>
     <button class="homeCard adminOnly" data-go="lot"><span class="homeIcon c-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span><b>LOT 규칙</b><small>제품별 채번 규칙</small></button>
@@ -742,6 +743,17 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
   </div>
 </div>
 <div id="opView">
+  <div class="panel" id="norooPanel" style="display:none;border:2px solid #7c3aed;margin:0 0 10px;">
+    <h2 style="margin-top:0;"><span class="n" style="background:#7c3aed;">N</span>노루페인트 라벨 · 재고 생성일 / 시리얼</h2>
+    <div class="row2">
+      <div><label>재고 생성일 (임의 지정) → 제조일·시리얼 날짜</label><input type="date" id="norooStockDate"></div>
+      <div><label>연번 보정 (+)</label><input type="number" id="norooSeqOffset" step="1" value="0"></div>
+    </div>
+    <label>시리얼 패턴</label>
+    <input type="text" class="field" id="norooSerialPattern" value="ND{YYMMDD}{SEQ2}">
+    <div class="lotPreview" id="norooPreview">시리얼 : —</div>
+    <div class="lockednote">아래 작업지시·라벨 출력 방식은 <b>일괄 출력과 동일</b>합니다. <b>로트번호는 작업지시의 실제 제조일</b> 기준 LOT 규칙으로 계산되고, 제조일·시리얼은 위 <b>재고 생성일</b>을 따릅니다. 시리얼 연번 = 드럼 번호 + 보정(예: 드럼 1번 → 01). 패턴 토큰: {YYMMDD} {YYYYMMDD} {YYYY} {YY} {MM} {DD} {SEQ} {SEQ2} {SEQ3}. 라벨 서식에서는 변수 <b>제조일자(규칙 적용)</b>, <b>재고 생성일</b>, <b>시리얼넘버</b>를 연결하세요.</div>
+  </div>
   <div class="adminOnly" style="margin:0 0 10px;"><button type="button" class="btn btn-ghost auto" id="opAdminToggle">⚙ 작업지시 관리·목록 표시/숨김</button></div>
   <div class="grid opGrid">
     <div class="opCol">
@@ -2326,6 +2338,50 @@ function computeExpiryDate(order,p,rule){
   const days=rule.mode==='product_days' ? Number(p?.useByDays ?? 0) : Number(rule.value)||0;
   return new Date(d.getTime()+Math.max(0,days)*86400000);
 }
+// ===== 노루페인트 라벨 모드: 재고 생성일 / 시리얼 =====
+const NOROO={on:false,stockDate:'',serialPattern:'ND{YYMMDD}{SEQ2}',seqOffset:0};
+const NOROO_KEY='ksa-noroo-v1';
+function norooStockInfo(drumNo){
+  // 노루 모드가 아니면(서식 편집기 샘플 등) 오늘 날짜를 샘플로 쓴다.
+  const dateStr=(NOROO.on&&NOROO.stockDate)?NOROO.stockDate:todayISO();
+  const [y,m,d]=dateStr.split('-');
+  const seq=Math.max(1,(Number(drumNo)||1)+(NOROO.on?(Math.trunc(Number(NOROO.seqOffset))||0):0));
+  const vals={YYMMDD:y.slice(2)+m+d,YYYYMMDD:y+m+d,YYYY:y,YY:y.slice(2),MM:m,DD:d,SEQ:String(seq),SEQ2:String(seq).padStart(2,'0'),SEQ3:String(seq).padStart(3,'0')};
+  const serial=String(NOROO.serialPattern||'').replace(/\{([A-Za-z0-9_]+)\}/g,(a,k)=>Object.prototype.hasOwnProperty.call(vals,k)?vals[k]:a);
+  return {date:dateStr,yymmdd:vals.YYMMDD,yyyymmdd:vals.YYYYMMDD,serial,seq:vals.SEQ2};
+}
+function norooUpdatePreview(){
+  const el=$('norooPreview'); if(!el) return;
+  const a=norooStockInfo(1),b=norooStockInfo(2);
+  el.textContent=`제조일 ${a.date} · 시리얼 ${a.serial}, ${b.serial} …`;
+}
+function setNorooMode(on){
+  NOROO.on=!!on;
+  const p=$('norooPanel'); if(p) p.style.display=on?'block':'none';
+  if(on){
+    if(!NOROO.stockDate) NOROO.stockDate=todayISO();
+    if($('norooStockDate')) $('norooStockDate').value=NOROO.stockDate;
+    if($('norooSerialPattern')) $('norooSerialPattern').value=NOROO.serialPattern;
+    if($('norooSeqOffset')) $('norooSeqOffset').value=NOROO.seqOffset;
+    norooUpdatePreview();
+  }
+  try{ if(typeof autoPreviewOrder==='function') autoPreviewOrder(); }catch(e){}
+}
+async function loadNorooSettings(){
+  try{ const raw=await storeGet(NOROO_KEY); if(raw){ const o=JSON.parse(raw); if(o.serialPattern) NOROO.serialPattern=String(o.serialPattern); NOROO.seqOffset=Math.trunc(Number(o.seqOffset))||0; } }catch(e){}
+}
+function norooOnInput(){
+  NOROO.stockDate=$('norooStockDate').value||todayISO();
+  NOROO.serialPattern=$('norooSerialPattern').value.trim()||'ND{YYMMDD}{SEQ2}';
+  NOROO.seqOffset=Math.trunc(Number($('norooSeqOffset').value))||0;
+  try{ storeSet(NOROO_KEY,JSON.stringify({serialPattern:NOROO.serialPattern,seqOffset:NOROO.seqOffset})); }catch(e){}
+  norooUpdatePreview();
+  try{ if(typeof autoPreviewOrder==='function') autoPreviewOrder(); }catch(e){}
+}
+['norooStockDate','norooSerialPattern','norooSeqOffset'].forEach(id=>{ $(id)?.addEventListener('input',norooOnInput); });
+// 다른 화면으로 나가면 노루 모드 해제 (일반 일괄/실시간 출력에는 영향 없음)
+document.querySelectorAll('#workspaceNav button').forEach(b=>b.addEventListener('click',()=>setNorooMode(false),true));
+try{ const _hn=showHome; showHome=function(...a){ setNorooMode(false); return _hn.apply(this,a); }; }catch(e){}
 // ===== 제조일자(MFG) 규칙 코어 =====
 // 규칙 = {id,name,mode,value,format,description,system}
 //  mode: production_date(생산일자 ±value일) / print_date(출력일 ±value일) / month_start(생산월 1일) / month_end(생산월 말일) / none(표시 안 함)
@@ -2335,6 +2391,7 @@ const MFG_DEFAULT_ID='MFG_PRODUCTION_DATE';
 const MFG_RULE_MODES=[
   ['production_date','생산일자 기준 (± 일수)'],
   ['print_date','출력일(오늘) 기준 (± 일수)'],
+  ['stock_date','재고 생성일 (노루페인트 라벨 화면에서 지정)'],
   ['month_start','생산월 1일'],
   ['month_end','생산월 말일'],
   ['none','제조일자 표시 안 함']
@@ -2349,6 +2406,7 @@ function computeMfgDate(order,rule){
   const off=Math.trunc(Number(r.value)||0);
   switch(r.mode){
     case 'none': return null;
+    case 'stock_date': return (NOROO.on&&NOROO.stockDate)?new Date(NOROO.stockDate+'T00:00:00'):base;
     case 'print_date': { const t=new Date(); t.setHours(0,0,0,0); t.setDate(t.getDate()+off); return t; }
     case 'month_start': return new Date(base.getFullYear(),base.getMonth(),1);
     case 'month_end': return new Date(base.getFullYear(),base.getMonth()+1,0);
@@ -2396,8 +2454,10 @@ function computeLotInfo(order,drumNo=1,lotRuleIdOverride='',labelCodeArg=''){
   return {lot,exp,expDateRaw:expD?isoDateOf(expD):'',prodDateDisp:f.disp,prodDateRaw:order.date,...productionDateFormats(order.date),...mfgExtra,ruleId:rule.id,ruleName:rule.name,expRuleId:expRule.id,expRuleName:expRule.name};
 }
 // 컨텍스트(라벨 변수 값)에 제조일자 규칙 결과를 반영한다. 기본 규칙이면 기존 값(생산일자)을 그대로 둔다.
-function applyMfgToContext(ctx,info){
+function applyMfgToContext(ctx,info,drumNo){
   if(!ctx||!info) return ctx;
+  const st=norooStockInfo(drumNo);
+  ctx.stockDate=st.date; ctx.stockYYMMDD=st.yymmdd; ctx.stockYYYYMMDD=st.yyyymmdd; ctx.serialNo=st.serial; ctx.serialSeq=st.seq;
   const raw=info.mfgDateRaw||'';
   const fm=(fmt)=>raw?formatExpiry(new Date(raw+'T00:00:00'),fmt):'';
   ctx.mfgDate=info.mfg||'';
@@ -2417,8 +2477,8 @@ function applyMfgToContext(ctx,info){
 }
 (function(){
   const _bc=buildContext, _bd=buildDongeunContext;
-  buildContext=function(p,info,...rest){ return applyMfgToContext(_bc.call(this,p,info,...rest),info); };
-  buildDongeunContext=function(p,info,...rest){ return applyMfgToContext(_bd.call(this,p,info,...rest),info); };
+  buildContext=function(p,info,...rest){ return applyMfgToContext(_bc.call(this,p,info,...rest),info,rest[0]); };
+  buildDongeunContext=function(p,info,...rest){ return applyMfgToContext(_bd.call(this,p,info,...rest),info,rest[0]); };
 })();
 // 같은 품목·같은 LOT가 여러 작업지시(배치·야간·다음날)에 걸치면 드럼번호를 앞 구간에 이어서 매긴다.
 // 예) 주간 24드럼 → 야간 작업지시는 25번부터. (LOT에 {DRUM}이 들어가 드럼마다 LOT가 다른 규칙은 이어붙이지 않음)
@@ -5339,7 +5399,8 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
   if(go==='presslog'){ showPressLogView(); return; }
   if(go==='perm'){ showPermView(); return; }
   openWorkspace();
-  if(go==='batch') $('tabBatch').click();
+  if(go==='noroo'){ $('tabBatch').click(); setNorooMode(true); }
+  else if(go==='batch') $('tabBatch').click();
   else if(go==='live') $('tabLive').click();
   else if(go==='editor') $('tabEditor').click();
   else if(go==='products') $('tabProductMaster').click();
@@ -5640,6 +5701,11 @@ const FIELD_VARIABLES = [
   ['mfgYYdotMMdotDD','제조일자 YY.MM.DD'],
   ['mfgMMMYYYY','제조일자 MMM. YYYY'],
   ['mfgYYYYdotMM','제조일자 YYYY.MM'],
+  ['stockDate','재고 생성일 (YYYY-MM-DD)'],
+  ['stockYYMMDD','재고 생성일 YYMMDD'],
+  ['stockYYYYMMDD','재고 생성일 YYYYMMDD'],
+  ['serialNo','시리얼넘버 (노루페인트 라벨 패턴)'],
+  ['serialSeq','시리얼 연번 (2자리)'],
   ['usebyLineKr','USE BY(국문)'],
   ['usebyLineEn','USE BY(영문)'],
   ['drumNo','드럼 번호'],
@@ -6454,6 +6520,7 @@ function mfgRuleText(r){
   if(r.mode==='none') return '제조일자 표시 안 함';
   if(r.mode==='month_start') return '생산월 1일';
   if(r.mode==='month_end') return '생산월 말일';
+  if(r.mode==='stock_date') return '재고 생성일(출력 화면에서 지정)';
   if(r.mode==='print_date') return off?`출력일 ${sign}일`:'출력일(오늘)';
   return off?`생산일자 ${sign}일`:'생산일자 그대로';
 }
@@ -6536,7 +6603,7 @@ function collectBindKeysForLayout(key){
   });
   return [...set];
 }
-const FP_BIND_LABELS={name:'품명',shortName:'라벨 약어',fullName:'ECOUNT 품목명',code:'품목코드',color:'색상',type:'타입/성상',lot:'LOT',lotRaw:'LOT(원본)',exp:'사용기한(EXP)',expireDate:'사용기한(EXP)',useby:'사용기한(EXP)',weight:'중량 표시',proddate:'생산일자',mfgDate:'제조일자(규칙 적용)',mfgLine:'제조일자(문구 포함)',drumNo:'드럼 번호',barcode:'바코드 값',barcodeText:'바코드 숫자',barcodeType:'바코드 종류'};
+const FP_BIND_LABELS={name:'품명',shortName:'라벨 약어',fullName:'ECOUNT 품목명',code:'품목코드',color:'색상',type:'타입/성상',lot:'LOT',lotRaw:'LOT(원본)',exp:'사용기한(EXP)',expireDate:'사용기한(EXP)',useby:'사용기한(EXP)',weight:'중량 표시',proddate:'생산일자',mfgDate:'제조일자(규칙 적용)',mfgLine:'제조일자(문구 포함)',stockDate:'재고 생성일',serialNo:'시리얼넘버',drumNo:'드럼 번호',barcode:'바코드 값',barcodeText:'바코드 숫자',barcodeType:'바코드 종류'};
 let fpKey='',fpLabelCode='',fpCtx={};
 function populateFreePrintLabelSelect(){
   const sel=$('fpLabelSelect'); if(!sel) return;
@@ -8277,6 +8344,7 @@ if($('zebraTestBtn')) $('zebraTestBtn').addEventListener('click',async()=>{
 const HOME_MENUS=[
   {key:'batch',   label:'일괄 출력',   desc:'작업지시 기반 출력', workerDefault:true},
   {key:'live',    label:'실시간 출력', desc:'현장 즉시 출력',     workerDefault:true},
+  {key:'noroo',   label:'노루페인트 라벨', desc:'재고일 · 시리얼 라벨', workerDefault:true},
   {key:'presslog',label:'프레스일지',  desc:'날짜별 LOT · xlsx',  workerDefault:true},
   {key:'history', label:'출력 이력',   desc:'품목 · 라벨 · LOT',  workerDefault:false},
   {key:'editor',  label:'라벨 마스터', desc:'라벨 서식 편집',     adminOnly:true},
@@ -9577,7 +9645,7 @@ async function initApp(){
   if(browserPrintSdkReady()) setTimeout(()=>discoverZebraPrinters(true),1200);
   else { const diag=browserPrintSdkDiagnostic(); setZebraStatus(diag.text+' · ZPL 직접 인쇄에는 Zebra Browser Print 프로그램도 실행되어 있어야 합니다.','warn'); }
 
-  await loadLayouts();await loadLotRules();await loadExpRules();await loadMfgRules();await loadCustomVars();await loadVarLabelOverrides();refreshCustomVariableOptions();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
+  await loadLayouts();await loadLotRules();await loadExpRules();await loadMfgRules();await loadNorooSettings();await loadCustomVars();await loadVarLabelOverrides();refreshCustomVariableOptions();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
   try{ await loadHomePerms(); }catch(e){}
   if(HAS_SHARED_STORAGE || window.KSA_DB_READY){
     setInterval(async()=>{
