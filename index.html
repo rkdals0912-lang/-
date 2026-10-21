@@ -5280,11 +5280,10 @@ function pasteEditorField(){
     const oldId=f.id||'field';
     f.id=`${String(oldId).replace(/_copy_\d+$/,'')}_copy_${now}_${idx}`;
     f.label=f.label?`${f.label} 복사본`:'복사본';
-    const maxX=Math.max(0,(Number(l.w)||100)-Math.max(.1,Number(f.w)||1));
-    const maxY=Math.max(0,(Number(l.h)||70)-Math.max(.1,Number(f.h)||1));
-    f.x=Math.min(maxX,Math.max(0,(Number(f.x)||0)+2));
+    const R=fieldMoveRange(f,l);
+    f.x=Math.min(R.maxX,Math.max(R.minX,(Number(f.x)||0)+2));
     const up=(Number(f.y)||0)-2;
-    f.y=Math.min(maxY,Math.max(0,up>=0?up:(Number(f.y)||0)+2));
+    f.y=Math.min(R.maxY,Math.max(R.minY,up>=R.minY?up:(Number(f.y)||0)+2));
     l.fields.push(f);
     pasted.push(f.id);
   });
@@ -5329,10 +5328,9 @@ function moveSelectedElement(dx,dy,stepMm){
   pushEditorUndo('nudge');
   const step=Number(stepMm)>0?Number(stepMm):0.5; // mm
   items.forEach(f=>{
-    const maxX=Math.max(0,(Number(l.w)||100)-Math.max(.1,Number(f.w)||1));
-    const maxY=Math.max(0,(Number(l.h)||70)-Math.max(.1,Number(f.h)||1));
-    f.x=Math.min(maxX,Math.max(0,(Number(f.x)||0)+dx*step));
-    f.y=Math.min(maxY,Math.max(0,(Number(f.y)||0)+dy*step));
+    const R=fieldMoveRange(f,l);
+    f.x=Math.min(R.maxX,Math.max(R.minX,(Number(f.x)||0)+dx*step));
+    f.y=Math.min(R.maxY,Math.max(R.minY,(Number(f.y)||0)+dy*step));
   });
   renderCanvasOnly();
   renderFieldList();
@@ -6029,6 +6027,14 @@ function renderEditorTabs(){
 }
 
 
+// 회전한 블록이 캔버스 안에서 움직일 수 있는 x·y 범위. (90°/270°는 가로·세로가 바뀌어 보이므로 회전된 겉보기 크기로 계산)
+function fieldMoveRange(f,l){
+  const L={w:Number(l.w)||100,h:Number(l.h)||70}, w=Math.max(.1,Number(f.w)||1), h=Math.max(.1,Number(f.h)||1);
+  const a=(Number(f.rotate)||0)*Math.PI/180, c=Math.abs(Math.cos(a)), sn=Math.abs(Math.sin(a));
+  const bw=w*c+h*sn, bh=w*sn+h*c;           // 회전 후 겉보기 폭·높이
+  const minX=(bw-w)/2, minY=(bh-h)/2;       // 중심 기준이므로 겉보기 크기가 더 크면 x가 양수부터
+  return {minX, maxX:Math.max(minX,L.w-bw/2-w/2), minY, maxY:Math.max(minY,L.h-bh/2-h/2)};
+}
 function startDrag(fid,canvas,e){
   pushEditorUndo('move');
   const r=canvas.getBoundingClientRect(),f=fieldById(fid); if(!f)return;
@@ -6166,9 +6172,9 @@ document.addEventListener('mousemove',e=>{
     const l=LAYOUTS[editorKey];
     (dragState.origins||[{id:dragState.fid,x:dragState.origX,y:dragState.origY}]).forEach(o=>{
       const item=fieldById(o.id); if(!item)return;
-      const maxX=Math.max(0,l.w-(Number(item.w)||1)),maxY=Math.max(0,l.h-(Number(item.h)||1));
-      item.x=Math.max(0,Math.min(maxX,snap(o.x+dx)));
-      item.y=Math.max(0,Math.min(maxY,snap(o.y+dy)));
+      const R=fieldMoveRange(item,l);
+      item.x=Math.max(R.minX,Math.min(R.maxX,snap(o.x+dx)));
+      item.y=Math.max(R.minY,Math.min(R.maxY,snap(o.y+dy)));
     });
     renderCanvasOnly();
     const primary=fieldById(dragState.fid);
