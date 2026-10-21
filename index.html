@@ -894,6 +894,10 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
           <span style="font-size:11px;color:var(--sub);">시작 &gt; 끝이면 역순 (예: 6→1, 3→2). 역순 체크 시 N→1이 기본값</span>
           <button type="button" class="btn btn-ghost auto" id="batchRangeReset" style="padding:3px 8px;font-size:11px;">기본값</button>
         </div>
+        <div class="checkrow" style="gap:6px;flex-wrap:wrap;align-items:center;" title="실제 생산 수량이 이론값보다 많을 때를 대비해 라벨을 더 뽑습니다. 번호는 이어서 매겨집니다.">
+          <span>여분 라벨 +</span><input type="number" id="batchSpare" min="0" max="100" step="1" value="0" class="field" style="width:70px;">
+          <span style="font-size:11px;color:var(--sub);">이론 수량(<b id="batchSpareBase">-</b>) 뒤에 이어서 번호가 붙습니다 (예: 28드럼 + 2 → 29·30번도 출력 가능)</span>
+        </div>
         <div class="lockednote">체크 해제: 1 → N 순서 / 체크: N → 1 순서로 드럼 번호를 생성하고 출력합니다.</div>
         <button class="btn btn-primary" id="genBatch">선택한 라벨만 전체 드럼 생성</button>
       </div>
@@ -3404,14 +3408,23 @@ let batchRangeKey='';
 function syncBatchRange(o,force){
   const sEl=$('batchRangeStart'), eEl=$('batchRangeEnd'); if(!sEl||!eEl) return;
   if(!o){ sEl.value=''; eEl.value=''; batchRangeKey=''; return; }
-  const n=Math.max(1,Math.round(Number(o.batchDrums)||1));
+  const base=Math.max(1,Math.round(Number(o.batchDrums)||1)), sp=Math.max(0,Math.min(100,Math.round(Number(o.spare)||0))), n=base+sp;   // n = 이론 수량 + 여분
   const rev=!!$('batchReverseOrder')?.checked;
   const key=`${o.id}|${n}|${rev?1:0}`;
+  if($('batchSpare')&&document.activeElement!==$('batchSpare')) $('batchSpare').value=sp;
+  if($('batchSpareBase')) $('batchSpareBase').textContent=base;
   if(force || key!==batchRangeKey || sEl.value===''||eEl.value===''){
     sEl.value=rev?n:1; eEl.value=rev?1:n; batchRangeKey=key;
   }
   sEl.max=n; eEl.max=n;
 }
+document.addEventListener('change',async e=>{
+  if(!e.target||e.target.id!=='batchSpare') return;
+  const o=activeOrder(); if(!o) return;
+  o.spare=Math.max(0,Math.min(100,Math.round(Number(e.target.value)||0)));
+  try{ await saveWorkOrders(); }catch(err){ console.error(err); flash('여분 수량 저장에 실패했습니다',true); }
+  syncBatchRange(o,true); flash(o.spare>0?`여분 라벨 +${o.spare}장 (총 ${(Number(o.batchDrums)||0)+o.spare}장까지 출력 가능)`:'여분 라벨 없음');
+});
 function refreshActiveOrderPanel(){
   const o=activeOrder();
   try{ syncBatchRange(o,false); }catch(e){}
@@ -3697,7 +3710,8 @@ $('genBatch').addEventListener('click',async()=>{
   // v4.15.1: 일괄 출력 순서를 체크박스로 선택.
   // 기본값은 1 → N, 역순 체크 시 N → 1.
   // [v4.14.6] 시작/끝 번호를 직접 지정할 수 있다. 기본값: 순서대로 1→N, 역순 체크 시 N→1.
-  const drumCount = Math.max(1, Math.round(Number(o.batchDrums)||1));
+  const baseCount = Math.max(1, Math.round(Number(o.batchDrums)||1));
+  const drumCount = baseCount + Math.max(0,Math.min(100,Math.round(Number(o.spare)||0)));   // 여분 라벨 포함
   syncBatchRange(o,false);
   const startIn=Number($('batchRangeStart')?.value), endIn=Number($('batchRangeEnd')?.value);
   if(!Number.isInteger(startIn)||!Number.isInteger(endIn)||startIn<1||endIn<1||startIn>drumCount||endIn>drumCount){
@@ -3717,7 +3731,7 @@ $('genBatch').addEventListener('click',async()=>{
     const ctx=contextForSelectedLabel(p,info,num,o.batchWeight,o.volume,lc,selectedVariantBatch);
     const parts=singlePartForType(p,ctx,lc,selectedVariantBatch);
     if(!parts.length){flash(`선택한 라벨(${lc})의 저장 서식을 찾지 못했습니다. 라벨 마스터에서 서식을 저장한 뒤 다시 시도하세요.`,true);return;}
-    generated.push({drumNo:num,tag:plan?(plan.kind==='stock'?'재고':(plan.name||'판매')):'',ctx,parts});
+    generated.push({drumNo:num,tag:(n>baseCount?'여분':(plan?(plan.kind==='stock'?'재고':(plan.name||'판매')):'')),ctx,parts});
     pushLog({time:new Date().toLocaleString('ko-KR'),worker,product:p.name,lot:info.lot,drumNo:num,weight:o.batchWeight,mode:'일괄'});
   }
   selectedIdx=0;renderPreview();
