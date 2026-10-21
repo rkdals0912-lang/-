@@ -2707,8 +2707,32 @@ function fitTextToBox(el){
     const sp=(k,v)=>measureEl.style.setProperty(k,v,'important');
     sp('transform','none'); sp('display','inline-block'); sp('width','max-content'); sp('white-space','nowrap'); sp('transform-origin','0 0'); sp('line-height','1.2');
     el.style.fontSize=(parseFloat(el.dataset.basesize)||10)+'pt';
-    const w=measureEl.offsetWidth, h=measureEl.offsetHeight, bw=el.clientWidth, bh=el.clientHeight;
-    if(w>0&&h>0&&bw>0&&bh>0) sp('transform',`scale(${(bw/w).toFixed(4)},${(bh/h).toFixed(4)})`);
+    sp('text-align','left');
+    let w=measureEl.offsetWidth, h=measureEl.offsetHeight, x0=0, y0=0;
+    const bw=el.clientWidth, bh=el.clientHeight;
+    try{   // 글자 잉크(실제 획) 영역 기준으로 맞춘다 — 줄간격 여백 때문에 덜 차 보이는 것을 방지
+      const cs=getComputedStyle(el), fpx=parseFloat(cs.fontSize)||14, L=fpx*1.2;
+      const cx=(window._stretchCv||(window._stretchCv=document.createElement('canvas'))).getContext('2d');
+      cx.font=`${cs.fontStyle} ${cs.fontWeight} 200px ${cs.fontFamily}`; const K=fpx/200;   // 큰 글자로 측정해 반올림 오차 제거
+      const lines=String(measureEl.innerText||measureEl.textContent||'').replace(/\s+$/,'').split('\n');
+      let top=1e9,bot=-1e9,left=1e9,right=-1e9;
+      // 실제 베이스라인 위치를 DOM에서 측정 (첫 줄/마지막 줄)
+      const mkProbe=()=>{ const q=document.createElement('span'); q.style.cssText='display:inline-block;width:0;height:0;vertical-align:baseline;'; return q; };
+      const p0=mkProbe(), p1=mkProbe(); measureEl.insertBefore(p0,measureEl.firstChild); measureEl.appendChild(p1);
+      const r0=measureEl.getBoundingClientRect(); const sc=r0.width&&measureEl.offsetWidth?r0.width/measureEl.offsetWidth:1;
+      const b0=(p0.getBoundingClientRect().bottom-r0.top)/(sc||1), b1=(p1.getBoundingClientRect().bottom-r0.top)/(sc||1);
+      p0.remove(); p1.remove();
+      lines.forEach((ln,i)=>{
+        const m0=cx.measureText(ln||' ');
+        const m={actualBoundingBoxAscent:m0.actualBoundingBoxAscent*K,actualBoundingBoxDescent:m0.actualBoundingBoxDescent*K,actualBoundingBoxLeft:m0.actualBoundingBoxLeft*K,actualBoundingBoxRight:m0.actualBoundingBoxRight*K};
+        const base=lines.length>1?b0+(b1-b0)*i/(lines.length-1):b0;
+        if(!ln.trim()) return;
+        top=Math.min(top,base-m.actualBoundingBoxAscent); bot=Math.max(bot,base+m.actualBoundingBoxDescent);
+        left=Math.min(left,-m.actualBoundingBoxLeft); right=Math.max(right,m.actualBoundingBoxRight);
+      });
+      if(isFinite(top)&&bot>top&&right>left){ x0=left; y0=top; w=right-left; h=bot-top; }
+    }catch(e){}
+    if(w>0&&h>0&&bw>0&&bh>0) sp('transform',`scale(${(bw/w).toFixed(4)},${(bh/h).toFixed(4)}) translate(${(-x0).toFixed(2)}px,${(-y0).toFixed(2)}px)`);
     return;
   }
   const base=parseFloat(el.dataset.basesize)||parseFloat(el.style.fontSize)||10;
@@ -4663,6 +4687,7 @@ async function renderPartCanvas(part, dpi) {
     /* -----------------------------------------------------
        html2canvas
        ----------------------------------------------------- */
+    try{ applyAutoFitFields(host); }catch(e){}   // host가 문서에 붙은 뒤(폰트 로딩 후) 자동맞춤 재계산
     const canvas = await window.html2canvas(el, {
 
       backgroundColor: '#ffffff',
