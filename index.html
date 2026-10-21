@@ -588,6 +588,7 @@ body.workspace-open #homeView{display:none;}
   <button id="tabProductMaster" class="adminOnly">▦ 제품관리(마스터)</button>
   <button id="tabLotRules" class="adminOnly"># LOT 규칙관리</button>
   <button id="tabExpRules" class="adminOnly"># EXP 규칙관리</button>
+  <button id="tabMfgRules" class="adminOnly"># 제조일자 규칙관리</button>
   <button id="tabVarRules" class="adminOnly"># 변수 관리</button>
   <button id="tabFreePrint" class="adminOnly">🖨 계획 없이 출력</button>
   <button id="tabPressLog">▤ 프레스일지</button>
@@ -977,6 +978,9 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
           <div><label>사용 여부</label><select id="lmActive"><option value="true">사용</option><option value="false">미사용</option></select></div>
           <div class="span2" id="lmCopySourceWrap"><label>복사할 라벨 (신규 등록 시)</label><select id="lmCopySource"></select><div class="lockednote" style="margin-top:5px;">선택한 기존 라벨의 <b>서식만 복사</b>합니다. 캔버스·블록·Table·글꼴·위치·회전·변수 연결은 복제되며, LOT 체계·제품 연결·라벨명은 복사하지 않습니다.</div></div>
           <div class="span2"><label>기본 LOT 체계</label><select id="lmLotRule"></select><div class="lockednote" style="margin-top:5px;">제품에서 이 라벨을 선택하면 이 LOT 체계를 우선 적용합니다. 미지정 시 제품 기본 LOT 규칙을 사용합니다.</div></div>
+          <div class="span2"><label>기본 제조일자(MFG) 규칙</label><select id="lmMfgRule"></select><div class="lockednote" style="margin-top:5px;">규칙은 <b># 제조일자 규칙관리</b> 탭에서 만듭니다. 기본이 아닌 규칙을 지정하면 이 라벨의 생산일자/제조일자 변수와 사용기한(EXP) 기준일이 규칙대로 계산됩니다.</div></div>
+          <div class="span2"><label>기본 EXP 규칙</label><select id="lmExpRule"></select><div class="lockednote" style="margin-top:5px;">규칙은 <b># EXP 규칙관리</b> 탭에서 만듭니다. 지정하면 제품의 EXP 규칙보다 이 라벨의 규칙을 우선 적용합니다.</div></div>
+          <div class="span2"><label>연결 사용자 변수</label><div id="lmVarList" style="max-height:130px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;"></div><div class="lockednote" style="margin-top:5px;">변수는 <b># 변수 관리</b> 탭에서 만듭니다. 체크한 변수만 이 라벨 서식 편집기의 변수 목록에 나옵니다. <b>아무것도 체크하지 않으면 모든 사용자 변수</b>가 나옵니다.</div></div>
           <div><label>비고</label><input type="text" class="field" id="lmNote" placeholder="고객사 / 용도 / 특이사항"></div>
         </div>
         <div class="editorActions" style="margin-top:10px;">
@@ -1505,6 +1509,39 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
         <div class="toolbar"><h2 style="margin:0;">EXP 규칙 마스터</h2><span class="masterBadge" id="erCount">0개</span></div>
         <div class="masterTableWrap" style="max-height:620px;overflow:auto;">
           <table class="masterTable"><thead><tr><th>규칙명</th><th>계산 기준</th><th>표시 형식</th><th>예시</th><th>관리</th></tr></thead><tbody id="erTableBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="mfgRuleView" class="adminOnly" style="display:none;">
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h2><span class="n">#</span>제조일자 규칙 등록 / 수정</h2>
+        <input type="hidden" id="mrEditId">
+        <label>규칙명 *</label>
+        <input type="text" class="field" id="mrName" placeholder="예: 생산일 -1일, 출력일 기준, 월말">
+        <label>제조일자 계산 기준</label>
+        <select id="mrMode"></select>
+        <div class="row2">
+          <div><label>가감 일수 (±)</label><input type="number" id="mrValue" step="1" value="0"></div>
+          <div><label>표시 형식</label><select id="mrFormat"></select></div>
+        </div>
+        <label>설명</label><input type="text" class="field" id="mrDescription" placeholder="적용 라벨 / 용도 등">
+        <div class="lotPreview" id="mrPreview">제조일자 : —</div>
+        <div class="editorActions" style="margin-top:10px;">
+          <button class="btn btn-primary" id="mrSaveBtn">+ 제조일자 규칙 등록</button>
+          <button class="btn btn-ghost" id="mrResetBtn">입력 초기화</button>
+        </div>
+        <div class="lockednote">만든 규칙은 <b>라벨 마스터 → 기본 제조일자 규칙</b>에서 라벨별로 연결합니다. 연결하지 않은 라벨은 기존처럼 생산일자를 그대로 사용합니다.</div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="toolbar"><h2 style="margin:0;">제조일자 규칙 마스터</h2><span class="masterBadge" id="mrCount">0개</span></div>
+        <div class="masterTableWrap" style="max-height:620px;overflow:auto;">
+          <table class="masterTable"><thead><tr><th>규칙명</th><th>계산 기준</th><th>표시 형식</th><th>예시</th><th>사용 라벨</th><th>관리</th></tr></thead><tbody id="mrTableBody"></tbody></table>
         </div>
       </div>
     </div>
@@ -2289,12 +2326,61 @@ function computeExpiryDate(order,p,rule){
   const days=rule.mode==='product_days' ? Number(p?.useByDays ?? 0) : Number(rule.value)||0;
   return new Date(d.getTime()+Math.max(0,days)*86400000);
 }
-function computeLotInfo(order,drumNo=1,lotRuleIdOverride=''){
+// ===== 제조일자(MFG) 규칙 코어 =====
+// 규칙 = {id,name,mode,value,format,description,system}
+//  mode: production_date(생산일자 ±value일) / print_date(출력일 ±value일) / month_start(생산월 1일) / month_end(생산월 말일) / none(표시 안 함)
+//  새 기준이 필요하면 MFG_RULE_MODES 와 computeMfgDate 의 case 한 줄만 추가하면 규칙관리 화면·라벨 마스터에 자동 반영된다.
+const MFG_RULES_KEY='ksa-mfg-rules-v1';
+const MFG_DEFAULT_ID='MFG_PRODUCTION_DATE';
+const MFG_RULE_MODES=[
+  ['production_date','생산일자 기준 (± 일수)'],
+  ['print_date','출력일(오늘) 기준 (± 일수)'],
+  ['month_start','생산월 1일'],
+  ['month_end','생산월 말일'],
+  ['none','제조일자 표시 안 함']
+];
+const MFG_FORMATS=['YYYY.MM.DD','YYYY-MM-DD','YYMMDD','YYYYMMDD','YY.MM.DD','MMM. YYYY','YYYY.MM'];
+let MFG_RULES=[{id:MFG_DEFAULT_ID,name:'생산일자 그대로',mode:'production_date',value:0,format:'YYYY-MM-DD',description:'작업지시 생산일자를 그대로 제조일자로 사용 (기본)',system:true}];
+function getMfgRuleById(id){ return MFG_RULES.find(r=>r.id===id)||MFG_RULES.find(r=>r.id===MFG_DEFAULT_ID)||MFG_RULES[0]; }
+function mfgRuleIsDefault(r){ return !r || (r.mode==='production_date' && !(Number(r.value)||0) && (r.format||'YYYY-MM-DD')==='YYYY-MM-DD'); }
+function computeMfgDate(order,rule){
+  const r=rule||MFG_RULES[0];
+  const base=new Date(String(order?.date||todayISO())+'T00:00:00');
+  const off=Math.trunc(Number(r.value)||0);
+  switch(r.mode){
+    case 'none': return null;
+    case 'print_date': { const t=new Date(); t.setHours(0,0,0,0); t.setDate(t.getDate()+off); return t; }
+    case 'month_start': return new Date(base.getFullYear(),base.getMonth(),1);
+    case 'month_end': return new Date(base.getFullYear(),base.getMonth()+1,0);
+    default: base.setDate(base.getDate()+off); return base;
+  }
+}
+function isoDateOf(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+// 라벨 마스터에 연결된 규칙(LOT/EXP/제조일자/변수)을 찾는다. 라벨에 지정이 없으면 제품 기본값을 쓴다.
+function labelMasterOf(labelCode){ try{ return labelCode?labelMasterByCode(String(labelCode)):null; }catch(e){ return null; } }
+function resolveExpRuleFor(p,labelCode){
+  const lm=labelMasterOf(labelCode);
+  if(lm?.expRuleId && typeof EXP_RULES!=='undefined' && EXP_RULES.some(r=>r.id===lm.expRuleId)) return getExpRuleById(lm.expRuleId);
+  return getExpRuleById(getProductExpRuleId(p));
+}
+function resolveMfgRuleFor(labelCode){
+  const lm=labelMasterOf(labelCode);
+  if(lm?.mfgRuleId && MFG_RULES.some(r=>r.id===lm.mfgRuleId)) return getMfgRuleById(lm.mfgRuleId);
+  return getMfgRuleById(MFG_DEFAULT_ID);
+}
+function computeLotInfo(order,drumNo=1,lotRuleIdOverride='',labelCodeArg=''){
   if(order&&order.lotDate&&order.lotDate!==order.date) order={...order,date:order.lotDate};   // 여러 작업일로 나뉜 이어서-작업: 생산일자·유효기간은 LOT 첫날 기준
   const p=resolveOrderProduct(order)||{};
   const d=new Date(order.date+'T00:00:00'),f=fmtDate(d);
-  const expRule=getExpRuleById(getProductExpRuleId(p));
-  const expD=computeExpiryDate(order,p,expRule);
+  const labelCode=String(labelCodeArg||order?.labelCode||'');
+  const expRule=resolveExpRuleFor(p,labelCode);
+  // 제조일자 규칙: 라벨 마스터에 기본값이 아닌 규칙이 지정된 경우에만 라벨 표시값/사용기한 기준일이 바뀐다.
+  const mfgRule=resolveMfgRuleFor(labelCode);
+  const mfgActive=!!(labelMasterOf(labelCode)?.mfgRuleId) && !mfgRuleIsDefault(mfgRule);
+  const mfgD=computeMfgDate(order,mfgRule);
+  const mfgExtra={mfgActive,mfgRuleId:mfgRule.id,mfgRuleName:mfgRule.name,mfgDateRaw:mfgD?isoDateOf(mfgD):'',mfg:mfgD?formatExpiry(mfgD,mfgRule.format||'YYYY-MM-DD'):''};
+  const expBase=(mfgActive&&mfgD)?{...order,date:isoDateOf(mfgD)}:order;
+  const expD=computeExpiryDate(expBase,p,expRule);
   const exp=expD ? formatExpiry(expD,expRule.format||'YYYY-MM-DD') : '';
 
   // v4.19: 사용자가 엑셀이나 작업지시 수정에서 customLot(로트번호)을 직접 지정한 경우 최우선 반영
@@ -2302,13 +2388,38 @@ function computeLotInfo(order,drumNo=1,lotRuleIdOverride=''){
     const lot=String(order.customLot).trim()
       .replace(/\{DRUM\}/g, String(drumNo??1))
       .replace(/\{DRUM2\}/g, pad2(drumNo??1));
-    return {lot,exp,expDateRaw:expD?`${expD.getFullYear()}-${pad2(expD.getMonth()+1)}-${pad2(expD.getDate())}`:'',prodDateDisp:f.disp,prodDateRaw:order.date,...productionDateFormats(order.date),ruleId:'CUSTOM',ruleName:'수기/직접지정',expRuleId:expRule.id,expRuleName:expRule.name};
+    return {lot,exp,expDateRaw:expD?isoDateOf(expD):'',prodDateDisp:f.disp,prodDateRaw:order.date,...productionDateFormats(order.date),...mfgExtra,ruleId:'CUSTOM',ruleName:'수기/직접지정',expRuleId:expRule.id,expRuleName:expRule.name};
   }
 
   const rule=getLotRuleById(lotRuleIdOverride || getProductLotRuleId(p));
   const lot=renderLotPattern(rule.pattern,order,drumNo,p);
-  return {lot,exp,expDateRaw:expD?`${expD.getFullYear()}-${pad2(expD.getMonth()+1)}-${pad2(expD.getDate())}`:'',prodDateDisp:f.disp,prodDateRaw:order.date,...productionDateFormats(order.date),ruleId:rule.id,ruleName:rule.name,expRuleId:expRule.id,expRuleName:expRule.name};
+  return {lot,exp,expDateRaw:expD?isoDateOf(expD):'',prodDateDisp:f.disp,prodDateRaw:order.date,...productionDateFormats(order.date),...mfgExtra,ruleId:rule.id,ruleName:rule.name,expRuleId:expRule.id,expRuleName:expRule.name};
 }
+// 컨텍스트(라벨 변수 값)에 제조일자 규칙 결과를 반영한다. 기본 규칙이면 기존 값(생산일자)을 그대로 둔다.
+function applyMfgToContext(ctx,info){
+  if(!ctx||!info) return ctx;
+  const raw=info.mfgDateRaw||'';
+  const fm=(fmt)=>raw?formatExpiry(new Date(raw+'T00:00:00'),fmt):'';
+  ctx.mfgDate=info.mfg||'';
+  ctx.mfgLine=`제조일자 : ${info.mfg||''}`;
+  ctx.mfgYYYYdotMMdotDD=fm('YYYY.MM.DD'); ctx.mfgYYYYdashMMdashDD=fm('YYYY-MM-DD');
+  ctx.mfgYYMMDD=fm('YYMMDD'); ctx.mfgYYYYMMDD=fm('YYYYMMDD'); ctx.mfgYYdotMMdotDD=fm('YY.MM.DD');
+  ctx.mfgMMMYYYY=fm('MMM. YYYY'); ctx.mfgYYYYdotMM=fm('YYYY.MM');
+  if(info.mfgActive){
+    const disp=info.mfg||'';
+    const f=raw?productionDateFormats(raw):{};
+    ctx.proddate=disp;
+    ['prodDateYYYYMMDD','prodDateYYMMDD','prodDateYYYYdotMMdotDD','prodDateYYdotMMdotDD','prodDateYYYYdashMMdashDD','prodDateYYdashMMdashDD'].forEach(k=>{ ctx[k]=f[k]||''; });
+    ctx.dateLineKr=`생산일자 : ${disp}`;
+    ctx.mfdLineEn=`ㆍM.F.D : ${disp}`;
+  }
+  return ctx;
+}
+(function(){
+  const _bc=buildContext, _bd=buildDongeunContext;
+  buildContext=function(p,info,...rest){ return applyMfgToContext(_bc.call(this,p,info,...rest),info); };
+  buildDongeunContext=function(p,info,...rest){ return applyMfgToContext(_bd.call(this,p,info,...rest),info); };
+})();
 // 같은 품목·같은 LOT가 여러 작업지시(배치·야간·다음날)에 걸치면 드럼번호를 앞 구간에 이어서 매긴다.
 // 예) 주간 24드럼 → 야간 작업지시는 25번부터. (LOT에 {DRUM}이 들어가 드럼마다 LOT가 다른 규칙은 이어붙이지 않음)
 function lotDrumKey(o){
@@ -2752,7 +2863,7 @@ function renderOrderList(){
         const labelCode = o.labelCode || '';
         const variant = o.variant || '';
         const ruleId = o.lotRuleId || labelEffectiveLotRule(p, labelCode, variant);
-        const info = computeLotInfo(o, 1, ruleId);
+        const info = computeLotInfo(o, 1, ruleId, labelCode);
         lotDisplay = info.lot || '(로트번호 미입력)';
       }catch(e){}
     }
@@ -2840,14 +2951,19 @@ function openEditOrderModal(orderId){
   const prodSelect=$('editOrderProduct');
   if(prodSelect){
     prodSelect.innerHTML=ALL_PRODUCTS.map((p,i)=>`<option value="${i}">${escapeHtml(productDisplay(p))}</option>`).join('');
-    // 현재 order에 맞는 index 선택
-    let targetIdx=order.productIdx;
-    if(typeof targetIdx!=='number'||!ALL_PRODUCTS[targetIdx]){
-      const resolved=resolveOrderProduct(order);
-      const foundIdx=resolved?ALL_PRODUCTS.findIndex(p=>p===resolved||(p.code===resolved.code&&p.shortName===resolved.shortName)):0;
-      targetIdx=Math.max(0,foundIdx);
+    // 현재 order에 맞는 제품 선택
+    // [버그수정] order.productIdx 는 ALL_PRODUCTS 정렬/추가/삭제 시 어긋나는 '순번'이라 다른 품목이 선택되었다.
+    // 마스터ID → 프로파일키 → 품목코드+약어 순으로 실제 제품을 찾고, 순번은 마지막 수단으로만 쓴다.
+    const resolved=resolveOrderProduct(order);
+    let targetIdx=resolved?ALL_PRODUCTS.indexOf(resolved):-1;
+    if(targetIdx<0 && resolved) targetIdx=ALL_PRODUCTS.findIndex(p=>String(p.masterId||'')===String(resolved.masterId||'') && String(p.code||'')===String(resolved.code||'') && String(p.shortName||p.name||'')===String(resolved.shortName||resolved.name||''));
+    if(targetIdx<0){
+      // 못 찾으면 엉뚱한 품목(0번)을 고르지 않고 '선택 필요' 상태로 둔다.
+      prodSelect.insertAdjacentHTML('afterbegin','<option value="">-- 제품을 다시 선택하세요 (기존 품목을 마스터에서 찾지 못함) --</option>');
+      prodSelect.value='';
+    }else{
+      prodSelect.value=String(targetIdx);
     }
-    prodSelect.value=targetIdx;
   }
 
   updateEditOrderLotPreview();
@@ -2862,8 +2978,9 @@ function closeEditOrderModal(){
 }
 
 function updateEditOrderLotPreview(){
-  const prodIdx=+$('editOrderProduct')?.value;
-  const p=ALL_PRODUCTS[prodIdx]||{};
+  const prodRaw=String($('editOrderProduct')?.value??'');
+  const prodIdx=prodRaw===''?-1:+prodRaw;
+  const p=(prodIdx>=0&&ALL_PRODUCTS[prodIdx])||{};
   const labelCode=normalizeSelectedLabelType(p,'','');
   const ruleId=labelEffectiveLotRule(p,labelCode,'')||getProductLotRuleId(p);
   const needsInput3=productUsesManualInput3(p,ruleId);
@@ -2901,8 +3018,9 @@ async function saveEditOrderChanges(){
   const order=workOrders.find(o=>o.id===orderId);
   if(!order){ flash('작업지시를 찾을 수 없습니다.',true); return; }
 
-  const prodIdx=+$('editOrderProduct')?.value;
-  const p=ALL_PRODUCTS[prodIdx];
+  const prodRaw=String($('editOrderProduct')?.value??'');
+  const prodIdx=prodRaw===''?-1:+prodRaw;
+  const p=prodIdx>=0?ALL_PRODUCTS[prodIdx]:null;
   if(!p){ flash('제품을 선택하세요.',true); return; }
 
   const drums=Number($('editOrderDrums')?.value);
@@ -3302,7 +3420,7 @@ function updateManualOrderLotPreview(){
       productMasterId:selectedProduct.masterId||'',productProfileKey:selectedProduct.importProfileKey||'',
       productCode:selectedProduct.code||'',productName:selectedProduct.shortName||selectedProduct.name||selectedProduct.scheduleName||''
     };
-    const info=computeLotInfo(tempOrder,1,ruleId);
+    const info=computeLotInfo(tempOrder,1,ruleId,labelCode);
     const expText=info.exp?` · 사용기한 ${info.exp}`:'';
     el.innerHTML=`LOT 미리보기(드럼 1번 기준): <b>${escapeHtml(info.lot||'-')}</b>${expText?escapeHtml(expText):''}`;
   }catch(e){
@@ -3393,7 +3511,7 @@ function autoPreviewOrder(){
     if(!labelCode){generated=[];renderPreview();return;}
     const ruleId=labelEffectiveLotRule(p,labelCode,variant);
     const drumNo=mode==='live'?(liveDrumCounter||1):1;
-    const info=computeLotInfo(o,drumNo,ruleId);
+    const info=computeLotInfo(o,drumNo,ruleId,labelCode);
     const weight=mode==='live'?($('liveWeight')?.value||p.kg||''):o.batchWeight;
     const ctx=contextForSelectedLabel(p,info,drumNo,weight,o.volume,labelCode,variant);
     const parts=singlePartForType(p,ctx,labelCode,variant);
@@ -3439,7 +3557,7 @@ function refreshActiveOrderPanel(){
   const activeLabelCode=(mode==='live'?selectedLabelTypeLive:selectedLabelTypeBatch)||selectedLabelTypeBatch||selectedLabelTypeLive;
   const activeVariant=(mode==='live'?selectedVariantLive:selectedVariantBatch)||'';
   const activeRuleId=labelEffectiveLotRule(p,activeLabelCode,activeVariant);
-  const info=computeLotInfo(o,1,activeRuleId);
+  const info=computeLotInfo(o,1,activeRuleId,activeLabelCode);
   $('prodNameOut').textContent=`${p.shortName||p.name||p.scheduleName||''}${p.color?` ${p.color}`:''} (${o.shift})`;
   $('lotOut').textContent=info.lot;
   $('dateExpOut').textContent=`${info.prodDateDisp} → ${info.exp}`;
@@ -3727,7 +3845,7 @@ $('genBatch').addEventListener('click',async()=>{
     const dn=n+lotOff;   // 같은 LOT의 앞 구간에 이어서 번호 매김
     const plan=drumPlan(o,dn);   // 판매/재고 배정이 있으면 번호 범위별로 라벨·LOT가 달라진다
     const lc=(plan&&plan.labelCode)||labelCode, rid=plan?(labelEffectiveLotRule(p,lc,selectedVariantBatch)||ruleId):ruleId, num=plan?plan.num:dn;
-    const info=computeLotInfo(plan?plan.order:o,num,rid);
+    const info=computeLotInfo(plan?plan.order:o,num,rid,lc);
     const ctx=contextForSelectedLabel(p,info,num,o.batchWeight,o.volume,lc,selectedVariantBatch);
     const parts=singlePartForType(p,ctx,lc,selectedVariantBatch);
     if(!parts.length){flash(`선택한 라벨(${lc})의 저장 서식을 찾지 못했습니다. 라벨 마스터에서 서식을 저장한 뒤 다시 시도하세요.`,true);return;}
@@ -3749,7 +3867,7 @@ $('genLive').addEventListener('click',async()=>{
     if(!validManualInput3(v)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력해야 합니다.',true);return;}
     o.manualLotInput=v; await saveWorkOrders(); refreshActiveOrderPanel();
   }
-  const info=computeLotInfo(o,n+lotDrumOffset(o),ruleId);
+  const info=computeLotInfo(o,n+lotDrumOffset(o),ruleId,labelCode);
   const ctx=contextForSelectedLabel(p,info,n+lotDrumOffset(o),w,o.volume,labelCode,selectedVariantLive);
   const parts=singlePartForType(p,ctx,labelCode,selectedVariantLive);
   if(!parts.length){flash(`선택한 라벨(${labelCode})의 저장 서식을 찾지 못했습니다. 라벨 마스터에서 서식을 저장한 뒤 다시 시도하세요.`,true);return;}
@@ -5213,7 +5331,7 @@ $('pinInlineInput').addEventListener('keydown',e=>{
 
 
 function openWorkspace(){document.body.classList.add('workspace-open');}
-function showHome(){clearPopViews();document.body.classList.remove('workspace-open');$('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');}
+function showHome(){clearPopViews();document.body.classList.remove('workspace-open');$('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('mfgRuleView'))$('mfgRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');}
 if($('homeBtn')) $('homeBtn').addEventListener('click',showHome);
 document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventListener('click',()=>{
   const go=card.dataset.go;
@@ -5229,7 +5347,7 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
   else if(go==='history'){ $('tabBatch').click(); setTimeout(()=>{ if($('printHistoryPanel'))$('printHistoryPanel').style.display='block'; $('printHistoryPanel')?.scrollIntoView({behavior:'smooth',block:'start'}); },120); }
   else if(go==='printer'){ $('tabBatch').click(); setTimeout(()=>$('printerSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
 }));
-function showOp(){clearPopViews();$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabExpRules'))$('tabExpRules').classList.remove('active');if($('tabFreePrint'))$('tabFreePrint').classList.remove('active');}
+function showOp(){clearPopViews();$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('mfgRuleView'))$('mfgRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabExpRules'))$('tabExpRules').classList.remove('active');if($('tabFreePrint'))$('tabFreePrint').classList.remove('active');}
 async function autoSaveLabelWorkBeforeLeaving(){
   // v4.11.3: 라벨 서식 편집 후 출력/다른 관리 화면으로 이동해도 변경사항이 사라지지 않도록 자동 저장.
   if(document.body.classList.contains('editing')){
@@ -5238,7 +5356,7 @@ async function autoSaveLabelWorkBeforeLeaving(){
 }
 $('tabBatch').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();openWorkspace();mode='batch';$('tabBatch').classList.add('active');$('tabLive').classList.remove('active');$('tabEditor').classList.remove('active');$('panelBatch').style.display='block';$('panelLive').style.display='none';if($('printHistoryPanel'))$('printHistoryPanel').style.display='none';showOp();refreshActiveOrderPanel();});
 $('tabLive').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();openWorkspace();mode='live';$('tabLive').classList.add('active');$('tabBatch').classList.remove('active');$('tabEditor').classList.remove('active');$('panelLive').style.display='block';$('panelBatch').style.display='none';if($('printHistoryPanel'))$('printHistoryPanel').style.display='none';$('nextDrumOut').textContent=liveDrumCounter;showOp();refreshActiveOrderPanel();});
-$('tabEditor').addEventListener('click',()=>{openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabFreePrint'))$('tabFreePrint').classList.remove('active');document.body.classList.add('editing');setupSeparatedLabelScreens();showLabelMasterScreen();renderEditorTabs();renderLabelMasterList();renderEditor();});
+$('tabEditor').addEventListener('click',()=>{openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('tabEditor').classList.add('active');$('tabBatch').classList.remove('active');$('tabLive').classList.remove('active');$('opView').style.display='none';$('editorView').style.display='block';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('mfgRuleView'))$('mfgRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabFreePrint'))$('tabFreePrint').classList.remove('active');document.body.classList.add('editing');setupSeparatedLabelScreens();showLabelMasterScreen();renderEditorTabs();renderLabelMasterList();renderEditor();});
 $('resetLive').addEventListener('click',()=>{liveDrumCounter=1;$('nextDrumOut').textContent='1';flash('드럼 카운트 초기화');});
 
 
@@ -5513,6 +5631,15 @@ const FIELD_VARIABLES = [
   ['prodDateYYYYdashMMdashDD','생산일자 YYYY-MM-DD'],
   ['dateLineKr','생산일자(국문 문구 포함)'],
   ['mfdLineEn','M.F.D'],
+  ['mfgDate','제조일자 (제조일자 규칙 적용)'],
+  ['mfgLine','제조일자(국문 문구 포함)'],
+  ['mfgYYYYdotMMdotDD','제조일자 YYYY.MM.DD'],
+  ['mfgYYYYdashMMdashDD','제조일자 YYYY-MM-DD'],
+  ['mfgYYMMDD','제조일자 YYMMDD'],
+  ['mfgYYYYMMDD','제조일자 YYYYMMDD'],
+  ['mfgYYdotMMdotDD','제조일자 YY.MM.DD'],
+  ['mfgMMMYYYY','제조일자 MMM. YYYY'],
+  ['mfgYYYYdotMM','제조일자 YYYY.MM'],
   ['usebyLineKr','USE BY(국문)'],
   ['usebyLineEn','USE BY(영문)'],
   ['drumNo','드럼 번호'],
@@ -5524,10 +5651,21 @@ const FIELD_VARIABLES = [
   ['expireLine','Expire date 문구']
 ];
 
+// 현재 편집 중인 라벨 마스터에 '연결 사용자 변수'가 지정되어 있으면, 사용자 변수는 그 목록만 보여준다(이미 쓰는 변수는 항상 표시).
+function editorCurrentLabelMaster(){
+  try{ return allLabelMaster().find(x=>effectiveLabelLayoutKey(x.labelCode,x.layoutKey)===editorKey)||null; }catch(e){ return null; }
+}
+function editorVariableList(selected){
+  const lm=editorCurrentLabelMaster();
+  const keys=Array.isArray(lm?.varKeys)?lm.varKeys:[];
+  if(!keys.length) return FIELD_VARIABLES;
+  return FIELD_VARIABLES.filter(([k])=>!String(k).startsWith('cv_')||keys.includes(k)||k===selected);
+}
 function fillVariableSelect(selectEl, selected){
   if(!selectEl) return;
-  selectEl.innerHTML = FIELD_VARIABLES.map(([key,label])=>`<option value="${key}">${label}</option>`).join('');
-  if(selected && FIELD_VARIABLES.some(([key])=>key===selected)) selectEl.value=selected;
+  const list=editorVariableList(selected);
+  selectEl.innerHTML = list.map(([key,label])=>`<option value="${key}">${label}</option>`).join('');
+  if(selected && list.some(([key])=>key===selected)) selectEl.value=selected;
 }
 
 function sampleContextForLabel(labelCode='',layoutKey=''){
@@ -5539,7 +5677,7 @@ function sampleContextForLabel(labelCode='',layoutKey=''){
   const productIdx=Math.max(0,ALL_PRODUCTS.indexOf(p));
   const previewManualLot=(typeof ruleUsesManualInput3==='function' && ruleUsesManualInput3(ruleId))?'124':'';
   const o={date:todayISO(),machine:'M2',batchCount:'1',batchSeq:1,productIdx,productMasterId:p?.masterId||'',productCode:p?.code||'',manualLotInput:previewManualLot};
-  const info=computeLotInfo(o,4,ruleId);
+  const info=computeLotInfo(o,4,ruleId,labelCode);
   const ctx=['kr','en','sample'].includes(base)?buildDongeunContext(p,info,4,p?.kg):buildContext(p,info,4,p?.kg,p?.volume);
   // 서식 설계 단계에서는 바코드 데이터가 비어 있어도 바코드 블록 자체를 확인할 수 있게 테스트값 제공.
   if(!ctx.barcode){ctx.barcode='8801234567890';ctx.barcodeText=(p?.barcodeShowText===false)?'':'8801234567890';ctx.barcodeRuleResult='8801234567890';ctx.barcodeType=p?.barcodeType||'CODE128';}
@@ -5643,7 +5781,7 @@ function renderTableInspector(f,box){
     const cell=(f.cells[r]&&f.cells[r][c])||{kind:'static',text:'',align:c===0?'left':'left',size:f.size||9,weight:400};
     if(!f.cells[r]) f.cells[r]=[]; f.cells[r][c]=cell;
     const wrap=document.createElement('div');wrap.className='tableCellEditor';
-    wrap.innerHTML=`<div class="cellHead">${r+1}행 ${c+1}열</div><select class="cellVar"><option value="">고정 텍스트</option>${FIELD_VARIABLES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="cellText" type="text" placeholder="셀 텍스트"><div class="tableCellMini"><select class="cellAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><input class="cellSize" type="number" min="5" max="72" step=".5"><select class="cellWeight"><option value="400">보통</option><option value="600">중간</option><option value="700">굵게</option><option value="900">매우 굵게</option></select></div><div style="margin-top:5px"><label style="font-size:10px">셀 글꼴</label><select class="cellFont"></select><div class="cellFontState" style="font-size:9px;color:#64748b;margin-top:2px"></div></div>`;
+    wrap.innerHTML=`<div class="cellHead">${r+1}행 ${c+1}열</div><select class="cellVar"><option value="">고정 텍스트</option>${editorVariableList(cell&&cell.bind).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="cellText" type="text" placeholder="셀 텍스트"><div class="tableCellMini"><select class="cellAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><input class="cellSize" type="number" min="5" max="72" step=".5"><select class="cellWeight"><option value="400">보통</option><option value="600">중간</option><option value="700">굵게</option><option value="900">매우 굵게</option></select></div><div style="margin-top:5px"><label style="font-size:10px">셀 글꼴</label><select class="cellFont"></select><div class="cellFontState" style="font-size:9px;color:#64748b;margin-top:2px"></div></div>`;
     const sel=wrap.querySelector('.cellVar'),txt=wrap.querySelector('.cellText'),al=wrap.querySelector('.cellAlign'),sz=wrap.querySelector('.cellSize'),wt=wrap.querySelector('.cellWeight'),ft=wrap.querySelector('.cellFont'),fs=wrap.querySelector('.cellFontState');
     sel.value=cell.kind==='bind'?(cell.bind||''):'';txt.value=cell.kind==='static'?(cell.text||''):'';txt.style.display=cell.kind==='bind'?'none':'block';al.value=cell.align||'left';sz.value=cell.size||f.size||9;wt.value=String(cell.weight||400);fillFontSelect(ft,cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans'));if(fs){const fk=cell.fontFamily||f.fontFamily||(cell.mono?'system-mono':'system-sans');fs.textContent=`적용값: ${fontOption(fk).label}`;}
     sel.addEventListener('change',()=>{if(sel.value){cell.kind='bind';cell.bind=sel.value;delete cell.text;txt.style.display='none';}else{cell.kind='static';cell.text=txt.value;delete cell.bind;txt.style.display='block';}renderCanvasOnly();});
@@ -6286,8 +6424,8 @@ async function deleteLotRule(id){
 }
 function showLotRules(){
   openWorkspace(); if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}
-  $('opView').style.display='none'; $('editorView').style.display='none'; $('productMasterView').style.display='none'; $('lotRuleView').style.display='block'; if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none'; if($('freePrintView'))$('freePrintView').style.display='none'; document.body.classList.remove('editing');
-  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabExpRules','tabFreePrint'].forEach(id=>$(id).classList.remove('active')); $('tabLotRules').classList.add('active'); renderLotRuleTable(); resetLotRuleForm();
+  $('opView').style.display='none'; $('editorView').style.display='none'; $('productMasterView').style.display='none'; $('lotRuleView').style.display='block'; if($('expRuleView'))$('expRuleView').style.display='none';if($('mfgRuleView'))$('mfgRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none'; if($('freePrintView'))$('freePrintView').style.display='none'; document.body.classList.remove('editing');
+  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabExpRules','tabMfgRules','tabFreePrint'].forEach(id=>$(id).classList.remove('active')); $('tabLotRules').classList.add('active'); renderLotRuleTable(); resetLotRuleForm();
 }
 
 const EXP_RULES_KEY='ksa-exp-rules-v1';
@@ -6300,9 +6438,92 @@ function updateErPreview(){ if(!$('erPreview'))return; const r={mode:$('erMode')
 function resetExpRuleForm(){ $('erEditId').value='';$('erName').value='';$('erMode').value='product_days';$('erValue').value='0';$('erFormat').value='YYYY-MM-DD';$('erDescription').value='';$('erSaveBtn').textContent='+ EXP 규칙 등록';updateErPreview(); }
 function renderExpRuleTable(){ if(!$('erTableBody'))return; $('erCount').textContent=`${EXP_RULES.length}개`; $('erTableBody').innerHTML=EXP_RULES.map(r=>`<tr><td><b>${escapeHtml(r.name)}</b>${r.system?'<br><span class="masterBadge">기본</span>':''}</td><td>${escapeHtml(expRuleText(r))}</td><td>${escapeHtml(r.format||'')}</td><td><code>${escapeHtml(expRuleSample(r))}</code></td><td><button class="miniBtn edit" data-er-edit="${r.id}">수정</button>${r.system?'':` <button class="miniBtn del" data-er-del="${r.id}">삭제</button>`}</td></tr>`).join(''); $('erTableBody').querySelectorAll('[data-er-edit]').forEach(b=>b.addEventListener('click',()=>editExpRule(b.dataset.erEdit))); $('erTableBody').querySelectorAll('[data-er-del]').forEach(b=>b.addEventListener('click',()=>deleteExpRule(b.dataset.erDel))); }
 function editExpRule(id){const r=EXP_RULES.find(x=>x.id===id);if(!r)return;$('erEditId').value=r.id;$('erName').value=r.name||'';$('erMode').value=r.mode||'product_days';$('erValue').value=r.value??0;$('erFormat').value=r.format||'YYYY-MM-DD';$('erDescription').value=r.description||'';$('erSaveBtn').textContent='EXP 규칙 수정 저장';updateErPreview();}
-async function saveExpRuleFromForm(){const name=$('erName').value.trim();if(!name){flash('EXP 규칙명을 입력하세요',true);return;}const id=$('erEditId').value,old=EXP_RULES.find(x=>x.id===id);const obj={id:id||`EXP_CUSTOM_${Date.now()}`,name,mode:$('erMode').value,value:+$('erValue').value||0,format:$('erFormat').value,description:$('erDescription').value.trim(),system:!!old?.system};const i=EXP_RULES.findIndex(x=>x.id===obj.id);if(i>=0)EXP_RULES[i]=obj;else EXP_RULES.push(obj);await saveExpRules();refreshPmExpRuleOptions();renderExpRuleTable();renderPmTable();resetExpRuleForm();flash('EXP 규칙을 저장했습니다');}
-async function deleteExpRule(id){const r=EXP_RULES.find(x=>x.id===id);if(!r||r.system)return;const used=allMasterProducts().filter(p=>getProductExpRuleId(p)===id);if(used.length){flash(`이 규칙을 사용하는 품목이 ${used.length}개 있어 삭제할 수 없습니다`,true);return;}if(!confirm(`${r.name} 규칙을 삭제하시겠습니까?`))return;EXP_RULES=EXP_RULES.filter(x=>x.id!==id);await saveExpRules();refreshPmExpRuleOptions();renderExpRuleTable();flash('EXP 규칙을 삭제했습니다');}
+async function saveExpRuleFromForm(){const name=$('erName').value.trim();if(!name){flash('EXP 규칙명을 입력하세요',true);return;}const id=$('erEditId').value,old=EXP_RULES.find(x=>x.id===id);const obj={id:id||`EXP_CUSTOM_${Date.now()}`,name,mode:$('erMode').value,value:+$('erValue').value||0,format:$('erFormat').value,description:$('erDescription').value.trim(),system:!!old?.system};const i=EXP_RULES.findIndex(x=>x.id===obj.id);if(i>=0)EXP_RULES[i]=obj;else EXP_RULES.push(obj);await saveExpRules();refreshPmExpRuleOptions();refreshLabelMasterExtraOptions();renderExpRuleTable();renderPmTable();resetExpRuleForm();flash('EXP 규칙을 저장했습니다');}
+async function deleteExpRule(id){const r=EXP_RULES.find(x=>x.id===id);if(!r||r.system)return;const used=allMasterProducts().filter(p=>getProductExpRuleId(p)===id);if(used.length){flash(`이 규칙을 사용하는 품목이 ${used.length}개 있어 삭제할 수 없습니다`,true);return;}const usedLb=allLabelMaster().filter(x=>x.expRuleId===id);if(usedLb.length){flash(`이 규칙을 사용하는 라벨이 ${usedLb.length}개 있어 삭제할 수 없습니다 (${usedLb.map(x=>x.labelCode).join(', ')})`,true);return;}if(!confirm(`${r.name} 규칙을 삭제하시겠습니까?`))return;EXP_RULES=EXP_RULES.filter(x=>x.id!==id);await saveExpRules();refreshPmExpRuleOptions();refreshLabelMasterExtraOptions();renderExpRuleTable();flash('EXP 규칙을 삭제했습니다');}
 function showExpRules(){openWorkspace();if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}$('opView').style.display='none';$('editorView').style.display='none';$('productMasterView').style.display='none';$('lotRuleView').style.display='none';$('expRuleView').style.display='block';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabFreePrint'].forEach(id=>$(id).classList.remove('active'));$('tabExpRules').classList.add('active');renderExpRuleTable();resetExpRuleForm();}
+
+// ===== 제조일자 규칙관리 (MFG) =====
+async function saveMfgRules(){ await storeSet(MFG_RULES_KEY,JSON.stringify(MFG_RULES)); }
+async function loadMfgRules(){
+  const raw=await storeGet(MFG_RULES_KEY);
+  if(raw){ try{ const a=JSON.parse(raw); if(Array.isArray(a)&&a.length){ if(!a.some(r=>r.id===MFG_DEFAULT_ID)) a.unshift(MFG_RULES[0]); MFG_RULES=a; } }catch(e){} }
+  refreshLabelMasterExtraOptions();
+}
+function mfgRuleText(r){
+  const off=Math.trunc(Number(r.value)||0), sign=off>0?`+${off}`:`${off}`;
+  if(r.mode==='none') return '제조일자 표시 안 함';
+  if(r.mode==='month_start') return '생산월 1일';
+  if(r.mode==='month_end') return '생산월 말일';
+  if(r.mode==='print_date') return off?`출력일 ${sign}일`:'출력일(오늘)';
+  return off?`생산일자 ${sign}일`:'생산일자 그대로';
+}
+function mfgRuleSample(r){ const d=computeMfgDate({date:'2026-08-19'},r); return d?formatExpiry(d,r.format||'YYYY-MM-DD'):'(표시 안 함)'; }
+function mfgRuleUsedBy(id){ return allLabelMaster().filter(x=>x.mfgRuleId===id); }
+function updateMrPreview(){
+  if(!$('mrPreview')) return;
+  const r={mode:$('mrMode').value,value:+$('mrValue').value||0,format:$('mrFormat').value};
+  $('mrPreview').textContent=`제조일자 : ${mfgRuleSample(r)}  (생산일자 2026-08-19 기준)`;
+  $('mrValue').disabled=!['production_date','print_date'].includes(r.mode);
+}
+function resetMfgRuleForm(){
+  $('mrEditId').value='';$('mrName').value='';$('mrMode').value='production_date';$('mrValue').value='0';$('mrFormat').value='YYYY-MM-DD';$('mrDescription').value='';
+  $('mrSaveBtn').textContent='+ 제조일자 규칙 등록'; updateMrPreview();
+}
+function renderMfgRuleTable(){
+  if(!$('mrTableBody')) return;
+  $('mrCount').textContent=`${MFG_RULES.length}개`;
+  $('mrTableBody').innerHTML=MFG_RULES.map(r=>{
+    const used=mfgRuleUsedBy(r.id);
+    return `<tr><td><b>${escapeHtml(r.name)}</b>${r.system?'<br><span class="masterBadge">기본</span>':''}</td><td>${escapeHtml(mfgRuleText(r))}</td><td>${escapeHtml(r.format||'')}</td><td><code>${escapeHtml(mfgRuleSample(r))}</code></td><td>${used.length?escapeHtml(used.map(x=>x.labelCode).join(', ')):'<span style="color:var(--sub)">-</span>'}</td><td><button class="miniBtn edit" data-mr-edit="${escapeHtml(r.id)}">수정</button>${r.system?'':` <button class="miniBtn del" data-mr-del="${escapeHtml(r.id)}">삭제</button>`}</td></tr>`;
+  }).join('');
+  $('mrTableBody').querySelectorAll('[data-mr-edit]').forEach(b=>b.addEventListener('click',()=>editMfgRule(b.dataset.mrEdit)));
+  $('mrTableBody').querySelectorAll('[data-mr-del]').forEach(b=>b.addEventListener('click',()=>deleteMfgRule(b.dataset.mrDel)));
+}
+function editMfgRule(id){
+  const r=MFG_RULES.find(x=>x.id===id); if(!r) return;
+  $('mrEditId').value=r.id;$('mrName').value=r.name||'';$('mrMode').value=r.mode||'production_date';$('mrValue').value=r.value??0;$('mrFormat').value=r.format||'YYYY-MM-DD';$('mrDescription').value=r.description||'';
+  $('mrSaveBtn').textContent='제조일자 규칙 수정 저장'; updateMrPreview();
+}
+async function saveMfgRuleFromForm(){
+  const name=$('mrName').value.trim(); if(!name){ flash('제조일자 규칙명을 입력하세요',true); return; }
+  const id=$('mrEditId').value, old=MFG_RULES.find(x=>x.id===id);
+  const obj={id:id||`MFG_CUSTOM_${Date.now()}`,name,mode:$('mrMode').value,value:Math.trunc(+$('mrValue').value||0),format:$('mrFormat').value,description:$('mrDescription').value.trim(),system:!!old?.system};
+  const i=MFG_RULES.findIndex(x=>x.id===obj.id); if(i>=0) MFG_RULES[i]=obj; else MFG_RULES.push(obj);
+  await saveMfgRules(); refreshLabelMasterExtraOptions(); renderMfgRuleTable(); resetMfgRuleForm();
+  try{ autoPreviewOrder(); }catch(e){}
+  flash('제조일자 규칙을 저장했습니다');
+}
+async function deleteMfgRule(id){
+  const r=MFG_RULES.find(x=>x.id===id); if(!r||r.system) return;
+  const used=mfgRuleUsedBy(id);
+  if(used.length){ flash(`이 규칙을 사용하는 라벨이 ${used.length}개 있어 삭제할 수 없습니다 (${used.map(x=>x.labelCode).join(', ')})`,true); return; }
+  if(!confirm(`${r.name} 규칙을 삭제하시겠습니까?`)) return;
+  MFG_RULES=MFG_RULES.filter(x=>x.id!==id);
+  await saveMfgRules(); refreshLabelMasterExtraOptions(); renderMfgRuleTable(); flash('제조일자 규칙을 삭제했습니다');
+}
+function showMfgRules(){
+  openWorkspace(); if(!isAdmin){ flash('관리자 모드에서만 사용할 수 있습니다',true); return; }
+  ['opView','editorView','productMasterView','lotRuleView','expRuleView','mfgRuleView','varRuleView','freePrintView'].forEach(id=>{ if($(id)) $(id).style.display='none'; });
+  $('mfgRuleView').style.display='block'; document.body.classList.remove('editing');
+  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabExpRules','tabMfgRules','tabVarRules','tabFreePrint'].forEach(id=>{ if($(id)) $(id).classList.remove('active'); });
+  $('tabMfgRules').classList.add('active');
+  renderMfgRuleTable(); resetMfgRuleForm();
+}
+if($('mrMode')){ $('mrMode').innerHTML=MFG_RULE_MODES.map(([v,l])=>`<option value="${v}">${l}</option>`).join(''); $('mrFormat').innerHTML=MFG_FORMATS.map(f=>`<option value="${f}">${f}</option>`).join(''); }
+// 다른 탭/홈으로 이동하면 제조일자 규칙 화면을 닫고 활성 표시를 해제한다 (기존 화면 전환 함수는 수정하지 않고 공통 처리)
+(function(){
+  const off=()=>{ if($('mfgRuleView')) $('mfgRuleView').style.display='none'; $('tabMfgRules')?.classList.remove('active'); };
+  document.querySelectorAll('#workspaceNav button').forEach(b=>{ if(b.id!=='tabMfgRules') b.addEventListener('click',off,true); });
+  document.querySelectorAll('#homeView [data-go]').forEach(b=>b.addEventListener('click',off,true));
+  try{ const _h=showHome; showHome=function(...a){ off(); return _h.apply(this,a); }; }catch(e){}
+  try{ const _o=showOp; showOp=function(...a){ off(); return _o.apply(this,a); }; }catch(e){}
+})();
+if($('tabMfgRules')){
+  $('tabMfgRules').addEventListener('click',async()=>{ await autoSaveLabelWorkBeforeLeaving(); showMfgRules(); });
+  $('mrSaveBtn').addEventListener('click',saveMfgRuleFromForm);
+  $('mrResetBtn').addEventListener('click',resetMfgRuleForm);
+  ['mrMode','mrValue','mrFormat'].forEach(id=>$(id).addEventListener('input',updateMrPreview));
+}
 
 function collectBindKeysForLayout(key){
   const layout=LAYOUTS[key]; if(!layout) return [];
@@ -6315,7 +6536,7 @@ function collectBindKeysForLayout(key){
   });
   return [...set];
 }
-const FP_BIND_LABELS={name:'품명',shortName:'라벨 약어',fullName:'ECOUNT 품목명',code:'품목코드',color:'색상',type:'타입/성상',lot:'LOT',lotRaw:'LOT(원본)',exp:'사용기한(EXP)',expireDate:'사용기한(EXP)',useby:'사용기한(EXP)',weight:'중량 표시',proddate:'생산일자',drumNo:'드럼 번호',barcode:'바코드 값',barcodeText:'바코드 숫자',barcodeType:'바코드 종류'};
+const FP_BIND_LABELS={name:'품명',shortName:'라벨 약어',fullName:'ECOUNT 품목명',code:'품목코드',color:'색상',type:'타입/성상',lot:'LOT',lotRaw:'LOT(원본)',exp:'사용기한(EXP)',expireDate:'사용기한(EXP)',useby:'사용기한(EXP)',weight:'중량 표시',proddate:'생산일자',mfgDate:'제조일자(규칙 적용)',mfgLine:'제조일자(문구 포함)',drumNo:'드럼 번호',barcode:'바코드 값',barcodeText:'바코드 숫자',barcodeType:'바코드 종류'};
 let fpKey='',fpLabelCode='',fpCtx={};
 function populateFreePrintLabelSelect(){
   const sel=$('fpLabelSelect'); if(!sel) return;
@@ -6379,8 +6600,8 @@ $('fpPrintBtn')?.addEventListener('click',async()=>{
 });
 function showFreePrint(){
   openWorkspace(); if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}
-  $('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';$('freePrintView').style.display='block';document.body.classList.remove('editing');
-  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabExpRules'].forEach(id=>$(id).classList.remove('active'));
+  $('opView').style.display='none';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('mfgRuleView'))$('mfgRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';$('freePrintView').style.display='block';document.body.classList.remove('editing');
+  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabExpRules','tabMfgRules'].forEach(id=>$(id).classList.remove('active'));
   $('tabFreePrint').classList.add('active');
   populateFreePrintLabelSelect();
   fpKey='';fpLabelCode='';fpCtx={};
@@ -6417,6 +6638,7 @@ function refreshCustomVariableOptions(){
   FIELD_VARIABLES_BUILTIN.forEach(([k,l])=>{ const e=FIELD_VARIABLES.find(x=>x[0]===k); if(e) e[1]=builtinVarLabel(k,l); });
   for(let i=FIELD_VARIABLES.length-1;i>=0;i--) if(String(FIELD_VARIABLES[i][0]).startsWith('cv_')) FIELD_VARIABLES.splice(i,1);
   CUSTOM_VARS.filter(v=>v.active!==false).forEach(v=>FIELD_VARIABLES.push([customVarKeyName(v),`[사용자] ${v.label||v.key}`]));
+  try{ refreshLabelMasterExtraOptions(); }catch(e){}
   if(typeof FP_BIND_LABELS!=='undefined') CUSTOM_VARS.forEach(v=>{FP_BIND_LABELS[customVarKeyName(v)]=`[사용자] ${v.label||v.key}`;});
 }
 async function saveCustomVars(){ await storeSet(CUSTOM_VARS_KEY,JSON.stringify(CUSTOM_VARS)); refreshCustomVariableOptions(); }
@@ -6589,16 +6811,16 @@ function copyBuiltinToCustom(key){
 }
 function showVarRules(){
   openWorkspace(); if(!isAdmin){flash('관리자 모드에서만 사용할 수 있습니다',true);return;}
-  ['opView','editorView','productMasterView','lotRuleView','expRuleView','freePrintView'].forEach(id=>{ if($(id)) $(id).style.display='none'; });
+  ['opView','editorView','productMasterView','lotRuleView','expRuleView','mfgRuleView','freePrintView'].forEach(id=>{ if($(id)) $(id).style.display='none'; });
   $('varRuleView').style.display='block'; document.body.classList.remove('editing');
-  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabExpRules','tabFreePrint'].forEach(id=>{ if($(id)) $(id).classList.remove('active'); });
+  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabExpRules','tabMfgRules','tabFreePrint'].forEach(id=>{ if($(id)) $(id).classList.remove('active'); });
   $('tabVarRules').classList.add('active');
   renderVrTokenChips(); renderVrTable(); renderVbTable(); updateVrPreview();
 }
 if($('tabVarRules')){
   $('tabVarRules').addEventListener('click',async()=>{await autoSaveLabelWorkBeforeLeaving();showVarRules();});
   // 다른 탭으로 이동하면 변수 관리 탭의 활성 표시를 해제
-  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabExpRules','tabFreePrint'].forEach(id=>{ const b=$(id); if(b) b.addEventListener('click',()=>$('tabVarRules').classList.remove('active'),true); });
+  ['tabBatch','tabLive','tabEditor','tabProductMaster','tabLotRules','tabExpRules','tabMfgRules','tabFreePrint'].forEach(id=>{ const b=$(id); if(b) b.addEventListener('click',()=>$('tabVarRules').classList.remove('active'),true); });
   $('vrSaveBtn').addEventListener('click',saveVrFromForm);
   $('vrResetBtn').addEventListener('click',resetVrForm);
   $('vrAddCond').addEventListener('click',()=>vrAddCondRow());
@@ -6766,6 +6988,30 @@ function refreshLabelMasterLotRuleOptions(selected=''){
   el.innerHTML='<option value="">제품 기본 LOT 규칙 사용</option>'+LOT_RULES.map(r=>`<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)} · ${escapeHtml(r.pattern)}</option>`).join('');
   if(current && LOT_RULES.some(r=>r.id===current)) el.value=current; else el.value='';
 }
+// 라벨 마스터에서 LOT·제조일자·EXP·변수를 한 곳에서 매칭한다. (각 규칙은 전용 탭에서 관리)
+function refreshLabelMasterExtraOptions(x){
+  const hasArg=(x!==undefined);
+  const cur=hasArg?(x||{}):{
+    expRuleId:$('lmExpRule')?.value||'', mfgRuleId:$('lmMfgRule')?.value||'',
+    varKeys:[...document.querySelectorAll('#lmVarList input[type=checkbox]:checked')].map(c=>c.value)
+  };
+  const mel=$('lmMfgRule');
+  if(mel){
+    mel.innerHTML='<option value="">기본 (생산일자 그대로)</option>'+MFG_RULES.filter(r=>r.id!==MFG_DEFAULT_ID).map(r=>`<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)} · ${escapeHtml(mfgRuleText(r))} (${escapeHtml(r.format||'')})</option>`).join('');
+    mel.value=(cur.mfgRuleId&&MFG_RULES.some(r=>r.id===cur.mfgRuleId))?cur.mfgRuleId:'';
+  }
+  const eel=$('lmExpRule');
+  if(eel){
+    eel.innerHTML='<option value="">제품 기본 EXP 규칙 사용</option>'+EXP_RULES.map(r=>`<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)} · ${escapeHtml(expRuleText(r))} (${escapeHtml(r.format||'')})</option>`).join('');
+    eel.value=(cur.expRuleId&&EXP_RULES.some(r=>r.id===cur.expRuleId))?cur.expRuleId:'';
+  }
+  const vl=$('lmVarList');
+  if(vl){
+    const sel=new Set(cur.varKeys||[]);
+    const vars=(typeof CUSTOM_VARS!=='undefined'?CUSTOM_VARS:[]).filter(v=>v.active!==false);
+    vl.innerHTML=vars.length?vars.map(v=>`<label class="checkrow" style="margin:2px 0;"><input type="checkbox" value="${escapeHtml(customVarKeyName(v))}" ${sel.has(customVarKeyName(v))?'checked':''}> [사용자] ${escapeHtml(v.label||v.key)}</label>`).join(''):'<div style="font-size:12px;color:var(--sub);">등록된 사용자 변수가 없습니다. “# 변수 관리” 탭에서 만들면 여기에 나타납니다.</div>';
+  }
+}
 function refreshLabelCopySourceOptions(selected=''){
   const el=$('lmCopySource'); if(!el) return;
   const original=$('lmOriginalCode')?.value?.trim()||'';
@@ -6783,7 +7029,7 @@ function refreshLabelCopySourceOptions(selected=''){
 
 function resetLabelMasterForm(){
   if(!$('lmCode')) return;
-  $('lmOriginalCode').value=''; $('lmCode').value=nextLabelMasterCode(); $('lmName').value=''; $('lmQty').value='1'; $('lmActive').value='true'; refreshLabelMasterLotRuleOptions(''); $('lmNote').value='';
+  $('lmOriginalCode').value=''; $('lmCode').value=nextLabelMasterCode(); $('lmName').value=''; $('lmQty').value='1'; $('lmActive').value='true'; refreshLabelMasterLotRuleOptions(''); refreshLabelMasterExtraOptions(null); $('lmNote').value='';
   refreshLabelCopySourceOptions('');
   if($('lmCopySource')) $('lmCopySource').disabled=false;
   if($('lmCopySourceWrap')) $('lmCopySourceWrap').style.opacity='1';
@@ -7092,7 +7338,7 @@ function renderLabelMasterList(){
   });
   const count=$('labelMasterCount'); if(count) count.textContent=`${rows.length} / ${allRows.length}개`;
   if(!rows.length){ wrap.innerHTML='<div class="empty">검색 조건에 맞는 라벨이 없습니다.</div>'; return; }
-  wrap.innerHTML=rows.map(x=>{const lr=x.lotRuleId?getLotRuleById(x.lotRuleId):null;return `<div class="fieldListItem ${selectedLabelMasterPreviewCode===x.labelCode?'selectedMasterLabel':''}" data-label-code="${escapeHtml(x.labelCode)}"><span><b>${escapeHtml(x.labelCode)}</b> · ${escapeHtml(x.labelName||'')}<br><span class="tag">기본 ${x.copies||1}장${x.active===false?' · 미사용':''}${x.builtin?' · 기본마스터':''}${lr?' · LOT '+escapeHtml(lr.name):' · LOT 제품기본'}</span></span><span><button class="miniBtn" data-lm-open="${escapeHtml(x.labelCode)}">서식 편집</button> <button class="miniBtn" data-lm-edit="${escapeHtml(x.labelCode)}">정보 수정</button> <button class="miniBtn del" data-lm-del="${escapeHtml(x.labelCode)}">삭제</button></span></div>`;}).join('');
+  wrap.innerHTML=rows.map(x=>{const lr=x.lotRuleId?getLotRuleById(x.lotRuleId):null;return `<div class="fieldListItem ${selectedLabelMasterPreviewCode===x.labelCode?'selectedMasterLabel':''}" data-label-code="${escapeHtml(x.labelCode)}"><span><b>${escapeHtml(x.labelCode)}</b> · ${escapeHtml(x.labelName||'')}<br><span class="tag">기본 ${x.copies||1}장${x.active===false?' · 미사용':''}${x.builtin?' · 기본마스터':''}${lr?' · LOT '+escapeHtml(lr.name):' · LOT 제품기본'}${x.mfgRuleId&&MFG_RULES.some(r=>r.id===x.mfgRuleId)?' · 제조일자 '+escapeHtml(getMfgRuleById(x.mfgRuleId).name):' · 제조일자 기본'}${x.expRuleId&&EXP_RULES.some(r=>r.id===x.expRuleId)?' · EXP '+escapeHtml(getExpRuleById(x.expRuleId).name):' · EXP 제품기본'}${(x.varKeys||[]).length?' · 변수 '+x.varKeys.length+'개':''}</span></span><span><button class="miniBtn" data-lm-open="${escapeHtml(x.labelCode)}">서식 편집</button> <button class="miniBtn" data-lm-edit="${escapeHtml(x.labelCode)}">정보 수정</button> <button class="miniBtn del" data-lm-del="${escapeHtml(x.labelCode)}">삭제</button></span></div>`;}).join('');
   wrap.querySelectorAll('.fieldListItem[data-label-code]').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('button'))return;selectLabelMasterPreview(el.dataset.labelCode);}));
   wrap.querySelectorAll('[data-lm-open]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();selectedLabelMasterPreviewCode=b.dataset.lmOpen;openLabelEditorScreen(b.dataset.lmOpen);}));
   wrap.querySelectorAll('[data-lm-edit]').forEach(b=>b.addEventListener('click',()=>editLabelMaster(b.dataset.lmEdit)));
@@ -7102,7 +7348,7 @@ function editLabelMaster(code){
   const x=allLabelMaster().find(v=>v.labelCode===code); if(!x) return;
   selectLabelMasterPreview(code);
   $('lmOriginalCode').value=x.labelCode; $('lmCode').value=x.labelCode; $('lmName').value=x.labelName||'';
-  $('lmQty').value=x.copies||1; $('lmActive').value=String(x.active!==false); refreshLabelMasterLotRuleOptions(x.lotRuleId||''); $('lmNote').value=x.note||'';
+  $('lmQty').value=x.copies||1; $('lmActive').value=String(x.active!==false); refreshLabelMasterLotRuleOptions(x.lotRuleId||''); refreshLabelMasterExtraOptions(x); $('lmNote').value=x.note||'';
   refreshLabelCopySourceOptions('');
   if($('lmCopySource')) $('lmCopySource').disabled=true;
   if($('lmCopySourceWrap')) $('lmCopySourceWrap').style.opacity='.55';
@@ -7147,7 +7393,10 @@ async function saveLabelMasterFromForm(){
     baseLayoutKey:copiedBaseLayoutKey||inheritedBase,
     copiedFromLabelCode:copiedFromLabelCode||prev?.copiedFromLabelCode||'',
     copies:+$('lmQty').value||1,active:$('lmActive').value==='true',
-    lotRuleId:$('lmLotRule')?.value||'',note:$('lmNote').value.trim(),builtin:false};
+    lotRuleId:$('lmLotRule')?.value||'',
+    expRuleId:$('lmExpRule')?.value||'',mfgRuleId:$('lmMfgRule')?.value||'',
+    varKeys:[...document.querySelectorAll('#lmVarList input[type=checkbox]:checked')].map(c=>c.value),
+    note:$('lmNote').value.trim(),builtin:false};
   let i=CUSTOM_LABEL_MASTER.findIndex(x=>x.labelCode===original);
   if(i>=0) CUSTOM_LABEL_MASTER[i]=obj; else { CUSTOM_LABEL_MASTER.push(obj); i=-1; }
   DELETED_LABEL_MASTER_CODES=(DELETED_LABEL_MASTER_CODES||[]).filter(c=>c!==code && c!==original);
@@ -7972,9 +8221,9 @@ if($('pmExcelFile')) $('pmExcelFile').addEventListener('change',e=>importProduct
 function showProductMaster(){
   openWorkspace();
   if(!isAdmin){ flash('관리자 모드에서만 사용할 수 있습니다',true); return; }
-  $('opView').style.display='none'; $('editorView').style.display='none'; if($('lotRuleView'))$('lotRuleView').style.display='none'; if($('expRuleView'))$('expRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none'; if($('freePrintView'))$('freePrintView').style.display='none';
+  $('opView').style.display='none'; $('editorView').style.display='none'; if($('lotRuleView'))$('lotRuleView').style.display='none'; if($('expRuleView'))$('expRuleView').style.display='none';if($('mfgRuleView'))$('mfgRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none'; if($('freePrintView'))$('freePrintView').style.display='none';
   $('productMasterView').style.display='block'; document.body.classList.remove('editing');
-  ['tabBatch','tabLive','tabEditor','tabLotRules','tabExpRules','tabFreePrint'].forEach(id=>$(id).classList.remove('active'));
+  ['tabBatch','tabLive','tabEditor','tabLotRules','tabExpRules','tabMfgRules','tabFreePrint'].forEach(id=>$(id).classList.remove('active'));
   $('tabProductMaster').classList.add('active');
   refreshAllProductSelects(); refreshBulkLotRules(); refreshPmExpRuleOptions(); renderPmTable(); renderPmLabelChecklist(); renderPmLinks(); renderLabelMasterList(); renderLabelMasterSelect();
 }
@@ -8076,7 +8325,7 @@ function clearPopViews(){
 async function showPopView(cls,tabId){
   try{ await autoSaveLabelWorkBeforeLeaving(); }catch(e){}
   openWorkspace(); clearPopViews();
-  ['opView','editorView','productMasterView','lotRuleView','expRuleView','varRuleView','freePrintView'].forEach(id=>{ const e=$(id); if(e) e.style.display='none'; });
+  ['opView','editorView','productMasterView','lotRuleView','expRuleView','mfgRuleView','varRuleView','freePrintView'].forEach(id=>{ const e=$(id); if(e) e.style.display='none'; });
   document.querySelectorAll('#workspaceNav button').forEach(b=>b.classList.remove('active'));
   document.body.classList.add(cls); $(tabId)?.classList.add('active');
 }
@@ -9328,7 +9577,7 @@ async function initApp(){
   if(browserPrintSdkReady()) setTimeout(()=>discoverZebraPrinters(true),1200);
   else { const diag=browserPrintSdkDiagnostic(); setZebraStatus(diag.text+' · ZPL 직접 인쇄에는 Zebra Browser Print 프로그램도 실행되어 있어야 합니다.','warn'); }
 
-  await loadLayouts();await loadLotRules();await loadExpRules();await loadCustomVars();await loadVarLabelOverrides();refreshCustomVariableOptions();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
+  await loadLayouts();await loadLotRules();await loadExpRules();await loadMfgRules();await loadCustomVars();await loadVarLabelOverrides();refreshCustomVariableOptions();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
   try{ await loadHomePerms(); }catch(e){}
   if(HAS_SHARED_STORAGE || window.KSA_DB_READY){
     setInterval(async()=>{
