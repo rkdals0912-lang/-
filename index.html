@@ -1994,6 +1994,7 @@ async function supabaseGet(key){
 window.KSA_READ_FAILED_KEYS = window.KSA_READ_FAILED_KEYS || new Set();
 
 async function storeSet(key,value){
+  try{ _LM_CACHE=null; }catch(e){}
   // 읽기에 실패한 키를 덮어쓰면 서버의 실제 데이터가 사라질 수 있으므로 저장하지 않는다.
   if(window.KSA_DB_READY && window.KSA_READ_FAILED_KEYS.has(key)){
     console.warn('Save blocked (previous read failed):', key);
@@ -7098,7 +7099,14 @@ function allLabelMaster(){
   });
   return [...map.values()].sort((a,b)=>String(a.labelCode).localeCompare(String(b.labelCode),undefined,{numeric:true}));
 }
-function labelMasterByCode(code){ return allLabelMaster().find(x=>x.labelCode===code)||null; }
+// 성능: 작업지시마다 라벨마스터 전체를 다시 만들던 것을 캐시한다(저장·목록 길이 변경·3초 경과 시 갱신).
+var _LM_CACHE=null;
+function labelMasterByCode(code){
+  const sig=[(CUSTOM_LABEL_MASTER||[]).length,(DELETED_LABEL_MASTER_CODES||[]).length,(CUSTOM_PRODUCTS||[]).length].join('/');
+  const now=Date.now();
+  if(!_LM_CACHE||_LM_CACHE.sig!==sig||now-_LM_CACHE.t>3000){ const m=new Map(); allLabelMaster().forEach(x=>{ if(!m.has(x.labelCode)) m.set(x.labelCode,x); }); _LM_CACHE={sig,t:now,m}; }
+  return _LM_CACHE.m.get(code)||null;
+}
 function nextLabelMasterCode(){
   const codes=[];
   builtinLabelMaster().forEach(x=>codes.push(x.labelCode));
