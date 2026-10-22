@@ -5137,58 +5137,168 @@ function triggerPrint(items){
   }));
   return true;
 }
+/* =========================================================
+   v4.21 · ND 시리얼 / LOT 중복 방지
+   - 시리얼: 노루 모드에서 이미 출력한 ND 시리얼은 (품목 무관) 다시 쓰지 못하게 확인/차단
+   - LOT   : 같은 품목 + 같은 LOT + 같은 드럼번호가 이미 출력됐으면 확인 (LOT 하나를 여러 드럼이 공유하는 건 정상)
+   - 이번 출력 묶음 안에서 같은 시리얼이 2번 나오면 무조건 차단
+   - 이미 출력 중일 때 버튼을 또 눌러도 두 번 출력되지 않도록 잠금
+   - 출력에 성공한(실제 전송된) 라벨만 등록한다. 샘플/자유 출력은 제외.
+   ========================================================= */
+const DUP_KEY='ksa-dup-registry-v1';
+const DUP_KEEP_MS=400*86400000;
+async function dupLoad(){
+  const reg={serials:{},lots:{}};
+  try{
+    const raw=await storeGet(DUP_KEY);
+    if(raw){ const o=JSON.parse(raw); if(o&&typeof o==='object'){ reg.serials=o.serials||{}; reg.lots=o.lots||{}; } }
+  }catch(e){ console.warn('dup registry load failed',e); }
+  return reg;
+}
+function dupInfo(it){
+  const c=(it&&it.parts&&it.parts[0]&&it.parts[0].ctx)||(it&&it.ctx)||{};
+  return {code:String(c.code||''),lot:String(c.lot||c.lotRaw||''),drum:Number(it&&it.drumNo)||0,serial:NOROO.on?String(c.serialNo||''):''};
+}
+function dupLogSerials(){   // 레지스트리 도입 전 출력 이력의 시리얼도 함께 본다
+  const m=new Map();
+  (log||[]).forEach(e=>(e.serials||[]).forEach(sn=>{ if(sn&&!m.has(sn)) m.set(sn,{t:e.time||'',code:e.code||''}); }));
+  return m;
+}
+async function dupCheck(items){
+  const reg=await dupLoad(), logSer=dupLogSerials();
+  const r={batchSerial:[],usedSerial:[],usedLot:[],reg,logSer};
+  const seen=new Set(), seenBatchDup=new Set();
+  (items||[]).forEach(it=>{
+    const f=dupInfo(it);
+    if(f.serial){
+      if(seen.has(f.serial)){ if(!seenBatchDup.has(f.serial)){ seenBatchDup.add(f.serial); r.batchSerial.push(f.serial); } }
+      else seen.add(f.serial);
+      const hit=reg.serials[f.serial], lh=logSer.get(f.serial);
+      if(hit||lh) r.usedSerial.push({serial:f.serial,code:hit?hit[1]:lh.code,t:hit?hit[0]:0,tText:hit?'':lh.t});
+    }
+    if(f.lot&&f.drum){
+      const ent=reg.lots[f.code+'|'+f.lot];
+      if(ent&&Array.isArray(ent.d)&&ent.d.includes(f.drum)) r.usedLot.push({lot:f.lot,drum:f.drum});
+    }
+  });
+  return r;
+}
+// 이번 출력의 드럼번호들이 겹치지 않는 가장 가까운 '연번 보정' 값을 찾는다.
+function norooSuggestOffset(items,r){
+  const drums=(items||[]).map(it=>Number(it.drumNo)||0).filter(Boolean);
+  if(!drums.length) return null;
+  const base=NOROO.seqOffset;
+  try{
+    for(let d=1; d<=5000; d++){
+      NOROO.seqOffset=base+d;
+      if(drums.every(n=>{ const sn=norooStockInfo(n).serial; return !r.reg.serials[sn] && !r.logSer.has(sn); })) return base+d;
+    }
+  }finally{ NOROO.seqOffset=base; }
+  return null;
+}
+const dupList=(a,n=5)=>a.slice(0,n).join(', ')+(a.length>n?` 외 ${a.length-n}건`:'');
+// true = 출력 진행, false = 중단
+async function dupGuard(items,opts){
+  if(opts&&opts.noDup) return true;
+  let r; try{ r=await dupCheck(items); }catch(e){ console.warn('dup check failed',e); return true; }   // 검사 오류가 출력을 막지 않게
+  if(r.batchSerial.length){
+    alert(`이번 출력 안에 같은 ND 시리얼이 2번 이상 있습니다. (${dupList(r.batchSerial)})\n\n드럼 번호/연번 보정/출력 범위를 확인하세요. 출력하지 않았습니다.`);
+    return false;
+  }
+  const msgs=[];
+  if(r.usedSerial.length) msgs.push(`· 이미 출력된 ND 시리얼 ${r.usedSerial.length}개\n   ${dupList(r.usedSerial.map(x=>x.serial))}`);
+  if(r.usedLot.length) msgs.push(`· 같은 품목·LOT·드럼번호로 이미 출력된 라벨 ${r.usedLot.length}건\n   ${dupList(r.usedLot.map(x=>`${x.lot} #${x.drum}`))}`);
+  if(!msgs.length) return true;
+  if(confirm(`⚠ 중복 출력 경고\n\n${msgs.join('\n')}\n\n재출력(프린터 오류 등)이 확실할 때만 [확인]을 누르세요.\n[취소]하면 출력하지 않습니다.`)) return true;
+  if(r.usedSerial.length){
+    const sug=norooSuggestOffset(items,r);
+    if(sug!==null && confirm(`연번 보정을 +${sug}(으)로 바꾸면 시리얼이 겹치지 않습니다.\n지금 적용할까요? (적용 후 라벨을 다시 생성해야 합니다)`)){
+      NOROO.seqOffset=sug;
+      if($('norooSeqOffset')) $('norooSeqOffset').value=sug;
+      try{ storeSet(NOROO_KEY,JSON.stringify({serialPattern:NOROO.serialPattern,seqOffset:NOROO.seqOffset})); }catch(e){}
+      try{ norooUpdatePreview(); }catch(e){}
+      try{ autoPreviewOrder(); }catch(e){}
+      flash(`연번 보정 +${sug} 적용 · 라벨을 다시 생성하세요`);
+    }
+  }
+  return false;
+}
+async function dupRegister(items){
+  const reg=await dupLoad();   // 다른 PC의 최근 등록을 덮어쓰지 않도록 저장 직전에 다시 읽는다
+  const now=Date.now(), cut=now-DUP_KEEP_MS;
+  (items||[]).forEach(it=>{
+    const f=dupInfo(it);
+    if(f.serial) reg.serials[f.serial]=[now,f.code,f.lot];
+    if(f.lot&&f.drum){
+      const k=f.code+'|'+f.lot, e=reg.lots[k]||(reg.lots[k]={t:now,d:[]});
+      e.t=now; if(!e.d.includes(f.drum)) e.d.push(f.drum);
+    }
+  });
+  Object.keys(reg.serials).forEach(k=>{ if((reg.serials[k][0]||0)<cut) delete reg.serials[k]; });
+  Object.keys(reg.lots).forEach(k=>{ const e=reg.lots[k]; if((e.t||0)<cut) delete reg.lots[k]; else e.d.sort((a,b)=>a-b); });
+  await storeSet(DUP_KEY,JSON.stringify(reg));
+}
+
 // 출력 이력 저장 실패가 "출력 실패"로 오인되어 재출력/브라우저 인쇄 폴백(중복 출력)을 일으키지 않도록 분리한다.
-async function safeRecordHistory(items){
+async function safeRecordHistory(items,opts){
   try{ await recordPrintHistory(items); }
   catch(e){ console.warn('print history failed',e); try{ flash('출력은 완료됐지만 출력 이력 저장에 실패했습니다',true); }catch(_){} }
+  if(!(opts&&opts.noDup)){ try{ await dupRegister(items); }catch(e){ console.warn('dup register failed',e); try{ flash('중복 방지 기록 저장에 실패했습니다 (다음 출력 시 중복 검사가 누락될 수 있음)',true); }catch(_){} } }
   try{ await norooStampOrder(); }catch(e){}
 }
-async function handleZplFailure(e,items){
+async function handleZplFailure(e,items,opts){
   console.error(e);
   const n=(e&&typeof e.sentItems==='number')?e.sentItems:0;
-  if(n>0) await safeRecordHistory(items.slice(0,n));   // 실제 출력된 부분만 이력에 남긴다
+  if(n>0) await safeRecordHistory(items.slice(0,n),opts);   // 실제 출력된 부분만 이력/중복방지에 남긴다
   const hint=(e&&e.sentLabels>0)?` · 앞의 ${e.sentLabels}장은 이미 출력됨 → ${n+1}번째 라벨부터 출력 범위를 지정해 이어서 출력하세요`:'';
   setZebraStatus(`ZPL 출력 실패 · ${e.message||e}${hint}`,'err');
   flash(`ZPL 출력 실패: ${e.message||e}${hint}`,true);
 }
-async function smartPrint(items){
+let _printBusy=false;
+async function smartPrint(items,opts){
   if(!items?.length){flash('먼저 라벨을 생성하세요',true);return;}
+  if(_printBusy){ flash('이미 출력 중입니다. 완료 후 다시 시도하세요',true); return; }   // 더블클릭/동시 출력 방지
+  _printBusy=true;
+  try{ await _smartPrintInner(items,opts||{}); }
+  finally{ _printBusy=false; }
+}
+async function _smartPrintInner(items,opts){
   if(NOROO.on){
     const cur=[NOROO.stockDate,NOROO.serialPattern,NOROO.seqOffset].join('|');
     const stale=items.some(it=>{ const c=(it.parts&&it.parts[0]&&it.parts[0].ctx)||it.ctx||{}; return c._stockKey!==undefined && c._stockKey!==cur; });
     if(stale){ flash('재고생성일/시리얼 설정이 라벨 생성 이후 바뀌었습니다. 라벨을 다시 생성한 뒤 출력하세요',true); return; }
   }
+  if(!(await dupGuard(items,opts))) return;
   const method=PRINTER_SETTINGS.method||'auto';
   if(method==='browser'){
-    await safeRecordHistory(items); triggerPrint(items); return;
+    await safeRecordHistory(items,opts); triggerPrint(items); return;
   }
   if(method==='zebra'){
     try{ await sendItemsAsZpl(items); }
-    catch(e){ await handleZplFailure(e,items); return; }
-    await safeRecordHistory(items);
+    catch(e){ await handleZplFailure(e,items,opts); return; }
+    await safeRecordHistory(items,opts);
     flash('Zebra ZPL 전송 완료 · Z64 압축 일괄 출력');
     return;
   }
   // auto: Browser Print + 프린터가 실제로 잡히면 ZPL, 아니면 window.print fallback
   if(browserPrintSdkReady()){
-    let tryBrowser=true;
     try{
       if(!ZEBRA_SELECTED_DEVICE) await discoverZebraPrinters(true);
       if(ZEBRA_SELECTED_DEVICE){
         try{
           await sendItemsAsZpl(items);
-          await safeRecordHistory(items);
+          await safeRecordHistory(items,opts);
           flash('Zebra ZPL 전송 완료 · Z64 압축 일괄 출력');
           return;
         }catch(e){
           // 일부라도 이미 출력됐다면 브라우저 인쇄로 폴백하면 전체가 중복 출력된다 → 폴백 금지
-          if(e&&e.sentLabels>0){ await handleZplFailure(e,items); return; }
+          if(e&&e.sentLabels>0){ await handleZplFailure(e,items,opts); return; }
           console.warn('Auto ZPL failed; browser print fallback:',e);
         }
       }
     }catch(e){ console.warn('Auto ZPL discovery failed; browser print fallback:',e); }
   }
-  await safeRecordHistory(items); triggerPrint(items);
+  await safeRecordHistory(items,opts); triggerPrint(items);
 }
 $('printAllBtn')?.addEventListener('click',async()=>{
   if(!generated.length){flash('먼저 라벨을 생성하세요',true);return;}
@@ -6799,7 +6909,7 @@ $('fpPrintBtn')?.addEventListener('click',async()=>{
   const part={key:fpKey,ctx:fpCtx,labelCode:fpLabelCode||'',labelName:lm?.labelName||fpLabelCode||'계획 없이 출력'};
   const items=Array.from({length:copies},(_,i)=>({drumNo:i+1,ctx:fpCtx,parts:[part]}));
   try{
-    await smartPrint(items);
+    await smartPrint(items,{noDup:true});
     flash('계획 없이 출력을 인쇄했습니다');
   }catch(e){flash('인쇄 실패: '+(e?.message||e),true);}
 });
@@ -7356,7 +7466,7 @@ function setupSeparatedLabelScreens(){
       const ctx=sampleContext();
       const lm=editorLabelCode?labelMasterByCode(editorLabelCode):null;
       const part={key:editorKey,ctx,labelCode:editorLabelCode||'',labelName:lm?.labelName||editorLabelCode||'테스트 라벨'};
-      await smartPrint([{drumNo:4,ctx,parts:[part]}]);
+      await smartPrint([{drumNo:4,ctx,parts:[part]}],{noDup:true});
     }catch(e){ flash('테스트 인쇄 실패: '+(e?.message||e),true); }
   });
   $('labelMasterPreviewEditBtn')?.addEventListener('click',()=>{
@@ -7374,7 +7484,7 @@ function setupSeparatedLabelScreens(){
       if(!key||!LAYOUTS[key]) throw new Error('라벨 서식을 찾을 수 없습니다.');
       const ctx=sampleContext();
       const part={key,ctx,labelCode:code,labelName:lm.labelName||code};
-      await smartPrint([{drumNo:4,ctx,parts:[part]}]);
+      await smartPrint([{drumNo:4,ctx,parts:[part]}],{noDup:true});
     }catch(e){flash('테스트 인쇄 실패: '+(e?.message||e),true);}
   });
 }
