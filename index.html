@@ -745,17 +745,6 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
   </div>
 </div>
 <div id="opView">
-  <div class="panel" id="norooPanel" style="display:none;border:2px solid #7c3aed;margin:0 0 10px;">
-    <h2 style="margin-top:0;"><span class="n" style="background:#7c3aed;">N</span>노루알엔씨 라벨 · 재고 생성일 / 시리얼</h2>
-    <div class="row2">
-      <div><label>재고 생성일 (임의 지정) → 라벨 제조일·시리얼 날짜 (작업지시별로 저장)</label><input type="date" id="norooStockDate"></div>
-      <div><label>연번 보정 (+)</label><input type="number" id="norooSeqOffset" step="1" value="0"></div>
-    </div>
-    <label>시리얼 패턴</label>
-    <input type="text" class="field" id="norooSerialPattern" value="ND{YYMMDD}{SEQ2}">
-    <div class="lotPreview" id="norooPreview">시리얼 : —</div>
-    <div class="lockednote">아래 작업지시·라벨 출력 방식은 <b>일괄 출력과 동일</b>합니다. <b>로트번호는 작업지시의 실제 제조일</b> 기준 LOT 규칙으로 계산되고, 제조일·시리얼은 위 <b>재고 생성일</b>을 따릅니다. 시리얼 연번 = 드럼 번호 + 보정(예: 드럼 1번 → 01). 패턴 토큰: {YYMMDD} {YYYYMMDD} {YYYY} {YY} {MM} {DD} {SEQ} {SEQ2} {SEQ3}. 라벨 서식에서는 변수 <b>제조일자(규칙 적용)</b>, <b>재고 생성일</b>, <b>시리얼넘버</b>를 연결하세요.</div>
-  </div>
   <div class="adminOnly" style="margin:0 0 10px;"><button type="button" class="btn btn-ghost auto" id="opAdminToggle">⚙ 작업지시 관리·목록 표시/숨김</button></div>
   <div class="grid opGrid">
     <div class="opCol">
@@ -771,6 +760,15 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
         <div id="workOrderExcelResult" class="masterHint compactResult" style="display:none;"></div>
 
         <div id="manualOrderFormBody" style="display:none;">
+          <div id="norooPanel" style="display:none;border:2px solid #7c3aed;border-radius:10px;padding:10px 12px;margin:0 0 12px;">
+            <h2 style="margin:0 0 8px;font-size:14px;"><span class="n" style="background:#7c3aed;">N</span>노루알엔씨 라벨 · 재고 생성일 / 시리얼</h2>
+            <div class="row2">
+              <div><label>재고 생성일 (임의 지정) → 라벨 제조일·시리얼 날짜 (작업지시별로 저장)</label><input type="date" id="norooStockDate"></div>
+              <div><label>연번 보정 (+)</label><input type="number" id="norooSeqOffset" step="1" value="0"></div>
+            </div>
+            <label>시리얼 패턴</label>
+            <input type="text" class="field" id="norooSerialPattern" value="ND{YYMMDD}{SEQ2}">
+          </div>
           <div class="row2">
             <div><label>생산일자 / 출력 기준일</label><input type="date" id="prodDate"></div>
             <div><label>주/야</label><select id="shift"><option value="주간">주간</option><option value="야간">야간</option></select></div>
