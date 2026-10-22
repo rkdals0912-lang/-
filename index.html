@@ -748,7 +748,7 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
   <div class="panel" id="norooPanel" style="display:none;border:2px solid #7c3aed;margin:0 0 10px;">
     <h2 style="margin-top:0;"><span class="n" style="background:#7c3aed;">N</span>노루알엔씨 라벨 · 재고 생성일 / 시리얼</h2>
     <div class="row2">
-      <div><label>재고 생성일 (임의 지정) → 제조일·시리얼 날짜</label><input type="date" id="norooStockDate"></div>
+      <div><label>재고 생성일 (임의 지정) → 라벨 제조일·시리얼 날짜 (작업지시별로 저장)</label><input type="date" id="norooStockDate"></div>
       <div><label>연번 보정 (+)</label><input type="number" id="norooSeqOffset" step="1" value="0"></div>
     </div>
     <label>시리얼 패턴</label>
@@ -2357,7 +2357,36 @@ function norooStockInfo(drumNo){
 function norooUpdatePreview(){
   const el=$('norooPreview'); if(!el) return;
   const a=norooStockInfo(1),b=norooStockInfo(2);
-  el.textContent=`제조일 ${a.date} · 시리얼 ${a.serial}, ${b.serial} …`;
+  // 두 날짜를 분리해서 보여준다: 실제 제조일(작업지시 생산일자 → LOT) / 재고생성일(라벨 제조일·시리얼)
+  let o=null; try{ o=(typeof activeOrder==='function')?activeOrder():null; }catch(e){}
+  el.textContent=`실제 제조일(LOT 기준) ${o&&o.date?o.date:'—'}  |  재고생성일(라벨 제조일·시리얼) ${a.date}  |  시리얼 ${a.serial}, ${b.serial} …`;
+}
+// 재고생성일은 작업지시(o.stockDate)에 저장한다. 실제 제조일은 기존대로 o.date(생산일자).
+function norooSyncFromOrder(o){
+  if(!NOROO.on||!o) return;
+  if(o.stockDate){
+    NOROO.stockDate=o.stockDate;
+    if($('norooStockDate')) $('norooStockDate').value=NOROO.stockDate;
+  }
+  norooUpdatePreview();
+}
+let _norooSaveTimer=null;
+function norooPersistToOrder(){
+  if(!NOROO.on) return;
+  let o=null; try{ o=activeOrder(); }catch(e){}
+  if(!o||!NOROO.stockDate||o.stockDate===NOROO.stockDate) return;
+  o.stockDate=NOROO.stockDate;
+  clearTimeout(_norooSaveTimer);
+  _norooSaveTimer=setTimeout(()=>{ try{ saveWorkOrders(); }catch(e){ console.warn('stockDate save failed',e); } },800);
+}
+// 출력 성공 시 작업지시에 재고생성일을 확정 기록(입력 이벤트 없이 기본값으로 출력한 경우 대비)
+async function norooStampOrder(){
+  if(!NOROO.on) return;
+  let o=null; try{ o=activeOrder(); }catch(e){}
+  if(!o||!NOROO.stockDate) return;
+  if(o.stockDate===NOROO.stockDate && o.stockDatePrinted) return;
+  o.stockDate=NOROO.stockDate; o.stockDatePrinted=true;
+  try{ await saveWorkOrders(); }catch(e){ console.warn('stockDate stamp failed',e); }
 }
 function setNorooMode(on){
   NOROO.on=!!on;
@@ -2388,6 +2417,7 @@ function norooOnInput(){
   NOROO.serialPattern=$('norooSerialPattern').value.trim()||'ND{YYMMDD}{SEQ2}';
   NOROO.seqOffset=Math.trunc(Number($('norooSeqOffset').value))||0;
   try{ storeSet(NOROO_KEY,JSON.stringify({serialPattern:NOROO.serialPattern,seqOffset:NOROO.seqOffset})); }catch(e){}
+  norooPersistToOrder();
   norooUpdatePreview();
   try{ if(typeof autoPreviewOrder==='function') autoPreviewOrder(); }catch(e){}
 }
@@ -2470,6 +2500,7 @@ function computeLotInfo(order,drumNo=1,lotRuleIdOverride='',labelCodeArg=''){
 function applyMfgToContext(ctx,info,drumNo){
   if(!ctx||!info) return ctx;
   const st=norooStockInfo(drumNo);
+  ctx._stockKey=NOROO.on?[NOROO.stockDate,NOROO.serialPattern,NOROO.seqOffset].join('|'):'';
   ctx.stockDate=st.date; ctx.stockYYMMDD=st.yymmdd; ctx.stockYYYYMMDD=st.yyyymmdd; ctx.serialNo=st.serial; ctx.serialSeq=st.seq;
   const raw=info.mfgDateRaw||'';
   const fm=(fmt)=>raw?formatExpiry(new Date(raw+'T00:00:00'),fmt):'';
@@ -3604,6 +3635,7 @@ async function selectOrder(id){
   activeOrderId=id; const o=activeOrder();
   if(o&&o.status==='pending'){o.status='in_progress';await saveWorkOrders();}
   liveDrumCounter=1;generated=[];renderOrderList();refreshActiveOrderPanel();
+  try{ norooSyncFromOrder(o); }catch(e){}
   autoPreviewOrder();
 }
 // v4.16: 작업지시를 선택하면 실제 인쇄 없이 드럼 1번 기준 라벨 미리보기를 자동으로 생성한다.
@@ -3849,7 +3881,12 @@ async function recordPrintHistory(items){
       const index=buildLotOrderIndex(), hint=(typeof activeOrder==='function')?activeOrder():null, meta={};
       entry.lots.forEach(l=>{ if(l && !meta[l]){ const m=resolveLotMeta(g.code,l,index,hint); if(m) meta[l]=m; } });
       entry.lotMeta=meta;
+      const fl=entry.lots[0]||''; entry.mfgDate=(meta[fl]&&meta[fl].d)||'';   // 실제 제조일(작업지시 생산일자)
     }catch(e){ console.warn('lot meta failed',e); }
+    try{
+      const c0=(g.items[0].parts&&g.items[0].parts[0]&&g.items[0].parts[0].ctx)||g.items[0].ctx||{};
+      entry.stockDate=NOROO.on?String(c0.stockDate||NOROO.stockDate||''):'';       // 재고생성일(라벨 제조일·시리얼)
+    }catch(e){ entry.stockDate=''; }
     try{
       const pick=[g.items[0]]; if(g.items.length>1) pick.push(g.items[g.items.length-1]);
       const shots=[];
@@ -3899,7 +3936,7 @@ function renderLog(){
   const rows=logFiltered();
   if($('logCount')) $('logCount').textContent=(rows.length===log.length)?`전체 ${log.length}건`:`검색 결과 ${rows.length}건 / 전체 ${log.length}건`;
   if(!rows.length){$('logWrap').innerHTML='<div class="empty">조건에 맞는 출력 이력이 없습니다.</div>';return;}
-  $('logWrap').innerHTML=`<table class="log"><tr><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>출력 수량</th><th>출력일자</th><th>LOT 번호</th><th>시리얼(ND)</th><th>라벨</th></tr>${rows.map(({e,i})=>`<tr><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(String(e.count||1))}장</td><td>${escapeHtml(logDateKey(e)||'')}</td><td>${escapeHtml(logLotText(e))}</td><td>${escapeHtml(logSerialText(e))}</td><td>${e.snapKey?`<button class="btn btn-ghost auto" data-log-snap="${i}" style="padding:3px 8px;font-size:11px;">라벨 보기</button>`:'<span style="color:var(--sub);">-</span>'}</td></tr>`).join('')}</table>`;
+  $('logWrap').innerHTML=`<table class="log"><tr><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>출력 수량</th><th>출력일자</th><th>실제 제조일</th><th>재고생성일</th><th>LOT 번호</th><th>시리얼(ND)</th><th>라벨</th></tr>${rows.map(({e,i})=>`<tr><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(String(e.count||1))}장</td><td>${escapeHtml(logDateKey(e)||'')}</td><td>${escapeHtml(e.mfgDate||'')}</td><td>${escapeHtml(e.stockDate||'')}</td><td>${escapeHtml(logLotText(e))}</td><td>${escapeHtml(logSerialText(e))}</td><td>${e.snapKey?`<button class="btn btn-ghost auto" data-log-snap="${i}" style="padding:3px 8px;font-size:11px;">라벨 보기</button>`:'<span style="color:var(--sub);">-</span>'}</td></tr>`).join('')}</table>`;
   $('logWrap').querySelectorAll('[data-log-snap]').forEach(b=>b.addEventListener('click',()=>showPrintSnapshot(log[+b.dataset.logSnap])));
 }
 ['logSearch','exportFrom','exportTo'].forEach(id=>{ $(id)?.addEventListener('input',renderLog); $(id)?.addEventListener('change',renderLog); });
@@ -4946,7 +4983,7 @@ async function canvasToZpl(canvas, threshold) {
 
   /* Uint8Array → Base64. btoa()에 너무 큰 배열을 한 번에 넣지 않습니다. */
   let binary = '';
-  const STEP = 0x8000;
+  const STEP = 0x2000;
   for (let i = 0; i < compressed.length; i += STEP) {
     binary += String.fromCharCode(...compressed.subarray(i, Math.min(i + STEP, compressed.length)));
   }
@@ -4979,6 +5016,32 @@ async function canvasToZpl(canvas, threshold) {
   ].join('');
 }
 
+/* v4.20 · 대량(100장+) 출력 안정화
+ * - 변환(렌더→ZPL)과 전송을 병행: 묶음이 차면 바로 전송하고 다음 라벨을 변환한다.
+ *   (기존: 전부 변환한 뒤 마지막에 한꺼번에 전송 → 변환 중 Browser Print 연결 유휴/끊김, 실패 시 전부 실패)
+ * - 묶음 크기 축소(≈600KB / 30장) + 전송 타임아웃 + 재시도(프린터 재탐색)
+ * - 라벨마다 이벤트 루프 양보 + 캔버스 즉시 해제(메모리 누적 방지)
+ * - 동일 내용 라벨은 변환 결과 재사용
+ * - 실패 시 몇 장까지 전송됐는지(sentLabels/sentItems)를 오류에 담아 호출부가 중복 출력 없이 이어서 처리 */
+async function sendWithRetry(fallbackDevice,data,label){
+  const MAX=3; let lastErr;
+  for(let a=1;a<=MAX;a++){
+    try{
+      const dev=ZEBRA_SELECTED_DEVICE||fallbackDevice;
+      await withTimeout(sendToZebraDevice(dev,data),45000,'프린터 전송');
+      return true;
+    }catch(e){
+      lastErr=e;
+      if(a<MAX){
+        setZebraStatus(`${label} 전송 재시도 ${a}/${MAX-1} · ${e&&e.message||e}`,'warn');
+        await delay(1200*a);
+        try{ await discoverZebraPrinters(true); }catch(_){}
+      }
+    }
+  }
+  throw lastErr;
+}
+
 async function sendItemsAsZpl(items){
   let device=ZEBRA_SELECTED_DEVICE;
   if(!device||typeof device.send!=='function') device=await discoverZebraPrinters(false);
@@ -4987,98 +5050,77 @@ async function sendItemsAsZpl(items){
   const dpi=Number(PRINTER_SETTINGS.dpi)||203;
   const threshold=Number(PRINTER_SETTINGS.threshold)||185;
 
-  /*
-   * v4.15.2 · Zebra Z64 압축 + 일괄 전송 최적화
-   * ------------------------------------------------------------
-   * 기존:
-   *   라벨 1장 렌더링 → ZPL 생성 → device.send() → 완료 대기
-   *   → 다음 라벨...
-   *
-   * 문제:
-   *   Browser Print의 device.send()를 라벨마다 호출하면서
-   *   45장의 경우 45번의 전송 요청/응답 대기가 발생합니다.
-   *
-   * 변경:
-   *   여러 라벨의 ^XA...^XZ를 하나의 ZPL 스트림으로 묶어서
-   *   Browser Print에 일괄 전송합니다.
-   *
-   * 주의:
-   *   Browser Print 전송 크기 제한을 고려해 약 1.75MB 단위로
-   *   자동 분할합니다. 따라서 45장도 가능한 한 적은 횟수의
-   *   send() 호출로 처리하면서 드럼 출력 순서는 그대로 보장됩니다.
-   */
-
   const queue=[];
-  for(const item of items){
-    for(const part of (item.parts||[])) queue.push(part);
-  }
+  const partTotal=(items||[]).map(it=>(it.parts||[]).length);
+  const partSent=partTotal.map(()=>0);
+  (items||[]).forEach((item,ii)=>{ (item.parts||[]).forEach(part=>queue.push({part,ii})); });
 
   if(!queue.length){
     setZebraStatus('전송할 라벨이 없습니다','err');
     return true;
   }
 
-  const MAX_SEND_BYTES = 1750000; // 2MB 제한 대비 안전 여유
-  const chunks=[];
-  let current=[];
-  let currentBytes=0;
+  const MAX_SEND_BYTES=600000;   // 묶음당 용량(기존 1.75MB → 프린터 수신 버퍼/타임아웃 여유)
+  const MAX_SEND_LABELS=30;      // 묶음당 최대 라벨 수
+  let current=[], currentBytes=0, currentRefs=[];
+  let sentLabels=0, failed=null, inflight=Promise.resolve();
+  const zplCache=new Map();      // 동일 내용 라벨 변환 결과 재사용
 
-  let rendered=0;
+  const leadingSentItems=()=>{ let n=0; while(n<partTotal.length && partTotal[n]>0 && partSent[n]>=partTotal[n]) n++; return n; };
 
-  for(const part of queue){
-    setZebraStatus(`ZPL 압축 변환 중 · ${rendered+1}/${queue.length} · ${part.labelName||part.key||''}`);
+  const flush=()=>{
+    if(!current.length) return;
+    const zpl=current.join(''), refs=currentRefs, n=current.length;
+    current=[]; currentBytes=0; currentRefs=[];
+    const prev=inflight;
+    inflight=(async()=>{
+      await prev;   // 앞 묶음이 실패하면 여기서 중단 → 뒤 묶음은 전송되지 않아 순서/중복이 보장된다
+      await sendWithRetry(device,zpl,`묶음 ${sentLabels+1}~${sentLabels+n}`);
+      refs.forEach(ii=>{ partSent[ii]++; });
+      sentLabels+=n;
+      setZebraStatus(`ZPL 전송 중 · ${sentLabels}/${queue.length}장 완료`);
+    })();
+    inflight.catch(e=>{ failed=failed||e; });
+  };
 
-    const canvas=await renderPartCanvas(part,dpi);
-    const zpl=await canvasToZpl(canvas,threshold);
-    const size=new Blob([zpl]).size;
+  for(let qi=0; qi<queue.length; qi++){
+    if(failed) break;
+    const {part,ii}=queue[qi];
+    setZebraStatus(`ZPL 변환 중 · ${qi+1}/${queue.length} · 전송 완료 ${sentLabels}장 · ${part.labelName||part.key||''}`);
 
+    let zpl=null, ck=null;
+    try{ ck=part.key+'\u0001'+JSON.stringify(part.ctx||{}); if(ck.length>200000) ck=null; }catch(e){ ck=null; }
+    try{
+      if(ck && zplCache.has(ck)){
+        zpl=zplCache.get(ck);
+      }else{
+        const canvas=await renderPartCanvas(part,dpi);
+        try{ zpl=await canvasToZpl(canvas,threshold); }
+        finally{ try{ canvas.width=0; canvas.height=0; }catch(_){} }   // 캔버스 메모리 즉시 반환
+        if(ck){ if(zplCache.size>=16) zplCache.delete(zplCache.keys().next().value); zplCache.set(ck,zpl); }
+      }
+    }catch(e){ failed=e; break; }
+
+    const size=zpl.length;   // ZPL은 ASCII(Base64/HEX)라 문자 수 = 바이트 수
     if(size>1950000){
-      throw new Error(`단일 라벨 ZPL 데이터가 약 ${(size/1024/1024).toFixed(2)}MB입니다. 203dpi로 변경하거나 라벨 크기를 확인하세요.`);
+      failed=new Error(`단일 라벨 ZPL 데이터가 약 ${(size/1024/1024).toFixed(2)}MB입니다. 203dpi로 변경하거나 라벨 크기를 확인하세요.`);
+      break;
     }
+    if(current.length && (currentBytes+size>MAX_SEND_BYTES || current.length>=MAX_SEND_LABELS)) flush();
+    current.push(zpl); currentBytes+=size; currentRefs.push(ii);
 
-    /*
-     * 현재 묶음에 추가했을 때 안전 한도를 넘으면 먼저 전송 묶음을 확정하고,
-     * 현재 라벨은 다음 묶음의 첫 라벨로 넣습니다.
-     */
-    if(current.length && currentBytes+size>MAX_SEND_BYTES){
-      chunks.push(current.join(''));
-      current=[];
-      currentBytes=0;
-    }
-
-    current.push(zpl);
-    currentBytes+=size;
-    rendered++;
+    await delay(0);   // UI/연결 유지 이벤트 처리를 위해 양보
   }
 
-  if(current.length) chunks.push(current.join(''));
+  flush();                                   // 남은 묶음(변환 중 오류였어도 이미 변환된 라벨은 보낸다)
+  try{ await inflight; }catch(e){ failed=failed||e; }
 
-  let sent=0;
-
-  for(let c=0;c<chunks.length;c++){
-    const zpl=chunks[c];
-    const size=new Blob([zpl]).size;
-
-    setZebraStatus(
-      `ZPL 일괄 전송 중 · ${device.name||'Zebra'} · 묶음 ${c+1}/${chunks.length} · ${sent+1}~${Math.min(queue.length, sent + 999)}`
-    );
-
-    await sendToZebraDevice(device,zpl);
-
-    /*
-     * 실제 라벨 수는 ^XA 기준으로 계산.
-     * chunks가 생성될 때 라벨별 ZPL을 그대로 유지하므로
-     * 전송 순서는 queue와 동일합니다.
-     */
-    const count=(zpl.match(/\^XA/g)||[]).length;
-    sent+=count;
-
-    setZebraStatus(
-      `ZPL 일괄 전송 완료 · ${device.name||'Zebra'} · ${sent}/${queue.length}건`
-    );
+  if(failed){
+    const err=new Error(`${failed&&failed.message||failed} (전송 완료 ${sentLabels}/${queue.length}장)`);
+    err.sentLabels=sentLabels; err.sentItems=leadingSentItems(); err.total=queue.length;
+    throw err;
   }
-
-  setZebraStatus(`ZPL 전송 완료 · ${device.name||'Zebra'} · ${sent}건 (Z64 압축)`,'ok');
+  setZebraStatus(`ZPL 전송 완료 · ${device.name||'Zebra'} · ${sentLabels}건 (Z64 압축)`,'ok');
   return true;
 }
 
@@ -5095,25 +5137,58 @@ function triggerPrint(items){
   }));
   return true;
 }
+// 출력 이력 저장 실패가 "출력 실패"로 오인되어 재출력/브라우저 인쇄 폴백(중복 출력)을 일으키지 않도록 분리한다.
+async function safeRecordHistory(items){
+  try{ await recordPrintHistory(items); }
+  catch(e){ console.warn('print history failed',e); try{ flash('출력은 완료됐지만 출력 이력 저장에 실패했습니다',true); }catch(_){} }
+  try{ await norooStampOrder(); }catch(e){}
+}
+async function handleZplFailure(e,items){
+  console.error(e);
+  const n=(e&&typeof e.sentItems==='number')?e.sentItems:0;
+  if(n>0) await safeRecordHistory(items.slice(0,n));   // 실제 출력된 부분만 이력에 남긴다
+  const hint=(e&&e.sentLabels>0)?` · 앞의 ${e.sentLabels}장은 이미 출력됨 → ${n+1}번째 라벨부터 출력 범위를 지정해 이어서 출력하세요`:'';
+  setZebraStatus(`ZPL 출력 실패 · ${e.message||e}${hint}`,'err');
+  flash(`ZPL 출력 실패: ${e.message||e}${hint}`,true);
+}
 async function smartPrint(items){
   if(!items?.length){flash('먼저 라벨을 생성하세요',true);return;}
+  if(NOROO.on){
+    const cur=[NOROO.stockDate,NOROO.serialPattern,NOROO.seqOffset].join('|');
+    const stale=items.some(it=>{ const c=(it.parts&&it.parts[0]&&it.parts[0].ctx)||it.ctx||{}; return c._stockKey!==undefined && c._stockKey!==cur; });
+    if(stale){ flash('재고생성일/시리얼 설정이 라벨 생성 이후 바뀌었습니다. 라벨을 다시 생성한 뒤 출력하세요',true); return; }
+  }
   const method=PRINTER_SETTINGS.method||'auto';
   if(method==='browser'){
-    await recordPrintHistory(items); triggerPrint(items); return;
+    await safeRecordHistory(items); triggerPrint(items); return;
   }
   if(method==='zebra'){
-    try{await sendItemsAsZpl(items);await recordPrintHistory(items);flash('Zebra ZPL 전송 완료 · Z64 압축 일괄 출력');}
-    catch(e){console.error(e);setZebraStatus(`ZPL 출력 실패 · ${e.message||e}`,'err');flash(`ZPL 출력 실패: ${e.message||e}`,true);}
+    try{ await sendItemsAsZpl(items); }
+    catch(e){ await handleZplFailure(e,items); return; }
+    await safeRecordHistory(items);
+    flash('Zebra ZPL 전송 완료 · Z64 압축 일괄 출력');
     return;
   }
   // auto: Browser Print + 프린터가 실제로 잡히면 ZPL, 아니면 window.print fallback
   if(browserPrintSdkReady()){
+    let tryBrowser=true;
     try{
       if(!ZEBRA_SELECTED_DEVICE) await discoverZebraPrinters(true);
-      if(ZEBRA_SELECTED_DEVICE){await sendItemsAsZpl(items);await recordPrintHistory(items);flash('Zebra ZPL 전송 완료 · Z64 압축 일괄 출력');return;}
-    }catch(e){console.warn('Auto ZPL failed; browser print fallback:',e);}
+      if(ZEBRA_SELECTED_DEVICE){
+        try{
+          await sendItemsAsZpl(items);
+          await safeRecordHistory(items);
+          flash('Zebra ZPL 전송 완료 · Z64 압축 일괄 출력');
+          return;
+        }catch(e){
+          // 일부라도 이미 출력됐다면 브라우저 인쇄로 폴백하면 전체가 중복 출력된다 → 폴백 금지
+          if(e&&e.sentLabels>0){ await handleZplFailure(e,items); return; }
+          console.warn('Auto ZPL failed; browser print fallback:',e);
+        }
+      }
+    }catch(e){ console.warn('Auto ZPL discovery failed; browser print fallback:',e); }
   }
-  await recordPrintHistory(items); triggerPrint(items);
+  await safeRecordHistory(items); triggerPrint(items);
 }
 $('printAllBtn')?.addEventListener('click',async()=>{
   if(!generated.length){flash('먼저 라벨을 생성하세요',true);return;}
@@ -5199,8 +5274,8 @@ $('exportBtn')?.addEventListener('click',()=>{
   if(!rows.length){flash('조건에 맞는 출력 이력이 없습니다',true);return;}
   const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
   const qLot=v=>`"=""${String(v??'').replace(/"/g,'')}"""`;   // 1-2 같은 LOT가 날짜로 바뀌지 않게 텍스트 지정
-  const lines=[['시각','출력일자','품목코드','품목명','라벨명','출력 수량','LOT 번호','시리얼(ND)'].map(q).join(',')];
-  rows.forEach(({e})=>lines.push([q(e.time||''),q(logDateKey(e)||''),q(e.code||''),q(e.product||''),q(e.labelName||''),q(`${e.count||1}장`),qLot(logLotText(e)),q(logSerialText(e))].join(',')));
+  const lines=[['시각','출력일자','실제 제조일','재고생성일','품목코드','품목명','라벨명','출력 수량','LOT 번호','시리얼(ND)'].map(q).join(',')];
+  rows.forEach(({e})=>lines.push([q(e.time||''),q(logDateKey(e)||''),q(e.mfgDate||''),q(e.stockDate||''),q(e.code||''),q(e.product||''),q(e.labelName||''),q(`${e.count||1}장`),qLot(logLotText(e)),q(logSerialText(e))].join(',')));
   const from=$('exportFrom')?.value||'', to=$('exportTo')?.value||'';
   downloadBlob(new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'}),`label_print_history${exportFileSuffix(from,to)}.csv`);
   flash(`출력이력 CSV ${rows.length}건 내보내기 완료`);
