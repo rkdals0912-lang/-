@@ -599,6 +599,29 @@ body.workspace-open #homeView{display:none;}
 <main>
 <style>
 .plScroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px;}
+/* v4.24 프레스일지: 화면(창) 폭에 비율로 맞춰 꽉 채운다 — 최대폭 제한/가로 스크롤 없이 */
+#pressLogView{max-width:none;width:100%;box-sizing:border-box;padding:12px 0 80px;overflow-x:hidden;}
+#pressLogView .panel{box-sizing:border-box;max-width:100%;}
+#pressLogView .plScroll{overflow-x:hidden;}   /* 열 조절 손잡이가 표 오른쪽 밖으로 살짝 나가 생기는 가로 스크롤 제거 */
+#pressLogView table.plTable{width:100%;min-width:0;table-layout:fixed;}
+#pressLogView .plSum{max-width:none;}
+@media (max-width:900px){
+  #pressLogView table.plTable{font-size:11px;}
+  #pressLogView table.plTable td,#pressLogView table.plTable th{padding:4px 2px;}
+  #pressLogView table.plTable .h1{font-size:12px;}
+}
+@media (max-width:700px){
+  #pressLogView{padding:8px 0 80px;}
+  #pressLogView .panel{padding:10px 6px;border-radius:12px!important;}
+  #pressLogView table.plTable{font-size:9.5px;}
+  #pressLogView table.plTable td,#pressLogView table.plTable th{padding:3px 1px;word-break:break-all;}
+  #pressLogView table.plTable .h1{font-size:10.5px;}
+  #pressLogView table.plTable .wr input,#pressLogView table.plTable .nmIn,#pressLogView table.plTable td.pin input{font-size:10px;padding:1px;margin:0;min-height:26px;}
+  #pressLogView table.plTable td.pin input{width:100%;height:28px;border-radius:5px;}
+  #pressLogView table.plTable .sm .smv{font-size:11px;}
+  #pressLogView table.plTable .sm .smc,#pressLogView .plPrev,#pressLogView .plChip{font-size:8.5px;}
+  #pressLogView table.plTable .plLabelBtn,#pressLogView table.plTable .plStat{font-size:9px;padding:4px 1px;}
+}
 .plScroll table.plTable{margin-bottom:0;}
 .plConfirm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:8px 12px;border-radius:10px;background:#fff8ef;border:1px solid #f1d39d;font-size:12.5px;font-weight:700;color:#8a5a13;}
 .plConfirm.done{background:#e9f6ee;border-color:#b9dfc9;color:var(--ok);}
@@ -911,6 +934,14 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
       </div>
 
 
+      <div class="panel" id="shelfMonthsPanel" style="padding:10px 14px;">
+        <div class="checkrow" style="gap:8px;flex-wrap:wrap;align-items:center;margin:0;">
+          <b>개월 수</b>
+          <input type="text" id="shelfMonths" class="field" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="예: 3" style="width:80px;text-align:center;font-weight:800;" title="숫자만 입력 (1~120)">
+          <span>개월</span>
+          <span style="font-size:11px;color:var(--sub);">라벨 변수 <b>개월 수</b>에 들어갑니다. 작업지시를 선택하면 제품 사용기한 기준 값이 채워지고, 바꾸면 미리보기·출력에 바로 반영됩니다. (숫자만 입력)</span>
+        </div>
+      </div>
       <div class="panel" id="panelBatch">
         <h2><span class="n">2</span>일괄 출력</h2>
         <div class="readout" style="margin-bottom:8px;">드럼 <b id="batchDrumsOut">-</b>개 × <b id="batchWeightOut">-</b>kg</div>
@@ -2448,6 +2479,42 @@ function norooOnInput(){
 // 다른 화면으로 나가면 노루 모드 해제 (일반 일괄/실시간 출력에는 영향 없음)
 document.querySelectorAll('#workspaceNav button').forEach(b=>b.addEventListener('click',()=>setNorooMode(false),true));
 try{ const _hn=showHome; showHome=function(...a){ setNorooMode(false); return _hn.apply(this,a); }; }catch(e){}
+/* v4.26 · 개월 수 변수: 출력 화면의 '개월 수' 입력값(숫자만)을 라벨 변수로 제공. 비어 있으면 제품 사용기한(일)÷30 */
+function defaultShelfMonths(p){ const d=Number(p&&p.useByDays); return d>0?String(Math.max(1,Math.round(d/30))):''; }
+function shelfMonthsValue(p){
+  const el=$('shelfMonths');
+  const usable=el && !document.body.classList.contains('editing');   // 서식 편집 중 샘플 미리보기에는 입력값을 쓰지 않는다
+  const v=usable?String(el.value||'').replace(/\D/g,''):'';
+  const n=parseInt(v,10);
+  return (n>=1&&n<=120)?String(n):defaultShelfMonths(p);
+}
+function applyMonthsToContext(ctx,p){
+  if(!ctx) return ctx;
+  const m=shelfMonthsValue(p);
+  ctx.shelfMonths=m; ctx.shelfMonthsText=m?`${m}개월`:''; ctx.shelfMonthsLine=m?`제조일로부터 ${m}개월`:''; ctx.shelfMonthsLineBr=m?`[제조일로부터 ${m}개월]`:'';
+  return ctx;
+}
+// 이미 생성된 라벨(미리보기/출력 대기)의 개월 수를 현재 입력값으로 갱신한다
+function refreshMonthsOnItems(items,p){
+  (items||[]).forEach(it=>{ (it.parts||[]).forEach(part=>applyMonthsToContext(part.ctx,p)); if(it.ctx) applyMonthsToContext(it.ctx,p); });
+}
+function currentOrderProduct(){ try{ return resolveOrderProduct(activeOrder()); }catch(e){ return null; } }
+function resetShelfMonths(){   // 작업지시를 선택하면 제품 기본 개월 수로 채운다 (이후 자유롭게 수정)
+  const el=$('shelfMonths'); if(!el) return;
+  el.value=defaultShelfMonths(currentOrderProduct());
+}
+(function(){
+  const el=$('shelfMonths'); if(!el) return;
+  const clean=()=>{ const v=el.value.replace(/\D/g,'').slice(0,3); if(v!==el.value) el.value=v; };
+  el.addEventListener('beforeinput',e=>{ if(e.data && /\D/.test(e.data)) e.preventDefault(); });   // 숫자 외 입력 차단
+  el.addEventListener('keypress',e=>{ if(e.key && e.key.length===1 && /\D/.test(e.key)) e.preventDefault(); });
+  el.addEventListener('input',()=>{
+    clean();
+    const p=currentOrderProduct();
+    try{ refreshMonthsOnItems(generated,p); renderPreview(); }catch(e){}
+  });
+  el.addEventListener('blur',()=>{ clean(); const n=parseInt(el.value,10); if(el.value!=='' && !(n>=1&&n<=120)){ flash('개월 수는 1~120 사이 숫자로 입력하세요',true); el.value=defaultShelfMonths(currentOrderProduct()); try{ refreshMonthsOnItems(generated,currentOrderProduct()); renderPreview(); }catch(e){} } });
+})();
 // ===== 제조일자(MFG) 규칙 코어 =====
 // 규칙 = {id,name,mode,value,format,description,system}
 //  mode: production_date(생산일자 ±value일) / print_date(출력일 ±value일) / month_start(생산월 1일) / month_end(생산월 말일) / none(표시 안 함)
@@ -2544,8 +2611,8 @@ function applyMfgToContext(ctx,info,drumNo){
 }
 (function(){
   const _bc=buildContext, _bd=buildDongeunContext;
-  buildContext=function(p,info,...rest){ return applyMfgToContext(_bc.call(this,p,info,...rest),info,rest[0]); };
-  buildDongeunContext=function(p,info,...rest){ return applyMfgToContext(_bd.call(this,p,info,...rest),info,rest[0]); };
+  buildContext=function(p,info,...rest){ return applyMonthsToContext(applyMfgToContext(_bc.call(this,p,info,...rest),info,rest[0]),p); };
+  buildDongeunContext=function(p,info,...rest){ return applyMonthsToContext(applyMfgToContext(_bd.call(this,p,info,...rest),info,rest[0]),p); };
 })();
 // 같은 품목·같은 LOT가 여러 작업지시(배치·야간·다음날)에 걸치면 드럼번호를 앞 구간에 이어서 매긴다.
 // 예) 주간 24드럼 → 야간 작업지시는 25번부터. (LOT에 {DRUM}이 들어가 드럼마다 LOT가 다른 규칙은 이어붙이지 않음)
@@ -3744,6 +3811,7 @@ async function selectOrder(id){
   if(o&&o.status==='pending'){o.status='in_progress';await saveWorkOrders();}
   liveDrumCounter=1;generated=[];renderOrderList();refreshActiveOrderPanel();
   try{ norooSyncFromOrder(o); }catch(e){}
+  try{ resetShelfMonths(); }catch(e){}
   autoPreviewOrder();
 }
 // v4.16: 작업지시를 선택하면 실제 인쇄 없이 드럼 1번 기준 라벨 미리보기를 자동으로 생성한다.
@@ -5296,19 +5364,6 @@ async function dupCheck(items){
   });
   return r;
 }
-// 이번 출력의 드럼번호들이 겹치지 않는 가장 가까운 '연번 보정' 값을 찾는다.
-function norooSuggestOffset(items,r){
-  const drums=(items||[]).map(it=>Number(it.drumNo)||0).filter(Boolean);
-  if(!drums.length) return null;
-  const base=NOROO.seqOffset;
-  try{
-    for(let d=1; d<=5000; d++){
-      NOROO.seqOffset=base+d;
-      if(drums.every(n=>{ const sn=norooStockInfo(n).serial; return !r.reg.serials[sn] && !r.logSer.has(sn); })) return base+d;
-    }
-  }finally{ NOROO.seqOffset=base; }
-  return null;
-}
 const dupList=(a,n=5)=>a.slice(0,n).join(', ')+(a.length>n?` 외 ${a.length-n}건`:'');
 // true = 출력 진행, false = 중단
 async function dupGuard(items,opts){
@@ -5323,17 +5378,6 @@ async function dupGuard(items,opts){
   if(r.usedLot.length) msgs.push(`· 같은 품목·LOT·드럼번호로 이미 출력된 라벨 ${r.usedLot.length}건\n   ${dupList(r.usedLot.map(x=>`${x.lot} #${x.drum}`))}`);
   if(!msgs.length) return true;
   if(confirm(`⚠ 중복 출력 경고\n\n${msgs.join('\n')}\n\n재출력(프린터 오류 등)이 확실할 때만 [확인]을 누르세요.\n[취소]하면 출력하지 않습니다.`)) return true;
-  if(r.usedSerial.length){
-    const sug=norooSuggestOffset(items,r);
-    if(sug!==null && confirm(`연번 보정을 +${sug}(으)로 바꾸면 시리얼이 겹치지 않습니다.\n지금 적용할까요? (적용 후 라벨을 다시 생성해야 합니다)`)){
-      NOROO.seqOffset=sug;
-      if($('norooSeqOffset')) $('norooSeqOffset').value=sug;
-      try{ storeSet(NOROO_KEY,JSON.stringify({serialPattern:NOROO.serialPattern,seqOffset:NOROO.seqOffset})); }catch(e){}
-      try{ norooUpdatePreview(); }catch(e){}
-      try{ autoPreviewOrder(); }catch(e){}
-      flash(`연번 보정 +${sug} 적용 · 라벨을 다시 생성하세요`);
-    }
-  }
   return false;
 }
 async function dupRegister(items){
@@ -5433,6 +5477,7 @@ async function smartPrint(items,opts){
   finally{ _printBusy=false; }
 }
 async function _smartPrintInner(items,opts){
+  if(!opts.noDup){ try{ refreshMonthsOnItems(items,currentOrderProduct()); }catch(e){} }   // 출력 직전 개월 수를 입력값으로 맞춤
   if(NOROO.on){
     const cur=[NOROO.stockDate,NOROO.serialPattern,NOROO.seqOffset].join('|');
     const stale=items.some(it=>{ const c=(it.parts&&it.parts[0]&&it.parts[0].ctx)||it.ctx||{}; return c._stockKey!==undefined && c._stockKey!==cur; });
@@ -5625,6 +5670,38 @@ function plApplyOverrides(recs){
   return recs;
 }
 function plFilterMachine(recs,m){ return !m?recs:recs.filter(r=>m==='__none'?!r.mc:r.mc===m); }
+/* v4.24 · 프레스일지 엑셀 열 너비
+ * 기존: 기본값은 px÷5.2(입력칸 ÷3.8)인데, 화면에서 열 너비를 한 번이라도 조절하면 px÷7 로 계산해
+ *       열(특히 입력칸 6개)이 갑자기 좁아졌다. 시트 전체 폭도 A4 가로 한 페이지보다 훨씬 좁아 작게 인쇄됐다.
+ * 변경: ① 내용(한글=2칸)이 잘리지 않는 최소 너비 계산 ② 화면에서 조절한 비율이 있으면 그 비율을 따름
+ *       ③ 합계가 A4 가로(좁은 여백) 한 페이지 폭에 해당하는 값(≈146)을 채우도록 비율대로 확대 */
+function plDispLen(v){ let n=0; for(const ch of String(v==null?'':v)){ n+=ch.charCodeAt(0)>0x2e80?2:1.1; } return n; }
+function plXlsxWidths(EXC,rowsModel){
+  const n=EXC.length, TARGET=146, MAXSCALE=1.9;
+  const need=Array(n+7).fill(0);
+  EXC.forEach((c,k)=>{ need[k]=plDispLen(plDef(c).l)*1.15; });
+  rowsModel.forEach(m=>{
+    if(m.t!=='item') return;
+    (m.info||[]).forEach((v,k)=>{ need[k]=Math.max(need[k],plDispLen(v)*1.1); });
+    (m.cells||[]).forEach((v,i)=>{ const k=n+(i%6); need[k]=Math.max(need[k],plDispLen(v)); });
+    let t=0; try{ t=plSum(m.cells); }catch(e){}
+    need[n+6]=Math.max(need[n+6],plDispLen(String(t))*1.15);
+  });
+  const inW=Math.max(12,Math.ceil(Math.max(...need.slice(n,n+6))+2));   // 입력칸 6개: 이전 기본(≈12자)보다 좁아지지 않게
+  const minW=need.map((v,k)=> k<n ? Math.min(42,Math.max(8,Math.ceil(v+2))) : (k<n+6 ? inW : Math.min(20,Math.max(12,Math.ceil(v+2)))) );
+  let w;
+  if(plHasColW()){   // 화면에서 조절한 비율 그대로
+    const wt=[...EXC.map(c=>plColPx(c)),...Array(6).fill(plColPx('wr')),plColPx('sm')], sum=wt.reduce((a,v)=>a+v,0)||1;
+    w=wt.map(v=>v*TARGET/sum);
+    w=w.map((v,k)=>Math.max(v,minW[k]));                       // 내용이 잘리지 않게 최소 너비 보장
+    const inMax=Math.max(...w.slice(n,n+6)); for(let k=n;k<n+6;k++) w[k]=inMax;   // 입력칸 6개는 같은 너비
+  }else{
+    w=minW.slice();
+  }
+  const tot=w.reduce((a,v)=>a+v,0);
+  if(tot<TARGET){ const f=Math.min(MAXSCALE,TARGET/tot); w=w.map(v=>v*f); }   // 한 페이지 폭을 채우도록 확대
+  return w.map(v=>Math.min(70,Math.round(v*10)/10));
+}
 async function exportPressLogXlsx(from,to,machine='',shift=''){
   const recs=buildPressLogRecords(from,to);
   if(!recs.length){flash('선택한 작업지시일에 해당하는 프레스일지 데이터가 없습니다',true);return false;}
@@ -5636,12 +5713,11 @@ async function exportPressLogXlsx(from,to,machine='',shift=''){
   const rowsModel=buildPressLogSheetRows(pressLogBlocks(recsF),EXC), name=`프레스일지${exportFileSuffix(from,to)}${shift?'_'+shift:''}${machine&&machine!=='__none'?'_'+machine:''}.xlsx`;
   const sumRows=plSummaryRows(recsF), sumTot=sumRows.reduce((a,e)=>a+e.b,0);
   const cellVal=v=>{ const t=String(v??'').trim(); return (t!==''&&/^-?\d+(\.\d+)?$/.test(t))?Number(t):t; };
-  // 열 너비: 화면에서 조절한 너비(있으면)를 따르고, 없으면 기본 너비
-  const wch=(k,defPx,div)=>{ const v=Number(plColW[k]); return Math.max(6,Math.round((v>0?v:defPx)/(v>0?7:div))); };
-  const widths=[...EXC.map(c=>wch(c,plDef(c).px,5.2)),...Array(6).fill(wch('wr',46,3.8)),wch('sm',84,6)];
+  // 열 너비: 내용에 맞추고, 화면에서 조절한 비율을 따르며, A4 가로 한 페이지 폭을 채운다
+  const widths=plXlsxWidths(EXC,rowsModel);
   try{
     if(window.ExcelJS){
-      const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('프레스일지',{pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+      const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('프레스일지',{pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,margins:{left:0.25,right:0.25,top:0.5,bottom:0.5,header:0.3,footer:0.3}},views:[{state:'normal',zoomScale:100}]});
       ws.columns=widths.map(w=>({width:w}));
       const line={style:'thin',color:{argb:'FF8A94A3'}}, box={top:line,left:line,bottom:line,right:line};
       const fill=argb=>({type:'pattern',pattern:'solid',fgColor:{argb}});
@@ -5703,7 +5779,7 @@ async function exportPressLogXlsx(from,to,machine='',shift=''){
       aoa.push([]); aoa.push([`▣ 요약 · ${[from===to?from:`${from}~${to}`,shift||'주·야 전체',machine?(machine==='__none'?'미지정':machine):'설비 전체'].join(' · ')}`]);
       aoa.push(['품목코드','약어명','색상','배치수']); sumRows.forEach(e=>aoa.push([e.code,e.short,e.color,e.b])); aoa.push(['합계','','',sumTot]);
       const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:false});
-      ws['!merges']=merges; ws['!cols']=widths.map(w=>({wch:w}));
+      ws['!merges']=merges; ws['!cols']=widths.map(w=>({wch:w})); ws['!margins']={left:0.25,right:0.25,top:0.5,bottom:0.5,header:0.3,footer:0.3};
       // 정보 칸은 텍스트 고정(1-2가 날짜로 바뀌지 않게)
       Object.keys(ws).forEach(k=>{ const m=/^([A-Z]+)\d+$/.exec(k); if(k[0]!=='!'&&m&&m[1].length===1&&m[1].charCodeAt(0)-65<n&&ws[k].t==='n'){ ws[k].t='s'; ws[k].v=String(ws[k].v); } });
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'프레스일지'); XLSX.writeFile(wb,name);
@@ -6109,6 +6185,10 @@ const FIELD_VARIABLES = [
   ['mfgYYdotMMdotDD','제조일자 YY.MM.DD'],
   ['mfgMMMYYYY','제조일자 MMM. YYYY'],
   ['mfgYYYYdotMM','제조일자 YYYY.MM'],
+  ['shelfMonths','개월 수 (숫자만, 예: 3)'],
+  ['shelfMonthsText','개월 수 + 개월 (예: 3개월)'],
+  ['shelfMonthsLine','제조일로부터 N개월 (예: 제조일로부터 3개월)'],
+  ['shelfMonthsLineBr','[제조일로부터 N개월] (대괄호 포함)'],
   ['stockDate','재고 생성일 (YYYY-MM-DD)'],
   ['stockYYMMDD','재고 생성일 YYMMDD'],
   ['stockYYYYMMDD','재고 생성일 YYYYMMDD'],
@@ -7021,7 +7101,7 @@ function collectBindKeysForLayout(key){
   });
   return [...set];
 }
-const FP_BIND_LABELS={name:'품명',shortName:'라벨 약어',fullName:'ECOUNT 품목명',code:'품목코드',color:'색상',type:'타입/성상',lot:'LOT',lotRaw:'LOT(원본)',exp:'사용기한(EXP)',expireDate:'사용기한(EXP)',useby:'사용기한(EXP)',weight:'중량 표시',proddate:'생산일자',mfgDate:'제조일자(규칙 적용)',mfgLine:'제조일자(문구 포함)',stockDate:'재고 생성일',serialNo:'시리얼넘버',drumNo:'드럼 번호',barcode:'바코드 값',barcodeText:'바코드 숫자',barcodeType:'바코드 종류'};
+const FP_BIND_LABELS={name:'품명',shortName:'라벨 약어',fullName:'ECOUNT 품목명',code:'품목코드',color:'색상',type:'타입/성상',lot:'LOT',lotRaw:'LOT(원본)',exp:'사용기한(EXP)',expireDate:'사용기한(EXP)',useby:'사용기한(EXP)',weight:'중량 표시',proddate:'생산일자',mfgDate:'제조일자(규칙 적용)',mfgLine:'제조일자(문구 포함)',stockDate:'재고 생성일',shelfMonths:'개월 수',shelfMonthsText:'개월 수(N개월)',shelfMonthsLine:'제조일로부터 N개월',shelfMonthsLineBr:'[제조일로부터 N개월]',serialNo:'시리얼넘버',drumNo:'드럼 번호',barcode:'바코드 값',barcodeText:'바코드 숫자',barcodeType:'바코드 종류'};
 let fpKey='',fpLabelCode='',fpCtx={};
 function populateFreePrintLabelSelect(){
   const sel=$('fpLabelSelect'); if(!sel) return;
@@ -8941,7 +9021,7 @@ async function renderPressLogView(){
     const EC=plEffCols();
     const tot=EC.reduce((a,c)=>a+plDef(c).w,0)+42+11+9, pct=w=>(w*100/tot).toFixed(2)+'%';
     const custW=plHasColW(), widthsPx=plColKeys(EC).map(plColPx), totPx=widthsPx.reduce((a,v)=>a+v,0);
-    const colgroup=custW?widthsPx.map(w=>`<col style="width:${w}px">`).join('')
+    const colgroup=custW?widthsPx.map(w=>`<col style="width:${(w*100/totPx).toFixed(3)}%">`).join('')
       :EC.map(c=>`<col style="width:${pct(plDef(c).w)}">`).join('')+`<col style="width:${pct(7)}">`.repeat(6)+`<col style="width:${pct(11)}"><col style="width:${pct(9)}">`;
     const minPx=EC.reduce((a,c)=>a+plDef(c).px,0)+6*46+84+70;
     const hd=cls=>EC.map(c=>`<td class="${cls}">${plDef(c).l}${cls==='h1'?`<span class="plRz" data-rz="${c}" title="끌어서 열 너비 조절"></span>`:''}</td>`).join('');
@@ -8949,7 +9029,7 @@ async function renderPressLogView(){
     const bar=`<div class="plConfirm${cf?' done':''}" data-d="${bl.d}" data-s="${bl.s}">`+(cf
       ?`<span>🔒 ${escapeHtml(bl.s)} 일지 확정됨 · ${escapeHtml(cf.by||'')} · ${escapeHtml(cf.at||'')}</span>${isAdmin?'<button type="button" class="btn btn-ghost auto" data-plunconfirm="1">확정 취소</button>':''}`
       :`<span>${escapeHtml(bl.s)} 일지 작성이 끝나면 확정하세요. 확정하면 수정할 수 없습니다.</span><button type="button" class="btn btn-ok auto" data-plconfirm="1">✔ 확정</button>`)+`</div>`;
-    return `${bar}<div class="plScroll"><table class="plTable" data-d="${bl.d}" style="${custW?`width:${totPx}px;min-width:${totPx}px`:`min-width:${minPx}px`}"><colgroup>${colgroup}</colgroup>
+    return `${bar}<div class="plScroll"><table class="plTable" data-d="${bl.d}" style="width:100%;min-width:0"><colgroup>${colgroup}</colgroup>
       <tr>${hd('h1')}<td class="h1" colspan="6">${escapeHtml(bl.title)}<span class="plRz" data-rz="wr" title="끌어서 입력칸 너비 조절"></span></td><td class="h1">합계<span class="plRz" data-rz="sm" title="끌어서 열 너비 조절"></span></td><td class="h1">라벨 출력<span class="plRz" data-rz="lb" title="끌어서 열 너비 조절"></span></td></tr>
       <tr>${hd('h2')}<td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td><td class="h2"></td><td class="h2"></td></tr>${body}</table></div>${isAdmin?`<button type="button" class="plAddJob" data-pladdjob="1" data-d="${bl.d}" data-s="${bl.s}">＋ ${bl.s} 작업 추가</button>`:''}`;
   }).join('')+plSummaryHtml(recs,[plDate,effShift||'주·야 전체',plMachine?(plMachine==='__none'?'미지정':plMachine):'설비 전체'].join(' · '));
@@ -9887,11 +9967,12 @@ function plHasColW(){ return Object.keys(plColW).length>0; }
 function plColKeys(EC){ return [...EC,'wr','wr','wr','wr','wr','wr','sm','lb']; }
 function plColPx(k){ const v=Number(plColW[k]); if(v>0) return v; if(PL_FIXED_PX[k]) return PL_FIXED_PX[k]; const d=plDef(k); return d?d.px:62; }
 function plApplyColW(){
-  const px=plColKeys(plEffCols()).map(plColPx), tot=px.reduce((a,v)=>a+v,0);
+  // 저장된 열 너비는 '상대 비율'로만 쓰고, 표는 항상 화면 폭 100%를 채운다
+  const px=plColKeys(plEffCols()).map(plColPx), tot=px.reduce((a,v)=>a+v,0)||1;
   document.querySelectorAll('#plBody table.plTable').forEach(t=>{
     const cg=t.querySelector('colgroup'); if(!cg) return;
-    [...cg.children].forEach((c,i)=>{ if(px[i]) c.style.width=px[i]+'px'; });
-    t.style.width=tot+'px'; t.style.minWidth=tot+'px';
+    [...cg.children].forEach((c,i)=>{ if(px[i]) c.style.width=(px[i]*100/tot).toFixed(3)+'%'; });
+    t.style.width='100%'; t.style.minWidth='0';
   });
 }
 let plRzState=null;
@@ -9908,13 +9989,19 @@ $('plBody')?.addEventListener('pointerdown',e=>{
     plColW.lb=Math.round(cells[EC.length+2].getBoundingClientRect().width);
     plApplyColW();
   }
-  plRzState={key,x:e.clientX,w:plColPx(key),div:key==='wr'?6:1,h};
+  { // 드래그 시작: 이 열(들)이 차지하는 현재 화면 너비와 나머지 열의 가중치 합을 기억
+    const EC2=plEffCols(), n=key==='wr'?6:1, ws=plColKeys(EC2).map(plColPx), tot=ws.reduce((a,v)=>a+v,0);
+    const W=table.getBoundingClientRect().width, w0=plColPx(key);
+    plRzState={key,x:e.clientX,n,W,other:tot-n*w0,span0:n*w0*W/tot,h};
+  }
   h.classList.add('on'); try{ h.setPointerCapture(e.pointerId); }catch(_){}
 });
 window.addEventListener('pointermove',e=>{
   if(!plRzState) return;
-  const w=Math.max(30,Math.round(plRzState.w+(e.clientX-plRzState.x)/plRzState.div));
-  plColW[plRzState.key]=w; plApplyColW();
+  const st=plRzState;
+  const s=Math.min(Math.max(st.span0+(e.clientX-st.x),20*st.n),st.W-40);   // 이 열 너비(px): 최소 20px/칸, 나머지 열에 40px는 남김
+  const w=s*st.other/(st.n*(st.W-s));                                      // 화면에서 s px 가 되도록 하는 가중치
+  plColW[st.key]=Math.max(1,Math.round(w*100)/100); plApplyColW();
 });
 window.addEventListener('pointerup',()=>{
   if(!plRzState) return;
