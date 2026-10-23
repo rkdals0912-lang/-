@@ -571,7 +571,7 @@ body.workspace-open #homeView{display:none;}
   <div class="homeGrid">
     <button class="homeCard" data-go="batch"><span class="homeIcon c-blue"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg></span><b>일괄 출력</b><small>작업지시 기반 출력</small></button>
     <button class="homeCard" data-go="live"><span class="homeIcon c-green"><svg viewBox="0 0 24 24"><path d="M3 15h12V6H8"/><path d="M15 10h3l3 3v2h-6"/><circle cx="7" cy="17" r="2"/><circle cx="18" cy="17" r="2"/></svg></span><b>실시간 출력</b><small>현장 즉시 발행</small></button>
-    <button class="homeCard" data-go="noroo"><span class="homeIcon c-purple"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h4"/><path d="M16 3v4"/></svg></span><b>출고 라벨 프린트</b><small>재고 생성일 · 시리얼</small></button>
+    <button class="homeCard" data-go="noroo"><span class="homeIcon c-purple"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h4"/><path d="M16 3v4"/></svg></span><b>노루알엔씨 라벨</b><small>재고 생성일 · 시리얼</small></button>
     <button class="homeCard adminOnly" data-go="editor"><span class="homeIcon c-orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1-2.8 2.8-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.6V21H10v-.1A1.8 1.8 0 0 0 8.9 19a1.8 1.8 0 0 0-2 .4l-.1.1L4 16.7l.1-.1a1.8 1.8 0 0 0 .4-2A1.8 1.8 0 0 0 3 13.5H3v-4h.1A1.8 1.8 0 0 0 4.5 8a1.8 1.8 0 0 0-.4-2L4 5.9 6.8 3l.1.1a1.8 1.8 0 0 0 2 .4A1.8 1.8 0 0 0 10 2h4a1.8 1.8 0 0 0 1.1 1.5 1.8 1.8 0 0 0 2-.4l.1-.1L20 5.9l-.1.1a1.8 1.8 0 0 0-.4 2A1.8 1.8 0 0 0 21 9.5V13.5a1.8 1.8 0 0 0-1.6 1.5z"/></svg></span><b>라벨 편집</b><small>텍스트 · 표 · 회전</small></button>
     <button class="homeCard adminOnly" data-go="products"><span class="homeIcon c-red"><svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v16H4V5h4l1-2z"/><path d="M8 10h8M8 14h8M8 18h5"/></svg></span><b>제품 관리</b><small>품목 · 라벨 연결</small></button>
     <button class="homeCard adminOnly" data-go="lot"><span class="homeIcon c-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span><b>LOT 규칙</b><small>제품별 채번 규칙</small></button>
@@ -599,29 +599,6 @@ body.workspace-open #homeView{display:none;}
 <main>
 <style>
 .plScroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px;}
-/* v4.24 프레스일지: 화면(창) 폭에 비율로 맞춰 꽉 채운다 — 최대폭 제한/가로 스크롤 없이 */
-#pressLogView{max-width:none;width:100%;box-sizing:border-box;padding:12px 0 80px;overflow-x:hidden;}
-#pressLogView .panel{box-sizing:border-box;max-width:100%;}
-#pressLogView .plScroll{overflow-x:hidden;}   /* 열 조절 손잡이가 표 오른쪽 밖으로 살짝 나가 생기는 가로 스크롤 제거 */
-#pressLogView table.plTable{width:100%;min-width:0;table-layout:fixed;}
-#pressLogView .plSum{max-width:none;}
-@media (max-width:900px){
-  #pressLogView table.plTable{font-size:11px;}
-  #pressLogView table.plTable td,#pressLogView table.plTable th{padding:4px 2px;}
-  #pressLogView table.plTable .h1{font-size:12px;}
-}
-@media (max-width:700px){
-  #pressLogView{padding:8px 0 80px;}
-  #pressLogView .panel{padding:10px 6px;border-radius:12px!important;}
-  #pressLogView table.plTable{font-size:9.5px;}
-  #pressLogView table.plTable td,#pressLogView table.plTable th{padding:3px 1px;word-break:break-all;}
-  #pressLogView table.plTable .h1{font-size:10.5px;}
-  #pressLogView table.plTable .wr input,#pressLogView table.plTable .nmIn,#pressLogView table.plTable td.pin input{font-size:10px;padding:1px;margin:0;min-height:26px;}
-  #pressLogView table.plTable td.pin input{width:100%;height:28px;border-radius:5px;}
-  #pressLogView table.plTable .sm .smv{font-size:11px;}
-  #pressLogView table.plTable .sm .smc,#pressLogView .plPrev,#pressLogView .plChip{font-size:8.5px;}
-  #pressLogView table.plTable .plLabelBtn,#pressLogView table.plTable .plStat{font-size:9px;padding:4px 1px;}
-}
 .plScroll table.plTable{margin-bottom:0;}
 .plConfirm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:8px 12px;border-radius:10px;background:#fff8ef;border:1px solid #f1d39d;font-size:12.5px;font-weight:700;color:#8a5a13;}
 .plConfirm.done{background:#e9f6ee;border-color:#b9dfc9;color:var(--ok);}
@@ -679,8 +656,6 @@ table.plTable td.h1{position:relative;}
 body.simpleOp.opBatch #opView .opGrid>.opCol:first-child{display:none;}
 body.noroo-mode #opView .opCol:first-child .panel.adminOnly,body.noroo-mode #orderBulkDel{display:block !important;}
 body.noroo-mode #workOrderExcelImportBtn,body.noroo-mode #workOrderExcelTemplateBtn,body.noroo-mode #opAdminToggle{display:none !important;}
-body.noroo-mode #opView #orderList .cardActions.adminOnly{display:flex !important;}
-body.noroo-mode:not(.admin-mode) #opView #orderList .editOrderBtn{display:none !important;}
 body.simpleOp.opBatch #featureFlagsPanel{display:none;}
 @media (min-width:1001px){ body.simpleOp.opBatch #opView .grid.opGrid{grid-template-columns:minmax(320px,1fr) 3fr;} }
 /* 프레스일지: 제품순번·배치순번·드럼수량 · 중복 LOT · 요약 · 생산계획 */
@@ -786,7 +761,7 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
 
         <div id="manualOrderFormBody" style="display:none;">
           <div id="norooPanel" style="display:none;border:2px solid #7c3aed;border-radius:10px;padding:10px 12px;margin:0 0 12px;">
-            <h2 style="margin:0 0 8px;font-size:14px;"><span class="n" style="background:#7c3aed;">N</span>출고 라벨 프린트 · 재고 생성일 / 시리얼</h2>
+            <h2 style="margin:0 0 8px;font-size:14px;"><span class="n" style="background:#7c3aed;">N</span>노루알엔씨 라벨 · 재고 생성일 / 시리얼</h2>
             <div class="row2">
               <div><label>재고 생성일 (임의 지정) → 라벨 제조일·시리얼 날짜 (작업지시별로 저장)</label><input type="date" id="norooStockDate"></div>
               <div><label>연번 보정 (+)</label><input type="number" id="norooSeqOffset" step="1" value="0"></div>
@@ -902,24 +877,7 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
         </div>
         <button class="btn btn-ok" id="savePrinterSettingsBtn" type="button">이 PC 프린터 설정 저장</button>
         <div id="zebraStatus" class="printerStatus">Zebra Browser Print 상태를 확인하지 않았습니다.</div>
-        <div id="printHistLookup" style="margin-top:14px;border-top:1px solid #d9e1ec;padding-top:12px;">
-          <h3 style="margin:0 0 8px;font-size:14px;color:var(--navy);">출력 이력 조회 <span style="font-weight:600;font-size:12px;color:#5a6b82;">(출력일 · 로트번호 · ND번호)</span></h3>
-          <div class="row2">
-            <div><label>출력일</label><input type="date" id="phDate"></div>
-            <div><label>로트번호 / ND번호 검색</label><input type="text" class="field" id="phQuery" placeholder="예: QAMT01 또는 ND26102201" autocomplete="off"></div>
-          </div>
-          <div class="row2" style="margin-top:6px;">
-            <button class="btn btn-ghost" id="phReset" type="button">조건 초기화</button>
-            <button class="btn btn-ghost" id="phCsv" type="button">CSV 저장</button>
-          </div>
-          <div id="phSummary" style="margin:8px 0 4px;font-size:12px;font-weight:700;color:#5a6b82;"></div>
-          <div style="max-height:340px;overflow:auto;border:1px solid #d9e1ec;border-radius:8px;">
-            <table style="width:100%;border-collapse:collapse;font-size:13px;">
-              <thead><tr style="position:sticky;top:0;background:#eef2f7;"><th style="text-align:left;padding:6px 8px;">출력일</th><th style="text-align:left;padding:6px 8px;">로트번호</th><th style="text-align:left;padding:6px 8px;">ND번호</th></tr></thead>
-              <tbody id="phBody"><tr><td colspan="3" style="padding:10px;color:#8a97a8;">조회 중...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
+        <div class="lockednote">ZPL 직접 인쇄는 이 PC에 <b>Zebra Browser Print</b>가 설치·실행되어 있고, GitHub 저장소 루트에 공식 SDK의 <b>BrowserPrint-3.1.250.min.js</b>와 <b>BrowserPrint-Zebra-1.1.250.min.js</b> 두 파일을 원래 이름 그대로 두는 것을 권장합니다. 라벨 화면을 흑백 비트맵으로 변환한 뒤 ZPL <b>^GFA</b> 명령으로 전송하므로 한글도 화면 모습 그대로 출력할 수 있습니다.</div>
       </div>
 
       <div class="panel adminOnly" id="featureFlagsPanel">
@@ -934,14 +892,6 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
       </div>
 
 
-      <div class="panel" id="shelfMonthsPanel" style="padding:10px 14px;">
-        <div class="checkrow" style="gap:8px;flex-wrap:wrap;align-items:center;margin:0;">
-          <b>개월 수</b>
-          <input type="text" id="shelfMonths" class="field" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="예: 3" style="width:80px;text-align:center;font-weight:800;" title="숫자만 입력 (1~120)">
-          <span>개월</span>
-          <span style="font-size:11px;color:var(--sub);">라벨 변수 <b>개월 수</b>에 들어갑니다. 작업지시를 선택하면 제품 사용기한 기준 값이 채워지고, 바꾸면 미리보기·출력에 바로 반영됩니다. (숫자만 입력)</span>
-        </div>
-      </div>
       <div class="panel" id="panelBatch">
         <h2><span class="n">2</span>일괄 출력</h2>
         <div class="readout" style="margin-bottom:8px;">드럼 <b id="batchDrumsOut">-</b>개 × <b id="batchWeightOut">-</b>kg</div>
@@ -995,7 +945,7 @@ table.plTable td.lb{background:#eef4fb;padding:4px;}
       </div>
       <div class="panel" id="printHistoryPanel" style="display:none;">
         <div class="toolbar">
-          <h2 style="margin:0;" id="printHistoryTitle">라벨 출력 이력</h2>
+          <h2 style="margin:0;">라벨 출력 이력</h2>
           <input type="search" id="logSearch" placeholder="품목명 · 품목코드 검색" style="flex:1;min-width:160px;max-width:280px;padding:6px 10px;">
           <span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--sub);">기간(출력일)
             <input type="date" id="exportFrom" style="width:auto;padding:5px 8px;" title="시작일 (비우면 처음부터)"> ~
@@ -2448,12 +2398,6 @@ function setNorooMode(on){
     try{ if(!$('prodDate').value) $('prodDate').value=NOROO.stockDate||todayISO(); }catch(e){}
   }
   if(on!==was){ try{ if(typeof renderOrderList==='function') renderOrderList(); }catch(e){} }
-  {
-    const hp=$('printHistoryPanel'); if(hp){ if(on) hp.style.display='block'; else if(was) hp.style.display='none'; }
-    const ht=$('printHistoryTitle'); if(ht) ht.textContent=on?'출고 라벨 출력 이력':'라벨 출력 이력';
-    try{ if(typeof renderLog==='function') renderLog(); }catch(e){}
-    try{ if(typeof phRender==='function') phRender(); }catch(e){}
-  }
   if(on){
     if(!NOROO.stockDate) NOROO.stockDate=todayISO();
     if($('norooStockDate')) $('norooStockDate').value=NOROO.stockDate;
@@ -2479,42 +2423,6 @@ function norooOnInput(){
 // 다른 화면으로 나가면 노루 모드 해제 (일반 일괄/실시간 출력에는 영향 없음)
 document.querySelectorAll('#workspaceNav button').forEach(b=>b.addEventListener('click',()=>setNorooMode(false),true));
 try{ const _hn=showHome; showHome=function(...a){ setNorooMode(false); return _hn.apply(this,a); }; }catch(e){}
-/* v4.26 · 개월 수 변수: 출력 화면의 '개월 수' 입력값(숫자만)을 라벨 변수로 제공. 비어 있으면 제품 사용기한(일)÷30 */
-function defaultShelfMonths(p){ const d=Number(p&&p.useByDays); return d>0?String(Math.max(1,Math.round(d/30))):''; }
-function shelfMonthsValue(p){
-  const el=$('shelfMonths');
-  const usable=el && !document.body.classList.contains('editing');   // 서식 편집 중 샘플 미리보기에는 입력값을 쓰지 않는다
-  const v=usable?String(el.value||'').replace(/\D/g,''):'';
-  const n=parseInt(v,10);
-  return (n>=1&&n<=120)?String(n):defaultShelfMonths(p);
-}
-function applyMonthsToContext(ctx,p){
-  if(!ctx) return ctx;
-  const m=shelfMonthsValue(p);
-  ctx.shelfMonths=m; ctx.shelfMonthsText=m?`${m}개월`:''; ctx.shelfMonthsLine=m?`제조일로부터 ${m}개월`:''; ctx.shelfMonthsLineBr=m?`[제조일로부터 ${m}개월]`:'';
-  return ctx;
-}
-// 이미 생성된 라벨(미리보기/출력 대기)의 개월 수를 현재 입력값으로 갱신한다
-function refreshMonthsOnItems(items,p){
-  (items||[]).forEach(it=>{ (it.parts||[]).forEach(part=>applyMonthsToContext(part.ctx,p)); if(it.ctx) applyMonthsToContext(it.ctx,p); });
-}
-function currentOrderProduct(){ try{ return resolveOrderProduct(activeOrder()); }catch(e){ return null; } }
-function resetShelfMonths(){   // 작업지시를 선택하면 제품 기본 개월 수로 채운다 (이후 자유롭게 수정)
-  const el=$('shelfMonths'); if(!el) return;
-  el.value=defaultShelfMonths(currentOrderProduct());
-}
-(function(){
-  const el=$('shelfMonths'); if(!el) return;
-  const clean=()=>{ const v=el.value.replace(/\D/g,'').slice(0,3); if(v!==el.value) el.value=v; };
-  el.addEventListener('beforeinput',e=>{ if(e.data && /\D/.test(e.data)) e.preventDefault(); });   // 숫자 외 입력 차단
-  el.addEventListener('keypress',e=>{ if(e.key && e.key.length===1 && /\D/.test(e.key)) e.preventDefault(); });
-  el.addEventListener('input',()=>{
-    clean();
-    const p=currentOrderProduct();
-    try{ refreshMonthsOnItems(generated,p); renderPreview(); }catch(e){}
-  });
-  el.addEventListener('blur',()=>{ clean(); const n=parseInt(el.value,10); if(el.value!=='' && !(n>=1&&n<=120)){ flash('개월 수는 1~120 사이 숫자로 입력하세요',true); el.value=defaultShelfMonths(currentOrderProduct()); try{ refreshMonthsOnItems(generated,currentOrderProduct()); renderPreview(); }catch(e){} } });
-})();
 // ===== 제조일자(MFG) 규칙 코어 =====
 // 규칙 = {id,name,mode,value,format,description,system}
 //  mode: production_date(생산일자 ±value일) / print_date(출력일 ±value일) / month_start(생산월 1일) / month_end(생산월 말일) / none(표시 안 함)
@@ -2524,7 +2432,7 @@ const MFG_DEFAULT_ID='MFG_PRODUCTION_DATE';
 const MFG_RULE_MODES=[
   ['production_date','생산일자 기준 (± 일수)'],
   ['print_date','출력일(오늘) 기준 (± 일수)'],
-  ['stock_date','재고 생성일 (출고 라벨 프린트 화면에서 지정)'],
+  ['stock_date','재고 생성일 (노루알엔씨 라벨 화면에서 지정)'],
   ['month_start','생산월 1일'],
   ['month_end','생산월 말일'],
   ['none','제조일자 표시 안 함']
@@ -2611,8 +2519,8 @@ function applyMfgToContext(ctx,info,drumNo){
 }
 (function(){
   const _bc=buildContext, _bd=buildDongeunContext;
-  buildContext=function(p,info,...rest){ return applyMonthsToContext(applyMfgToContext(_bc.call(this,p,info,...rest),info,rest[0]),p); };
-  buildDongeunContext=function(p,info,...rest){ return applyMonthsToContext(applyMfgToContext(_bd.call(this,p,info,...rest),info,rest[0]),p); };
+  buildContext=function(p,info,...rest){ return applyMfgToContext(_bc.call(this,p,info,...rest),info,rest[0]); };
+  buildDongeunContext=function(p,info,...rest){ return applyMfgToContext(_bd.call(this,p,info,...rest),info,rest[0]); };
 })();
 // 같은 품목·같은 LOT가 여러 작업지시(배치·야간·다음날)에 걸치면 드럼번호를 앞 구간에 이어서 매긴다.
 // 예) 주간 24드럼 → 야간 작업지시는 25번부터. (LOT에 {DRUM}이 들어가 드럼마다 LOT가 다른 규칙은 이어붙이지 않음)
@@ -3075,40 +2983,9 @@ function filteredOrders(){
     return (x.d<y.d?-1:x.d>y.d?1:0)||(x.s-y.s)||(x.mn-y.mn)||(x.lot<y.lot?-1:x.lot>y.lot?1:0)||((a.batchSeq||0)-(b.batchSeq||0));
   });
 }
-/* v4.22 · 작업지시 중복 방지: 노루 모드에서 같은 품목코드 + 같은 LOT 의 작업지시는 등록할 수 없다 */
-function orderCodeOf(o){ let p=null; try{ p=resolveOrderProduct(o); }catch(e){} return String((p&&p.code)||(o&&o.productCode)||''); }
-function orderLot1(o){
-  if(o&&o.customLot&&String(o.customLot).trim()) return String(o.customLot).trim();
-  let p=null; try{ p=resolveOrderProduct(o); }catch(e){}
-  if(!p) return '';
-  try{
-    const labelCode=o.labelCode||'', variant=o.variant||'';
-    const ruleId=o.lotRuleId||labelEffectiveLotRule(p,labelCode,variant);
-    return String(computeLotInfo(o,1,ruleId,labelCode).lot||'');
-  }catch(e){ return ''; }
-}
-function orderDupKey(o){ const c=orderCodeOf(o), l=orderLot1(o); return (c&&l)?c+'\u0001'+l:''; }
-function orderDupMap(){ const m=new Map(); (workOrders||[]).forEach(o=>{ const k=orderDupKey(o); if(k) m.set(k,(m.get(k)||0)+1); }); return m; }
-// newOrders 가 기존 작업지시(ignoreIds 제외) 또는 서로 간에 같은 품목+LOT 이면 충돌 목록을 돌려준다.
-function orderLotConflicts(newOrders,ignoreIds){
-  const ign=new Set(ignoreIds||[]), res=[], seen=new Map();
-  (workOrders||[]).forEach(o=>{ if(ign.has(o.id)) return; const k=orderDupKey(o); if(k&&!seen.has(k)) seen.set(k,o); });
-  (newOrders||[]).forEach(n=>{
-    const k=orderDupKey(n); if(!k) return;
-    const hit=seen.get(k);
-    if(hit) res.push({order:n,other:hit,code:orderCodeOf(n),lot:orderLot1(n),k});
-    else seen.set(k,n);
-  });
-  return res;
-}
-function orderConflictText(c){
-  const o=c.other||{};
-  return `${c.code} · LOT ${c.lot} (기존: ${o.date||''} ${o.shift||''} Batch ${o.batchSeq||1}/${o.batchCount||1})`;
-}
 function renderOrderList(){
   const list=filteredOrders(),wrap=$('orderList');
   if(!list.length){wrap.innerHTML='<div class="empty">표시할 작업지시가 없습니다.</div>';updateOrderBulkBar(list);return;}
-  const _dupMap=NOROO.on?orderDupMap():null;
   wrap.innerHTML=list.map(o=>{
     const p=resolveOrderProduct(o);
     const pname=p ? (p.shortName||p.name||p.scheduleName||o.productName||'품목명 없음') : (o.productName||o.productCode||'삭제/변경된 품목');
@@ -3129,7 +3006,7 @@ function renderOrderList(){
     return `<div class="orderCard ${o.id===activeOrderId?'active':''}" data-id="${o.id}">
   <label class="orderChk" style="position:absolute;top:0;left:0;bottom:0;width:38px;display:flex;align-items:center;justify-content:center;margin:0;cursor:pointer;z-index:2;"><input type="checkbox" data-osel="${o.id}" style="width:20px;height:20px;margin:0;"${orderSel.has(o.id)?' checked':''}></label>
   <div class="top" style="padding-left:30px;padding-right:90px;"><span class="pname">${escapeHtml(pname)}${pcolor?` ${escapeHtml(pcolor)}`:''}</span></div>
-  <div class="sub" style="padding-left:30px;font-size:13px;font-weight:800;color:#16345c;">${escapeHtml(lotDisplay)}${o.status==='done'?' <span style="color:#1b7a3a;">· 완료</span>':''}${(_dupMap&&_dupMap.get(orderDupKey(o))>1)?' <span style="color:#b42318;background:#fde8e8;border-radius:4px;padding:1px 6px;font-size:11px;">LOT 중복</span>':''}</div>
+  <div class="sub" style="padding-left:30px;font-size:13px;font-weight:800;color:#16345c;">${escapeHtml(lotDisplay)}${o.status==='done'?' <span style="color:#1b7a3a;">· 완료</span>':''}</div>
   <div class="cardActions adminOnly" style="position:absolute;top:8px;right:8px;display:flex;gap:4px;align-items:center;z-index:2;">
     <button type="button" class="editOrderBtn" data-edit="${o.id}" style="font-size:11px;color:var(--navy);background:#eef2f7;border:1px solid #ccd5e0;border-radius:4px;cursor:pointer;padding:2px 7px;font-weight:700;">수정</button>
     <button type="button" class="del" data-del="${o.id}">삭제</button>
@@ -3154,8 +3031,6 @@ function renderOrderList(){
   }));
   wrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',async e=>{
     e.stopPropagation();
-    if(!isAdmin && !NOROO.on) return;
-    if(NOROO.on && !confirm('이 작업지시를 삭제할까요?\n\n되돌릴 수 없습니다.')) return;
     workOrders=workOrders.filter(o=>o.id!==+btn.dataset.del);
     if(activeOrderId===+btn.dataset.del){activeOrderId=null;generated=[];refreshActiveOrderPanel();renderPreview();}
     renderOrderList();await saveWorkOrders();flash('작업지시를 삭제했습니다');
@@ -3179,7 +3054,7 @@ $('orderBulkDone')?.addEventListener('click',async()=>{
   flash(`${n}건을 완료 처리했습니다`);
 });
 $('orderBulkDel')?.addEventListener('click',async()=>{
-  if(!isAdmin && !NOROO.on){ flash('관리자 모드에서만 삭제할 수 있습니다',true); return; }   // 출고 라벨 프린트 화면에서는 누구나 삭제 가능
+  if(!isAdmin){ flash('관리자 모드에서만 삭제할 수 있습니다',true); return; }
   const ids=[...orderSel]; if(!ids.length){ flash('삭제할 작업지시를 선택하세요',true); return; }
   if(!confirm(`선택한 작업지시 ${ids.length}건을 삭제할까요?\n\n되돌릴 수 없습니다.`)) return;
   workOrders=workOrders.filter(o=>!ids.includes(o.id));
@@ -3206,14 +3081,6 @@ function openEditOrderModal(orderId){
   $('editOrderWeight').value=(order.batchWeight!=null&&order.batchWeight!=='')?order.batchWeight:'';
   $('editOrderCustomLot').value=order.customLot||'';
   $('editOrderManualInput').value=order.manualLotInput||'';
-  if(!order.manualLotInput){
-    try{
-      const pp=resolveOrderProduct(order);
-      if(pp && productUsesManualInput3(pp,labelEffectiveLotRule(pp,order.labelCode||'',order.variant||'')||getProductLotRuleId(pp))){
-        const lv=lastInput3Of(pp.code); if(lv) $('editOrderManualInput').value=lv;
-      }
-    }catch(e){}
-  }
   $('editOrderMemo').value=order.memo||'';
 
   // 제품 select 목록 채우기
@@ -3321,7 +3188,6 @@ async function saveEditOrderChanges(){
   order.batchWeight=weight;
   order.customLot=customLot;
   order.manualLotInput=manualLotInput;
-  try{ if(productUsesManualInput3(p,ruleId)) rememberInput3(order.productCode,manualLotInput); }catch(e){}
   order.memo=String($('editOrderMemo')?.value||'').trim();
   order.labelCode=labelCode;
   order.variant=variant;
@@ -3355,28 +3221,6 @@ function ruleUsesManualInput3(ruleId){const r=getLotRuleById(ruleId);return /\{(
 function ruleUsesLotSeq(ruleId){const r=getLotRuleById(ruleId);return String(r?.pattern||'').includes('{LOTSEQ}');}
 function productUsesManualInput3(product,ruleId=''){if(!product)return false;return ruleUsesManualInput3(ruleId||getProductLotRuleId(product));}
 function productUsesLotSeq(product,ruleId=''){if(!product)return false;return ruleUsesLotSeq(ruleId||getProductLotRuleId(product));}
-/* v4.23 · LOT 직접입력(INPUT3) 마지막 값 기억: 품목코드별로 마지막에 쓴 값을 저장하고, 다음 등록/출력 때 자동으로 채운다(언제든 수정 가능) */
-const LAST_INPUT3_KEY='ksa-last-input3-v1';
-let LAST_INPUT3={};
-async function loadLastInput3(){
-  try{ const raw=await storeGet(LAST_INPUT3_KEY); if(raw){ const o=JSON.parse(raw); if(o&&typeof o==='object') LAST_INPUT3=o; } }catch(e){ console.warn('last input3 load failed',e); }
-}
-function lastInput3Of(code){ const e=LAST_INPUT3[String(code||'')]; return (e&&validManualInput3(e.v))?String(e.v).toUpperCase():''; }
-async function rememberInput3(code,v){
-  v=String(v||'').trim().toUpperCase(); code=String(code||'');
-  if(!code||!validManualInput3(v)) return;
-  if(LAST_INPUT3[code]&&LAST_INPUT3[code].v===v) return;
-  LAST_INPUT3[code]={v,t:Date.now()};
-  try{ await storeSet(LAST_INPUT3_KEY,JSON.stringify(LAST_INPUT3)); }catch(e){ console.warn('last input3 save failed',e); }
-}
-// 직접 등록 폼: 입력칸이 비어 있거나 자동으로 채운 값일 때만 마지막 값으로 채운다. 사용자가 직접 고친 값은 건드리지 않는다.
-function applyLastInput3(p){
-  const el=$('manualLotInput'); if(!el||!p) return;
-  if(el.value && el.dataset.auto!=='1') return;
-  const v=lastInput3Of(p.code);
-  el.value=v; el.dataset.auto=v?'1':'';
-  if(v){ try{ if(typeof updateManualOrderLotPreview==='function') updateManualOrderLotPreview(); }catch(e){} }
-}
 function updateManualLotInputVisibility(){
   const p=ALL_PRODUCTS[+$('product').value]; if(!p)return;
   const variants=availableVariants(p),variant=variants.length>1?selectedVariantBatch:(variants[0]||'');
@@ -3384,7 +3228,6 @@ function updateManualLotInputVisibility(){
   const ruleId=labelEffectiveLotRule(p,labelCode,variant);
   const show=productUsesManualInput3(p,ruleId),showSeq=productUsesLotSeq(p,ruleId);
   if($('manualLotWrap'))$('manualLotWrap').style.display=show?'block':'none';
-  if(show) applyLastInput3(p);
   if($('lotSeqWrap'))$('lotSeqWrap').style.display=showSeq?'block':'none';
 }
 function validManualInput3(value){return /^[A-Za-z0-9]{3}$/.test(String(value||'').trim());}
@@ -3599,24 +3442,9 @@ async function importWorkOrderExcel(file){
       flash('Excel에서 등록 가능한 작업지시를 찾지 못했습니다.',true);return;
     }
     const existingMap=new Map(workOrders.filter(o=>o.importKey).map(o=>[o.importKey,o]));
-    let dupSkipped=0;
-    if(NOROO.on){   // 같은 품목+LOT 가 이미 있거나 이번 파일 안에서 겹치는 행은 제외하고 사유를 남긴다
-      const keep=[], seenK=new Map();
-      (workOrders||[]).forEach(o=>{ const old=planned.find(x=>x.importKey&&x.importKey===o.importKey); if(old) return; const k=orderDupKey(o); if(k&&!seenK.has(k)) seenK.set(k,o); });
-      planned.forEach(x=>{
-        const k=orderDupKey(x), hit=k?seenK.get(k):null;
-        if(hit){ dupSkipped++; issues.push(`중복 제외: ${orderConflictText({code:orderCodeOf(x),lot:orderLot1(x),other:hit})} ← 엑셀 ${x.sourceRow}행 Batch ${x.batchSeq}`); }
-        else{ if(k) seenK.set(k,x); keep.push(x); }
-      });
-      planned.length=0; keep.forEach(x=>planned.push(x));
-      if(!planned.length){
-        if(resultEl) resultEl.innerHTML=`<b>반영 가능한 작업지시 0건</b><br>같은 품목·LOT 중복으로 ${dupSkipped}건 제외했습니다.<br>${issues.slice(0,20).map(escapeHtml).join('<br>')}`;
-        flash('중복 LOT 때문에 등록할 작업지시가 없습니다.',true);return;
-      }
-    }
     let addCount=0,updateCount=0;
     planned.forEach(x=>existingMap.has(x.importKey)?updateCount++:addCount++);
-    const msg=`작업지시 Excel 미리보기\n\n파일: ${file.name}\n생성 Batch: ${planned.length}건\n신규: ${addCount}건\n기존 행 갱신: ${updateCount}건\n확인 필요/제외: ${issues.length}건${dupSkipped?` (같은 품목·LOT 중복 ${dupSkipped}건 제외)`:''}\n메모/공지 단독행: ${notices.length}건\n\n반영하시겠습니까?`;
+    const msg=`작업지시 Excel 미리보기\n\n파일: ${file.name}\n생성 Batch: ${planned.length}건\n신규: ${addCount}건\n기존 행 갱신: ${updateCount}건\n확인 필요/제외: ${issues.length}건\n메모/공지 단독행: ${notices.length}건\n\n반영하시겠습니까?`;
     if(!confirm(msg)){ if(resultEl)resultEl.innerHTML='Excel 작업지시 반영을 취소했습니다.';return; }
 
     planned.forEach(x=>{
@@ -3783,13 +3611,8 @@ $('addOrder').addEventListener('click',async(e)=>{
       memo:'',importSource:'manual',noroo:!!NOROO.on
     };
 
-    if(NOROO.on){
-      const cf=orderLotConflicts([order]);
-      if(cf.length) throw new Error(`같은 품목·같은 LOT의 작업지시가 이미 있어 등록하지 않았습니다.\n${orderConflictText(cf[0])}`);
-    }
     workOrders.push(order);
     await saveWorkOrders();
-    if(needsInput3) rememberInput3(order.productCode,order.manualLotInput);
     renderOrderList();
     flash(`${order.date} 작업지시를 추가했습니다`);
     $('batchSeq').value=order.batchSeq+1;
@@ -3811,7 +3634,6 @@ async function selectOrder(id){
   if(o&&o.status==='pending'){o.status='in_progress';await saveWorkOrders();}
   liveDrumCounter=1;generated=[];renderOrderList();refreshActiveOrderPanel();
   try{ norooSyncFromOrder(o); }catch(e){}
-  try{ resetShelfMonths(); }catch(e){}
   autoPreviewOrder();
 }
 // v4.16: 작업지시를 선택하면 실제 인쇄 없이 드럼 1번 기준 라벨 미리보기를 자동으로 생성한다.
@@ -4094,7 +3916,6 @@ async function recordPrintHistory(items){
 }
 function logLotText(e){ return e.lot||''; }
 function logSerialText(e){ const a=(e&&e.serials)||[]; if(!a.length) return ''; return a.length>1?`${a[0]} ~ ${a[a.length-1]}`:a[0]; }
-function logInMode(e){ return !!(e&&e.noroo)===!!NOROO.on; }   // 출고 라벨(노루) 이력은 출고 라벨 프린트 화면에서만, 일반 이력 화면에서는 제외
 function logFiltered(){
   // 검색어(품목명·품목코드) + 기간(출력일)로 걸러진 이력. 원래 인덱스를 함께 반환한다.
   const q=String($('logSearch')?.value||'').trim().toLowerCase();
@@ -4102,7 +3923,6 @@ function logFiltered(){
   if(from&&to&&from>to){ const t=from; from=to; to=t; }
   const out=[];
   log.forEach((e,i)=>{
-    if(!logInMode(e)) return;
     if(q && !(String(e.product||'').toLowerCase().includes(q)||String(e.code||'').toLowerCase().includes(q)||String(logSerialText(e)||'').toLowerCase().includes(q))) return;
     if(from||to){ const k=logDateKey(e); if(!k||(from&&k<from)||(to&&k>to)) return; }
     out.push({e,i});
@@ -4110,10 +3930,9 @@ function logFiltered(){
   return out;
 }
 function renderLog(){
-  const visN=log.filter(logInMode).length;
-  if(!visN){$('logWrap').innerHTML=`<div class="empty">${NOROO.on?'아직 출고 라벨을 출력한 이력이 없습니다.':'아직 출력한 라벨이 없습니다.'}</div>`; if($('logCount'))$('logCount').textContent=''; return;}
+  if(!log.length){$('logWrap').innerHTML='<div class="empty">아직 출력한 라벨이 없습니다.</div>'; if($('logCount'))$('logCount').textContent=''; return;}
   const rows=logFiltered();
-  if($('logCount')) $('logCount').textContent=(rows.length===visN)?`전체 ${visN}건`:`검색 결과 ${rows.length}건 / 전체 ${visN}건`;
+  if($('logCount')) $('logCount').textContent=(rows.length===log.length)?`전체 ${log.length}건`:`검색 결과 ${rows.length}건 / 전체 ${log.length}건`;
   if(!rows.length){$('logWrap').innerHTML='<div class="empty">조건에 맞는 출력 이력이 없습니다.</div>';return;}
   $('logWrap').innerHTML=`<table class="log"><tr><th>시각</th><th>품목코드</th><th>품목명</th><th>라벨명</th><th>출력 수량</th><th>출력일자</th><th>실제 제조일</th><th>재고생성일</th><th>LOT 번호</th><th>시리얼(ND)</th><th>라벨</th></tr>${rows.map(({e,i})=>`<tr><td>${escapeHtml(e.time||'')}</td><td>${escapeHtml(e.code||'')}</td><td>${escapeHtml(e.product||'')}</td><td>${escapeHtml(e.labelName||'')}</td><td>${escapeHtml(String(e.count||1))}장</td><td>${escapeHtml(logDateKey(e)||'')}</td><td>${escapeHtml(e.mfgDate||'')}</td><td>${escapeHtml(e.stockDate||'')}</td><td>${escapeHtml(logLotText(e))}</td><td>${escapeHtml(logSerialText(e))}</td><td>${e.snapKey?`<button class="btn btn-ghost auto" data-log-snap="${i}" style="padding:3px 8px;font-size:11px;">라벨 보기</button>`:'<span style="color:var(--sub);">-</span>'}</td></tr>`).join('')}</table>`;
   $('logWrap').querySelectorAll('[data-log-snap]').forEach(b=>b.addEventListener('click',()=>showPrintSnapshot(log[+b.dataset.logSnap])));
@@ -4148,11 +3967,10 @@ $('genBatch').addEventListener('click',async()=>{
   const p=resolveOrderProduct(o),worker=$('workerName').value||'',labelCode=selectedLabelTypeBatch;if(!p){flash('현재 제품마스터에서 작업지시 품목을 찾지 못했습니다',true);return;}
   const ruleId=labelEffectiveLotRule(p,labelCode,selectedVariantBatch);
   if(productUsesManualInput3(p,ruleId) && !String(o.customLot||'').trim() && !validManualInput3(String(o.manualLotInput||''))){
-    const v=String(prompt('이 라벨은 LOT 마지막 3자리가 필요합니다. 영문/숫자 3자리를 입력하세요.\n(마지막으로 사용한 값이 자동으로 채워져 있습니다. 수정할 수 있습니다.)',lastInput3Of(p.code))||'').trim().toUpperCase();
+    const v=String(prompt('이 라벨은 LOT 마지막 3자리가 필요합니다. 영문/숫자 3자리를 입력하세요.','')||'').trim().toUpperCase();
     if(!validManualInput3(v)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력해야 합니다.',true);return;}
     o.manualLotInput=v; await saveWorkOrders(); refreshActiveOrderPanel();
   }
-  if(productUsesManualInput3(p,ruleId) && validManualInput3(String(o.manualLotInput||''))) rememberInput3(p.code,o.manualLotInput);
   generated=[];
   // v4.15.1: 일괄 출력 순서를 체크박스로 선택.
   // 기본값은 1 → N, 역순 체크 시 N → 1.
@@ -4192,11 +4010,10 @@ $('genLive').addEventListener('click',async()=>{
   const p=resolveOrderProduct(o),n=liveDrumCounter,labelCode=selectedLabelTypeLive;if(!p){flash('현재 제품마스터에서 작업지시 품목을 찾지 못했습니다',true);return;}
   const ruleId=labelEffectiveLotRule(p,labelCode,selectedVariantLive);
   if(productUsesManualInput3(p,ruleId) && !String(o.customLot||'').trim() && !validManualInput3(String(o.manualLotInput||''))){
-    const v=String(prompt('이 라벨은 LOT 마지막 3자리가 필요합니다. 영문/숫자 3자리를 입력하세요.\n(마지막으로 사용한 값이 자동으로 채워져 있습니다. 수정할 수 있습니다.)',lastInput3Of(p.code))||'').trim().toUpperCase();
+    const v=String(prompt('이 라벨은 LOT 마지막 3자리가 필요합니다. 영문/숫자 3자리를 입력하세요.','')||'').trim().toUpperCase();
     if(!validManualInput3(v)){flash('LOT 마지막 3자리를 영문/숫자 3자리로 입력해야 합니다.',true);return;}
     o.manualLotInput=v; await saveWorkOrders(); refreshActiveOrderPanel();
   }
-  if(productUsesManualInput3(p,ruleId) && validManualInput3(String(o.manualLotInput||''))) rememberInput3(p.code,o.manualLotInput);
   const info=computeLotInfo(o,n+lotDrumOffset(o),ruleId,labelCode);
   const ctx=contextForSelectedLabel(p,info,n+lotDrumOffset(o),w,o.volume,labelCode,selectedVariantLive);
   const parts=singlePartForType(p,ctx,labelCode,selectedVariantLive);
@@ -5364,6 +5181,19 @@ async function dupCheck(items){
   });
   return r;
 }
+// 이번 출력의 드럼번호들이 겹치지 않는 가장 가까운 '연번 보정' 값을 찾는다.
+function norooSuggestOffset(items,r){
+  const drums=(items||[]).map(it=>Number(it.drumNo)||0).filter(Boolean);
+  if(!drums.length) return null;
+  const base=NOROO.seqOffset;
+  try{
+    for(let d=1; d<=5000; d++){
+      NOROO.seqOffset=base+d;
+      if(drums.every(n=>{ const sn=norooStockInfo(n).serial; return !r.reg.serials[sn] && !r.logSer.has(sn); })) return base+d;
+    }
+  }finally{ NOROO.seqOffset=base; }
+  return null;
+}
 const dupList=(a,n=5)=>a.slice(0,n).join(', ')+(a.length>n?` 외 ${a.length-n}건`:'');
 // true = 출력 진행, false = 중단
 async function dupGuard(items,opts){
@@ -5378,6 +5208,17 @@ async function dupGuard(items,opts){
   if(r.usedLot.length) msgs.push(`· 같은 품목·LOT·드럼번호로 이미 출력된 라벨 ${r.usedLot.length}건\n   ${dupList(r.usedLot.map(x=>`${x.lot} #${x.drum}`))}`);
   if(!msgs.length) return true;
   if(confirm(`⚠ 중복 출력 경고\n\n${msgs.join('\n')}\n\n재출력(프린터 오류 등)이 확실할 때만 [확인]을 누르세요.\n[취소]하면 출력하지 않습니다.`)) return true;
+  if(r.usedSerial.length){
+    const sug=norooSuggestOffset(items,r);
+    if(sug!==null && confirm(`연번 보정을 +${sug}(으)로 바꾸면 시리얼이 겹치지 않습니다.\n지금 적용할까요? (적용 후 라벨을 다시 생성해야 합니다)`)){
+      NOROO.seqOffset=sug;
+      if($('norooSeqOffset')) $('norooSeqOffset').value=sug;
+      try{ storeSet(NOROO_KEY,JSON.stringify({serialPattern:NOROO.serialPattern,seqOffset:NOROO.seqOffset})); }catch(e){}
+      try{ norooUpdatePreview(); }catch(e){}
+      try{ autoPreviewOrder(); }catch(e){}
+      flash(`연번 보정 +${sug} 적용 · 라벨을 다시 생성하세요`);
+    }
+  }
   return false;
 }
 async function dupRegister(items){
@@ -5396,69 +5237,12 @@ async function dupRegister(items){
   await storeSet(DUP_KEY,JSON.stringify(reg));
 }
 
-/* v4.22 · 출력 이력 조회 (출력일 ↔ 로트번호 ↔ ND번호 1:1 매칭) */
-async function phRows(){
-  const rows=[], seen=new Set();
-  (log||[]).forEach(e=>{
-    if(!logInMode(e)) return;
-    const lots=(e.lots&&e.lots.length?e.lots:e._lots)||[], sers=e.serials||[];
-    const date=logDateKey(e)||e.printDate||'';
-    const n=Math.max(lots.length,sers.length);
-    for(let i=0;i<n;i++){
-      const lot=String(lots[i]||''), sn=String(sers[i]||'');
-      if(!lot&&!sn) continue;
-      rows.push({date,lot,sn,prod:e.product||e.code||'',ts:e.ts||''}); seen.add(sn+'|'+lot);
-    }
-  });
-  if(NOROO.on) try{   // 중복 방지 기록(시리얼은 출고 라벨에서만 생성)에만 남아 있는 건도 합친다
-    const reg=await dupLoad();
-    Object.keys(reg.serials||{}).forEach(sn=>{
-      const v=reg.serials[sn]||[], lot=String(v[2]||'');
-      if(seen.has(sn+'|'+lot)) return;
-      const d=new Date(v[0]), pad=n=>String(n).padStart(2,'0');
-      rows.push({date:isNaN(d)?'':`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,lot,sn,prod:v[1]||'',ts:isNaN(d)?'':d.toISOString()});
-    });
-  }catch(e){}
-  rows.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.ts||'').localeCompare(a.ts||'') || (b.sn||'').localeCompare(a.sn||''));
-  return rows;
-}
-let _phLast=[];
-async function phRender(){
-  const body=$('phBody'); if(!body) return;
-  const date=$('phDate')?.value||'', q=String($('phQuery')?.value||'').trim().toUpperCase();
-  const all=await phRows();
-  const cnt=new Map(); all.forEach(r=>{ if(r.sn) cnt.set(r.sn,(cnt.get(r.sn)||0)+1); });
-  const f=all.filter(r=>(!date||r.date===date) && (!q || r.lot.toUpperCase().includes(q) || r.sn.toUpperCase().includes(q)));
-  _phLast=f;
-  const LIMIT=300, show=f.slice(0,LIMIT);
-  body.innerHTML=show.length?show.map(r=>{
-    const dup=r.sn&&cnt.get(r.sn)>1;
-    return `<tr style="border-top:1px solid #e6ecf4;"><td style="padding:5px 8px;white-space:nowrap;">${escapeHtml(r.date||'')}</td><td style="padding:5px 8px;font-weight:700;color:#16345c;" title="${escapeHtml(r.prod)}">${escapeHtml(r.lot)}</td><td style="padding:5px 8px;font-weight:700;${dup?'color:#b42318;':''}">${escapeHtml(r.sn||'—')}${dup?' <span style="font-size:11px;background:#fde8e8;border-radius:4px;padding:1px 5px;">중복</span>':''}</td></tr>`;
-  }).join(''):'<tr><td colspan="3" style="padding:10px;color:#8a97a8;">조건에 맞는 출력 이력이 없습니다.</td></tr>';
-  const dupN=new Set(f.filter(r=>r.sn&&cnt.get(r.sn)>1).map(r=>r.sn)).size;
-  if($('phSummary')) $('phSummary').textContent=`총 ${f.length}건${f.length>LIMIT?` (최근 ${LIMIT}건만 표시 · CSV 저장은 전체)`:''}${dupN?` · 중복 ND번호 ${dupN}개`:''}`;
-}
-$('phDate')?.addEventListener('change',phRender);
-$('phQuery')?.addEventListener('input',phRender);
-$('phReset')?.addEventListener('click',()=>{ if($('phDate')) $('phDate').value=''; if($('phQuery')) $('phQuery').value=''; phRender(); });
-$('phCsv')?.addEventListener('click',async()=>{
-  await phRender();
-  const q=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
-  const lines=[['출력일','로트번호','ND번호','품목'].map(q).join(',')];
-  _phLast.forEach(r=>lines.push([r.date,r.lot,r.sn,r.prod].map(q).join(',')));
-  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`출력이력_${todayISO()}.csv`;
-  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
-});
-setTimeout(()=>{ try{ phRender(); }catch(e){} },1500);
-
 // 출력 이력 저장 실패가 "출력 실패"로 오인되어 재출력/브라우저 인쇄 폴백(중복 출력)을 일으키지 않도록 분리한다.
 async function safeRecordHistory(items,opts){
   try{ await recordPrintHistory(items); }
   catch(e){ console.warn('print history failed',e); try{ flash('출력은 완료됐지만 출력 이력 저장에 실패했습니다',true); }catch(_){} }
   if(!(opts&&opts.noDup)){ try{ await dupRegister(items); }catch(e){ console.warn('dup register failed',e); try{ flash('중복 방지 기록 저장에 실패했습니다 (다음 출력 시 중복 검사가 누락될 수 있음)',true); }catch(_){} } }
   try{ await norooStampOrder(); }catch(e){}
-  try{ await phRender(); }catch(e){}
 }
 async function handleZplFailure(e,items,opts){
   console.error(e);
@@ -5477,7 +5261,6 @@ async function smartPrint(items,opts){
   finally{ _printBusy=false; }
 }
 async function _smartPrintInner(items,opts){
-  if(!opts.noDup){ try{ refreshMonthsOnItems(items,currentOrderProduct()); }catch(e){} }   // 출력 직전 개월 수를 입력값으로 맞춤
   if(NOROO.on){
     const cur=[NOROO.stockDate,NOROO.serialPattern,NOROO.seqOffset].join('|');
     const stale=items.some(it=>{ const c=(it.parts&&it.parts[0]&&it.parts[0].ctx)||it.ctx||{}; return c._stockKey!==undefined && c._stockKey!==cur; });
@@ -5670,38 +5453,6 @@ function plApplyOverrides(recs){
   return recs;
 }
 function plFilterMachine(recs,m){ return !m?recs:recs.filter(r=>m==='__none'?!r.mc:r.mc===m); }
-/* v4.24 · 프레스일지 엑셀 열 너비
- * 기존: 기본값은 px÷5.2(입력칸 ÷3.8)인데, 화면에서 열 너비를 한 번이라도 조절하면 px÷7 로 계산해
- *       열(특히 입력칸 6개)이 갑자기 좁아졌다. 시트 전체 폭도 A4 가로 한 페이지보다 훨씬 좁아 작게 인쇄됐다.
- * 변경: ① 내용(한글=2칸)이 잘리지 않는 최소 너비 계산 ② 화면에서 조절한 비율이 있으면 그 비율을 따름
- *       ③ 합계가 A4 가로(좁은 여백) 한 페이지 폭에 해당하는 값(≈146)을 채우도록 비율대로 확대 */
-function plDispLen(v){ let n=0; for(const ch of String(v==null?'':v)){ n+=ch.charCodeAt(0)>0x2e80?2:1.1; } return n; }
-function plXlsxWidths(EXC,rowsModel){
-  const n=EXC.length, TARGET=146, MAXSCALE=1.9;
-  const need=Array(n+7).fill(0);
-  EXC.forEach((c,k)=>{ need[k]=plDispLen(plDef(c).l)*1.15; });
-  rowsModel.forEach(m=>{
-    if(m.t!=='item') return;
-    (m.info||[]).forEach((v,k)=>{ need[k]=Math.max(need[k],plDispLen(v)*1.1); });
-    (m.cells||[]).forEach((v,i)=>{ const k=n+(i%6); need[k]=Math.max(need[k],plDispLen(v)); });
-    let t=0; try{ t=plSum(m.cells); }catch(e){}
-    need[n+6]=Math.max(need[n+6],plDispLen(String(t))*1.15);
-  });
-  const inW=Math.max(12,Math.ceil(Math.max(...need.slice(n,n+6))+2));   // 입력칸 6개: 이전 기본(≈12자)보다 좁아지지 않게
-  const minW=need.map((v,k)=> k<n ? Math.min(42,Math.max(8,Math.ceil(v+2))) : (k<n+6 ? inW : Math.min(20,Math.max(12,Math.ceil(v+2)))) );
-  let w;
-  if(plHasColW()){   // 화면에서 조절한 비율 그대로
-    const wt=[...EXC.map(c=>plColPx(c)),...Array(6).fill(plColPx('wr')),plColPx('sm')], sum=wt.reduce((a,v)=>a+v,0)||1;
-    w=wt.map(v=>v*TARGET/sum);
-    w=w.map((v,k)=>Math.max(v,minW[k]));                       // 내용이 잘리지 않게 최소 너비 보장
-    const inMax=Math.max(...w.slice(n,n+6)); for(let k=n;k<n+6;k++) w[k]=inMax;   // 입력칸 6개는 같은 너비
-  }else{
-    w=minW.slice();
-  }
-  const tot=w.reduce((a,v)=>a+v,0);
-  if(tot<TARGET){ const f=Math.min(MAXSCALE,TARGET/tot); w=w.map(v=>v*f); }   // 한 페이지 폭을 채우도록 확대
-  return w.map(v=>Math.min(70,Math.round(v*10)/10));
-}
 async function exportPressLogXlsx(from,to,machine='',shift=''){
   const recs=buildPressLogRecords(from,to);
   if(!recs.length){flash('선택한 작업지시일에 해당하는 프레스일지 데이터가 없습니다',true);return false;}
@@ -5713,11 +5464,12 @@ async function exportPressLogXlsx(from,to,machine='',shift=''){
   const rowsModel=buildPressLogSheetRows(pressLogBlocks(recsF),EXC), name=`프레스일지${exportFileSuffix(from,to)}${shift?'_'+shift:''}${machine&&machine!=='__none'?'_'+machine:''}.xlsx`;
   const sumRows=plSummaryRows(recsF), sumTot=sumRows.reduce((a,e)=>a+e.b,0);
   const cellVal=v=>{ const t=String(v??'').trim(); return (t!==''&&/^-?\d+(\.\d+)?$/.test(t))?Number(t):t; };
-  // 열 너비: 내용에 맞추고, 화면에서 조절한 비율을 따르며, A4 가로 한 페이지 폭을 채운다
-  const widths=plXlsxWidths(EXC,rowsModel);
+  // 열 너비: 화면에서 조절한 너비(있으면)를 따르고, 없으면 기본 너비
+  const wch=(k,defPx,div)=>{ const v=Number(plColW[k]); return Math.max(6,Math.round((v>0?v:defPx)/(v>0?7:div))); };
+  const widths=[...EXC.map(c=>wch(c,plDef(c).px,5.2)),...Array(6).fill(wch('wr',46,3.8)),wch('sm',84,6)];
   try{
     if(window.ExcelJS){
-      const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('프레스일지',{pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,margins:{left:0.25,right:0.25,top:0.5,bottom:0.5,header:0.3,footer:0.3}},views:[{state:'normal',zoomScale:100}]});
+      const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('프레스일지',{pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
       ws.columns=widths.map(w=>({width:w}));
       const line={style:'thin',color:{argb:'FF8A94A3'}}, box={top:line,left:line,bottom:line,right:line};
       const fill=argb=>({type:'pattern',pattern:'solid',fgColor:{argb}});
@@ -5779,7 +5531,7 @@ async function exportPressLogXlsx(from,to,machine='',shift=''){
       aoa.push([]); aoa.push([`▣ 요약 · ${[from===to?from:`${from}~${to}`,shift||'주·야 전체',machine?(machine==='__none'?'미지정':machine):'설비 전체'].join(' · ')}`]);
       aoa.push(['품목코드','약어명','색상','배치수']); sumRows.forEach(e=>aoa.push([e.code,e.short,e.color,e.b])); aoa.push(['합계','','',sumTot]);
       const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:false});
-      ws['!merges']=merges; ws['!cols']=widths.map(w=>({wch:w})); ws['!margins']={left:0.25,right:0.25,top:0.5,bottom:0.5,header:0.3,footer:0.3};
+      ws['!merges']=merges; ws['!cols']=widths.map(w=>({wch:w}));
       // 정보 칸은 텍스트 고정(1-2가 날짜로 바뀌지 않게)
       Object.keys(ws).forEach(k=>{ const m=/^([A-Z]+)\d+$/.exec(k); if(k[0]!=='!'&&m&&m[1].length===1&&m[1].charCodeAt(0)-65<n&&ws[k].t==='n'){ ws[k].t='s'; ws[k].v=String(ws[k].v); } });
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'프레스일지'); XLSX.writeFile(wb,name);
@@ -5890,7 +5642,7 @@ document.querySelectorAll('#homeView [data-go]').forEach(card=>card.addEventList
   else if(go==='products') $('tabProductMaster').click();
   else if(go==='lot') $('tabLotRules').click();
   else if(go==='history'){ $('tabBatch').click(); setTimeout(()=>{ if($('printHistoryPanel'))$('printHistoryPanel').style.display='block'; $('printHistoryPanel')?.scrollIntoView({behavior:'smooth',block:'start'}); },120); }
-  else if(go==='printer'){ $('tabBatch').click(); try{ phRender(); }catch(e){} setTimeout(()=>$('printerSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
+  else if(go==='printer'){ $('tabBatch').click(); setTimeout(()=>$('printerSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),120); }
 }));
 function showOp(){clearPopViews();$('opView').style.display='block';$('editorView').style.display='none';if($('productMasterView'))$('productMasterView').style.display='none';if($('lotRuleView'))$('lotRuleView').style.display='none';if($('expRuleView'))$('expRuleView').style.display='none';if($('mfgRuleView'))$('mfgRuleView').style.display='none';if($('varRuleView'))$('varRuleView').style.display='none';if($('freePrintView'))$('freePrintView').style.display='none';document.body.classList.remove('editing');if($('tabProductMaster'))$('tabProductMaster').classList.remove('active');if($('tabLotRules'))$('tabLotRules').classList.remove('active');if($('tabExpRules'))$('tabExpRules').classList.remove('active');if($('tabFreePrint'))$('tabFreePrint').classList.remove('active');}
 async function autoSaveLabelWorkBeforeLeaving(){
@@ -6185,14 +5937,10 @@ const FIELD_VARIABLES = [
   ['mfgYYdotMMdotDD','제조일자 YY.MM.DD'],
   ['mfgMMMYYYY','제조일자 MMM. YYYY'],
   ['mfgYYYYdotMM','제조일자 YYYY.MM'],
-  ['shelfMonths','개월 수 (숫자만, 예: 3)'],
-  ['shelfMonthsText','개월 수 + 개월 (예: 3개월)'],
-  ['shelfMonthsLine','제조일로부터 N개월 (예: 제조일로부터 3개월)'],
-  ['shelfMonthsLineBr','[제조일로부터 N개월] (대괄호 포함)'],
   ['stockDate','재고 생성일 (YYYY-MM-DD)'],
   ['stockYYMMDD','재고 생성일 YYMMDD'],
   ['stockYYYYMMDD','재고 생성일 YYYYMMDD'],
-  ['serialNo','시리얼넘버 (출고 라벨 프린트 패턴)'],
+  ['serialNo','시리얼넘버 (노루알엔씨 라벨 패턴)'],
   ['serialSeq','시리얼 연번 (2자리)'],
   ['usebyLineKr','USE BY(국문)'],
   ['usebyLineEn','USE BY(영문)'],
@@ -7101,7 +6849,7 @@ function collectBindKeysForLayout(key){
   });
   return [...set];
 }
-const FP_BIND_LABELS={name:'품명',shortName:'라벨 약어',fullName:'ECOUNT 품목명',code:'품목코드',color:'색상',type:'타입/성상',lot:'LOT',lotRaw:'LOT(원본)',exp:'사용기한(EXP)',expireDate:'사용기한(EXP)',useby:'사용기한(EXP)',weight:'중량 표시',proddate:'생산일자',mfgDate:'제조일자(규칙 적용)',mfgLine:'제조일자(문구 포함)',stockDate:'재고 생성일',shelfMonths:'개월 수',shelfMonthsText:'개월 수(N개월)',shelfMonthsLine:'제조일로부터 N개월',shelfMonthsLineBr:'[제조일로부터 N개월]',serialNo:'시리얼넘버',drumNo:'드럼 번호',barcode:'바코드 값',barcodeText:'바코드 숫자',barcodeType:'바코드 종류'};
+const FP_BIND_LABELS={name:'품명',shortName:'라벨 약어',fullName:'ECOUNT 품목명',code:'품목코드',color:'색상',type:'타입/성상',lot:'LOT',lotRaw:'LOT(원본)',exp:'사용기한(EXP)',expireDate:'사용기한(EXP)',useby:'사용기한(EXP)',weight:'중량 표시',proddate:'생산일자',mfgDate:'제조일자(규칙 적용)',mfgLine:'제조일자(문구 포함)',stockDate:'재고 생성일',serialNo:'시리얼넘버',drumNo:'드럼 번호',barcode:'바코드 값',barcodeText:'바코드 숫자',barcodeType:'바코드 종류'};
 let fpKey='',fpLabelCode='',fpCtx={};
 function populateFreePrintLabelSelect(){
   const sel=$('fpLabelSelect'); if(!sel) return;
@@ -8826,7 +8574,7 @@ if($('pmLabelPickerAll')) $('pmLabelPickerAll').addEventListener('click',()=>{
 if($('pmLabelPickerClear')) $('pmLabelPickerClear').addEventListener('click',()=>{PM_FORM_LABEL_CODES.clear();renderPmLabelChecklist();});
 
 if($('product')) $('product').addEventListener('change',updateManualLotInputVisibility);
-if($('manualLotInput')) $('manualLotInput').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3); e.target.dataset.auto='';});
+if($('manualLotInput')) $('manualLotInput').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);});
 
 
 if($('savePrinterSettingsBtn')) $('savePrinterSettingsBtn').addEventListener('click',savePrinterSettings);
@@ -8849,7 +8597,7 @@ if($('zebraTestBtn')) $('zebraTestBtn').addEventListener('click',async()=>{
 const HOME_MENUS=[
   {key:'batch',   label:'일괄 출력',   desc:'작업지시 기반 출력', workerDefault:true},
   {key:'live',    label:'실시간 출력', desc:'현장 즉시 출력',     workerDefault:true},
-  {key:'noroo',   label:'출고 라벨 프린트', desc:'재고일 · 시리얼 라벨', workerDefault:true},
+  {key:'noroo',   label:'노루알엔씨 라벨', desc:'재고일 · 시리얼 라벨', workerDefault:true},
   {key:'presslog',label:'프레스일지',  desc:'날짜별 LOT · xlsx',  workerDefault:true},
   {key:'history', label:'출력 이력',   desc:'품목 · 라벨 · LOT',  workerDefault:false},
   {key:'editor',  label:'라벨 마스터', desc:'라벨 서식 편집',     adminOnly:true},
@@ -9021,7 +8769,7 @@ async function renderPressLogView(){
     const EC=plEffCols();
     const tot=EC.reduce((a,c)=>a+plDef(c).w,0)+42+11+9, pct=w=>(w*100/tot).toFixed(2)+'%';
     const custW=plHasColW(), widthsPx=plColKeys(EC).map(plColPx), totPx=widthsPx.reduce((a,v)=>a+v,0);
-    const colgroup=custW?widthsPx.map(w=>`<col style="width:${(w*100/totPx).toFixed(3)}%">`).join('')
+    const colgroup=custW?widthsPx.map(w=>`<col style="width:${w}px">`).join('')
       :EC.map(c=>`<col style="width:${pct(plDef(c).w)}">`).join('')+`<col style="width:${pct(7)}">`.repeat(6)+`<col style="width:${pct(11)}"><col style="width:${pct(9)}">`;
     const minPx=EC.reduce((a,c)=>a+plDef(c).px,0)+6*46+84+70;
     const hd=cls=>EC.map(c=>`<td class="${cls}">${plDef(c).l}${cls==='h1'?`<span class="plRz" data-rz="${c}" title="끌어서 열 너비 조절"></span>`:''}</td>`).join('');
@@ -9029,7 +8777,7 @@ async function renderPressLogView(){
     const bar=`<div class="plConfirm${cf?' done':''}" data-d="${bl.d}" data-s="${bl.s}">`+(cf
       ?`<span>🔒 ${escapeHtml(bl.s)} 일지 확정됨 · ${escapeHtml(cf.by||'')} · ${escapeHtml(cf.at||'')}</span>${isAdmin?'<button type="button" class="btn btn-ghost auto" data-plunconfirm="1">확정 취소</button>':''}`
       :`<span>${escapeHtml(bl.s)} 일지 작성이 끝나면 확정하세요. 확정하면 수정할 수 없습니다.</span><button type="button" class="btn btn-ok auto" data-plconfirm="1">✔ 확정</button>`)+`</div>`;
-    return `${bar}<div class="plScroll"><table class="plTable" data-d="${bl.d}" style="width:100%;min-width:0"><colgroup>${colgroup}</colgroup>
+    return `${bar}<div class="plScroll"><table class="plTable" data-d="${bl.d}" style="${custW?`width:${totPx}px;min-width:${totPx}px`:`min-width:${minPx}px`}"><colgroup>${colgroup}</colgroup>
       <tr>${hd('h1')}<td class="h1" colspan="6">${escapeHtml(bl.title)}<span class="plRz" data-rz="wr" title="끌어서 입력칸 너비 조절"></span></td><td class="h1">합계<span class="plRz" data-rz="sm" title="끌어서 열 너비 조절"></span></td><td class="h1">라벨 출력<span class="plRz" data-rz="lb" title="끌어서 열 너비 조절"></span></td></tr>
       <tr>${hd('h2')}<td class="h2" colspan="6">${escapeHtml(bl.s)} 작업지시</td><td class="h2"></td><td class="h2"></td></tr>${body}</table></div>${isAdmin?`<button type="button" class="plAddJob" data-pladdjob="1" data-d="${bl.d}" data-s="${bl.s}">＋ ${bl.s} 작업 추가</button>`:''}`;
   }).join('')+plSummaryHtml(recs,[plDate,effShift||'주·야 전체',plMachine?(plMachine==='__none'?'미지정':plMachine):'설비 전체'].join(' · '));
@@ -9967,12 +9715,11 @@ function plHasColW(){ return Object.keys(plColW).length>0; }
 function plColKeys(EC){ return [...EC,'wr','wr','wr','wr','wr','wr','sm','lb']; }
 function plColPx(k){ const v=Number(plColW[k]); if(v>0) return v; if(PL_FIXED_PX[k]) return PL_FIXED_PX[k]; const d=plDef(k); return d?d.px:62; }
 function plApplyColW(){
-  // 저장된 열 너비는 '상대 비율'로만 쓰고, 표는 항상 화면 폭 100%를 채운다
-  const px=plColKeys(plEffCols()).map(plColPx), tot=px.reduce((a,v)=>a+v,0)||1;
+  const px=plColKeys(plEffCols()).map(plColPx), tot=px.reduce((a,v)=>a+v,0);
   document.querySelectorAll('#plBody table.plTable').forEach(t=>{
     const cg=t.querySelector('colgroup'); if(!cg) return;
-    [...cg.children].forEach((c,i)=>{ if(px[i]) c.style.width=(px[i]*100/tot).toFixed(3)+'%'; });
-    t.style.width='100%'; t.style.minWidth='0';
+    [...cg.children].forEach((c,i)=>{ if(px[i]) c.style.width=px[i]+'px'; });
+    t.style.width=tot+'px'; t.style.minWidth=tot+'px';
   });
 }
 let plRzState=null;
@@ -9989,19 +9736,13 @@ $('plBody')?.addEventListener('pointerdown',e=>{
     plColW.lb=Math.round(cells[EC.length+2].getBoundingClientRect().width);
     plApplyColW();
   }
-  { // 드래그 시작: 이 열(들)이 차지하는 현재 화면 너비와 나머지 열의 가중치 합을 기억
-    const EC2=plEffCols(), n=key==='wr'?6:1, ws=plColKeys(EC2).map(plColPx), tot=ws.reduce((a,v)=>a+v,0);
-    const W=table.getBoundingClientRect().width, w0=plColPx(key);
-    plRzState={key,x:e.clientX,n,W,other:tot-n*w0,span0:n*w0*W/tot,h};
-  }
+  plRzState={key,x:e.clientX,w:plColPx(key),div:key==='wr'?6:1,h};
   h.classList.add('on'); try{ h.setPointerCapture(e.pointerId); }catch(_){}
 });
 window.addEventListener('pointermove',e=>{
   if(!plRzState) return;
-  const st=plRzState;
-  const s=Math.min(Math.max(st.span0+(e.clientX-st.x),20*st.n),st.W-40);   // 이 열 너비(px): 최소 20px/칸, 나머지 열에 40px는 남김
-  const w=s*st.other/(st.n*(st.W-s));                                      // 화면에서 s px 가 되도록 하는 가중치
-  plColW[st.key]=Math.max(1,Math.round(w*100)/100); plApplyColW();
+  const w=Math.max(30,Math.round(plRzState.w+(e.clientX-plRzState.x)/plRzState.div));
+  plColW[plRzState.key]=w; plApplyColW();
 });
 window.addEventListener('pointerup',()=>{
   if(!plRzState) return;
@@ -10158,7 +9899,7 @@ async function initApp(){
   if(browserPrintSdkReady()) setTimeout(()=>discoverZebraPrinters(true),1200);
   else { const diag=browserPrintSdkDiagnostic(); setZebraStatus(diag.text+' · ZPL 직접 인쇄에는 Zebra Browser Print 프로그램도 실행되어 있어야 합니다.','warn'); }
 
-  await loadLayouts();await loadLotRules();await loadExpRules();await loadMfgRules();await loadNorooSettings();await loadLastInput3();await loadCustomVars();await loadVarLabelOverrides();refreshCustomVariableOptions();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
+  await loadLayouts();await loadLotRules();await loadExpRules();await loadMfgRules();await loadNorooSettings();await loadCustomVars();await loadVarLabelOverrides();refreshCustomVariableOptions();await loadCustomProducts();await loadFeatureFlags();await loadCustomLabelMaster();const bundled494Applied=await applyBundledExcelBaselineV494();await loadPrintHistory();await loadWorkOrders();rebuildProductCollections();refreshAllProductSelects();refreshPmLotRuleOptions();refreshPmExpRuleOptions();refreshLabelMasterLotRuleOptions();updateManualLotInputVisibility();renderOrderList();refreshActiveOrderPanel();renderLabelTypePickers();renderPreview();renderPmTable();renderPmLinks();renderLabelMasterList();renderLabelMasterSelect();renderLabelMasterProductLinks();renderEditorTabs();renderLog();renderLotRuleTable();resetLotRuleForm();renderExpRuleTable();resetExpRuleForm();applyFeatureFlags();if(bundled494Applied) flash('최신 Excel 기준 제품마스터를 v4.9.4에 반영했습니다');
   try{ await loadHomePerms(); }catch(e){}
   if(HAS_SHARED_STORAGE || window.KSA_DB_READY){
     setInterval(async()=>{
